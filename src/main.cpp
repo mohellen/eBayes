@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU General Public License.
 // If not, see <http://www.gnu.org/licenses/>.
 
-#include <config.h>
-#include <ForwardModel.hpp>
-#include <mpi/MPIObject.hpp>
-#include <model/NS.hpp>
-#include <surrogate/SGIDist.hpp>
-#include <mcmc/MHMCMC.hpp>
-#include <mcmc/PTMCMCDist.hpp>
-#include <tools/io.hpp>
-#include <tools/matrix.hpp>
-#include <sim/NSSim.hpp>
-#include <sim/NSSimDist.hpp>
-#include <sim/DomainDecomposer2D.hpp>
+#include "config.h"
+#include "ForwardModel.hpp"
+#include "mpi/MPIObject.hpp"
+#include "model/NS.hpp"
+#include "surrogate/SGIDist.hpp"
+#include "mcmc/MHMCMC.hpp"
+#include "mcmc/PTMCMCDist.hpp"
+#include "tools/io.hpp"
+#include "tools/matrix.hpp"
+#include "sim/NSSim.hpp"
+#include "sim/NSSimDist.hpp"
+#include "sim/DomainDecomposer2D.hpp"
 
 #include <mpi.h>
 #include <iostream>
