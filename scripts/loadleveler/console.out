@@ -1,0 +1,58 @@
+
+...Initializing grid...
+49 grid points to be added. Total # grid points will be 49
+
+Computing grid points...
+Rank 1Rank 2: computing grid points from 0 to 29: computing grid points from 30 to 48.
+.
+
+...Grid initialization successful...
+Max posterior = 0.016747, at [0.6, 0.8]
+
+REAL point test
+Full Model posterior:	3.07739e-05
+Initial sgi posterior:	0.00015406
+Initial sgi result quality:	0.210299
+
+...Refining grid...
+15 grid points to be added. Total # grid points will be 64
+
+Computing grid points...
+Rank 1: computing grid points from 49 to 63.
+
+...Grid refinement successful...
+Max posterior = 0.016747, at [0.6, 0.8]
+
+Rank 0: REAL point test
+Full Model posterior:	3.07739e-05
+1st refined sgi posterior:	6.8832e-05
+1st refined sgi result quality:	0.0741948
+
+...Refining grid...
+27 grid points to be added. Total # grid points will be 91
+
+Computing grid points...
+Rank 1: computing grid points from 64 to 90.
+
+...Grid refinement successful...
+Max posterior = 0.016747, at [0.6, 0.8]
+
+Rank 0: REAL point test
+Full Model posterior:	3.07739e-05
+2nd refined sgi posterior:	1.5123e-05
+2nd refined sgi result quality:	0.0509293
+
+...Refining grid...
+49 grid points to be added. Total # grid points will be 140
+
+Computing grid points...
+Rank 1: computing grid points from 121 to 139.
+Rank 2: computing grid points from 91 to 120.
+
+...Grid refinement successful...
+Max posterior = 0.0171782, at [0.675, 0.8]
+
+Rank 0: REAL point test
+Full Model posterior:	3.07739e-05
+3rd refined sgi posterior:	1.24282e-05
+3rd refined sgi result quality:	0.047004

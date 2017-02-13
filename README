@@ -1,0 +1,64 @@
+
+------------------
+Structure
+------------------ 
+- src/ : contains all source code
+- lib/ : contains 2 required libraries (SGpp and Eigen)
+- results/ : contains all input data
+- bin/ : contains all binaries and executables **
+- output/ : contains all output data (results) **
+
+
+** These directories will be created upon "make".
+
+
+------------------
+Compilation
+------------------ 
+
+1. SGpp library (Prerequisite):
+
+(1) To compile, simply use "make sgpp" (scons required).
+
+(2) Then export library path:
+export LD_LIBRARY_PATH=<basepath>/lib/SGpp/lib/sgpp:$LD_LIBRARY_PATH
+
+(3) NOTE: SGpp might need to be re-compiled on different types of nodes.
+
+
+2. this project:
+
+(1) To compile $: make
+
+(2) To clean up $: make clean
+
+
+------------------
+Execution
+------------------
+
+mpiexec -n 4 ./bin/run
+
+
+------------------------------------------------------------------------------------------
+MAC Interactive Mode
+------------------------------------------------------------------------------------------
+PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
+nvd          up   infinite      4   idle mac-nvd[01-04]
+ati          up   infinite      4   idle mac-ati[01-04]
+wsm          up   infinite      2   idle mac-wsm[01-02]
+snb          up   infinite     28   idle mac-snb[01-28]
+bdz          up   infinite     19   idle mac-bdz[01-19]
+
+NodeName=mac-nvd[01-04] Procs=32 Sockets=2 CoresPerSocket=8 ThreadsPerCore=2
+NodeName=mac-ati[01-04] Procs=32 Sockets=2 CoresPerSocket=8 ThreadsPerCore=2
+NodeName=mac-wsm[01-02] Procs=64 Sockets=4 CoresPerSocket=8 ThreadsPerCore=2
+NodeName=mac-snb[01-28] Procs=32 Sockets=2 CoresPerSocket=8 ThreadsPerCore=2
+NodeName=mac-bdz[01-19] Procs=64 Sockets=4 CoresPerSocket=16 ThreadsPerCore=1
+------------------------------------------------------------------------------------------
+For example, snb = 32 procs / node, then total MPI procs = # nodes * 32 procs/node
+
+$: salloc --partition=snb --nodes=4 --tasks-per-node=32
+$: mpiexec -n 128 bin/run
+$: exit
+

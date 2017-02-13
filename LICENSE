@@ -1,0 +1,128 @@
+BayeSIFSG - Bayesian Statistical Inference Framework with Sparse Grid
+Copyright (C) 2015-today Ao Mo-Hellenbrand
+
+All copyrights remain with the respective authors.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY 
+APPLICABLE LAW. EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM “AS IS” WITHOUT WARRANTY
+OF ANY KIND, EITHER  EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR 
+PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
+IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
+ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+
+IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILLANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING
+ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF
+THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS
+OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR
+THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
+PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+
+----------
+
+This program uses and ships with the source code of the following libraries:
+* Eigen v3.2.8
+* SG++ v1.1.0 "base" package
+
+For copyright details of these components, please see below.
+
+----------
+
+Eigen - C++ Template Library for Linear Algebra (v3.2.8)
+<http://eigen.tuxfamily.org/>
+
+Eigen is primarily MPL2 licensed. See COPYING.MPL2 and these links:
+  http://www.mozilla.org/MPL/2.0/
+  http://www.mozilla.org/MPL/2.0/FAQ.html
+
+Some files contain third-party code under BSD or LGPL licenses, whence the other
+COPYING.* files here.
+
+All the LGPL code is either LGPL 2.1-only, or LGPL 2.1-or-later.
+For this reason, the COPYING.LGPL file contains the LGPL 2.1 text.
+
+----------
+
+SG++ - Sparse Grid Toolbox (v1.1.0)
+<http://sgpp.sparsegrids.org/>
+
+NOTE: Only partial code---the "base" package---from SG++ is included in this program.
+
+The software SG++ is developed by The SG++ Project which is the
+owner of the software.
+
+According to good scientific practice, publications on results
+achieved in whole or in part due to SG++ have to cite at least one
+paper presenting the SG++ software.
+
+The owner wishes to make the software available to all users to use,
+reproduce, modify, distribute and redistribute also for commercial
+purposes under the following conditions of the original BSD
+license. Linking the SG++ module statically or dynamically with other
+modules is making a combined work based on SG++. Thus, the terms and
+conditions of this license cover the whole combination. As a special
+exception, the copyright holders of SG++ give you permission to link
+it with independent modules or to instantiate templates and macros
+from SG++'s source files to produce an executable, regardless of the
+license terms of these independent modules, and to copy and distribute
+the resulting executable under terms of your choice, provided that you
+also meet, for each linked independent module, the terms and
+conditions of this license of that module.
+
+Copyright (c) 2008-today The SG++ Project
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+ Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ All advertising materials mentioning features or use of this software must
+    display the following acknowledgement: "This product includes the software
+    SG++ developed 2008-today by The SG++ Project and its contributors."
+ Neither the name of The SG++ Project nor the names of its contributors
+    may be used to endorse or promote products derived from this software
+    without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+
+
+
+
+
