@@ -4,6 +4,12 @@
 dep/SGpp/.sconf_temp/
 dep/SGpp/.sconsign.dblite
 dep/SGpp/base/examples/JSONExample
+dep/SGpp/base/examples/JSONTest
+dep/SGpp/base/examples/platformConfigurationTest
+dep/SGpp/base/examples/predictive_refinement
+dep/SGpp/base/examples/quadrature
+dep/SGpp/base/examples/refinement
+dep/SGpp/base/examples/tutorial
 dep/SGpp/base/examples/dataMatrixSerializeDemo
 dep/SGpp/base/examples/datavectorSerializeDemo
 dep/SGpp/base/examples/detectPlatformConfiguration
