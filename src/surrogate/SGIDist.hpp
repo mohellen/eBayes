@@ -24,7 +24,7 @@
 #include <mpi/MPIObject.hpp>
 #include <model/NS.hpp>
 #include <tools/io.hpp>
-#include <SGpp/base/src/sgpp_base.hpp>
+#include <sgpp_base.hpp>
 
 #include <mpi.h>
 #include <vector>

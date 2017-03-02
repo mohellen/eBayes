@@ -4,9 +4,9 @@ CC = mpic++
 
 CFLAGS = -O3 -g -std=c++11 -fmessage-length=0 -Wno-unused-result -Wno-deprecated -pedantic -fopenmp
 
-INCLUDES = -Isrc/ -Iinclude/ -Idep/SGpp/base/src/
+INCLUDES = -Isrc/ -Iinclude/ -Idep/SGpp/base/src/ -I/media/data/nfs/install/include 
 
-LDFLAGS = -L/media/data/nfs/install/lib
+LDFLAGS = -L/media/data/nfs/install/lib -lmpi
 LDFLAGS += -Llib -lsgppbase
 
 SRC = src/main.cpp\
@@ -97,7 +97,7 @@ bin/DomainDecomposer2D.o : src/sim/DomainDecomposer2D.cpp src/sim/DomainDecompos
 sgpp:
 	mkdir -p lib; cd dep/SGpp/; scons -c; scons SG_ALL=0 SG_BASE=1 -j4; cd ../../
 
-sgppclean:
+sgpp-clean:
 	cd dep/SGpp; scons -c; cd ../../
 
 clean:
