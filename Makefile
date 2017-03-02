@@ -4,10 +4,10 @@ CC = mpic++
 
 CFLAGS = -O3 -g -std=c++11 -fmessage-length=0 -Wno-unused-result -Wno-deprecated -pedantic -fopenmp
 
-INCLUDES = -Isrc/ -Ilib/ -Ilib/SGpp/base/src/
+INCLUDES = -Isrc/ -Iinclude/ -Idep/SGpp/base/src/
 
-LDFLAGS = -L/home/emily/install/mpich-3.2/lib
-LDFLAGS += -Llib/SGpp/lib/sgpp -lsgppbase
+LDFLAGS = -L/media/data/nfs/install/lib
+LDFLAGS += -Llib -lsgppbase
 
 SRC = src/main.cpp\
 	  src/mpi/MPIObject.cpp\
@@ -95,7 +95,10 @@ bin/DomainDecomposer2D.o : src/sim/DomainDecomposer2D.cpp src/sim/DomainDecompos
 # Recompile SGpp library (needed for LRZ)
 # Compile only the SGpp/base library
 sgpp:
-	cd lib/SGpp/; scons -c; scons SG_ALL=0 SG_BASE=1 -j4; cd ../../
+	mkdir -p lib; cd dep/SGpp/; scons -c; scons SG_ALL=0 SG_BASE=1 -j4; cd ../../
+
+sgppclean:
+	cd dep/SGpp; scons -c; cd ../../
 
 clean:
 	rm -rf bin/* out/*
