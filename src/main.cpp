@@ -331,8 +331,8 @@ int main(int argc, char* argv[]) {
 	sigma = fm->compute_posterior_sigma();
 /****************************************/
 
-	test_sim();
-//	test_sgi_mpi();
+//	test_sim();
+	test_sgi_mpi();
 //	test_ptmcmcdist();
 //	test_mhmcmc();
 //	test_nssim();

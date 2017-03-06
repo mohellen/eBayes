@@ -4,10 +4,16 @@ CC = mpic++
 
 CFLAGS = -O3 -g -std=c++11 -fmessage-length=0 -Wno-unused-result -Wno-deprecated -pedantic -fopenmp
 
-INCLUDES = -Isrc/ -Iinclude/ -Idep/SGpp/base/src/ -I/media/data/nfs/install/include 
+INCLUDES = -Isrc/ -Iinclude/ -Idep/sgpp-base-2.0.0/base/src
+LDFLAGS = -lm -Llib -lsgppbase
 
-LDFLAGS = -L/media/data/nfs/install/lib -lmpi
-LDFLAGS += -Llib -lsgppbase
+## Use iMPI
+#INCLUDES += -I/media/data/nfs/install/include
+#LDFLAGS += -L/media/data/nfs/install/lib -lmpi -lmpicxx
+
+## Use MPI (MPICH 3.2)
+INCLUDES += -I/media/data/install/mpich-3.2/include
+LDFLAGS += -L/media/data/install/mpich-3.2/lib -lmpi -lmpicxx
 
 SRC = src/main.cpp\
 	  src/mpi/MPIObject.cpp\
@@ -56,7 +62,7 @@ all:
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 run : $(OBJ)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJ) -lm $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJ) $(LDFLAGS) 
 
 bin/main.o : src/main.cpp $(DEP)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ 
@@ -68,7 +74,7 @@ bin/NS.o : src/model/NS.cpp src/model/NS.hpp src/ForwardModel.hpp src/config.h
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 bin/SGIDist.o : src/surrogate/SGIDist.cpp src/surrogate/SGIDist.hpp src/ForwardModel.hpp src/config.h
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ 
 	
 bin/MHMCMC.o : src/mcmc/MHMCMC.cpp src/mcmc/MHMCMC.hpp src/ForwardModel.hpp src/config.h
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@

@@ -304,7 +304,7 @@ BoundingBox* SGIDist::create_boundingbox()
 void SGIDist::mpi_iow_grid()
 {
 	// Pack a grid
-	string sg_str = grid->getStorage().serialize();
+	string sg_str = grid->getStorage().serialize(1);
 	size_t count = sg_str.size();
 	unique_ptr<char[]> buff (new char[count]);
 	strcpy(buff.get(), sg_str.c_str());
