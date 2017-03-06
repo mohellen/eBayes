@@ -16,37 +16,42 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#include <model/NS.hpp>
-
-#define NS_DEBUG NO
+#include "model/NS.hpp"
 
 using namespace std;
 using namespace Eigen;
-
-// Necessary for static const arrays
-constexpr double NS::OBS_XMIN[];
-constexpr double NS::OBS_XMAX[];
-constexpr double NS::OBS_YMIN[];
-constexpr double NS::OBS_YMAX[];
-constexpr double NS::SAMPLING_TIMES[];
-constexpr double NS::SAMPLING_LOCATIONS_X[];
-constexpr double NS::SAMPLING_LOCATIONS_Y[];
-constexpr double NS::OBSERVED_DATA[];
 
 
 /************************************
  *  Public Methods
  ************************************/
 
-NS::NS(
-		const std::size_t num_cells_x,
-		const std::size_t num_cells_y)
+NS::NS(string input_file, int resx, int resy)
 		: FullModel()
 {
-	ncx = num_cells_x;
-	ncy = num_cells_y;
-	dx = DOMAIN_SIZE_X/double(num_cells_x);
-	dy = DOMAIN_SIZE_Y/double(num_cells_y);
+	ifstream infile(input_file);
+	string s;
+
+	while (std::getline(infile, s)) {
+		istringstream iss(s);
+		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+
+		// Ignore empty line
+		if (tokens.size() <= 0) continue;
+
+		// Ignore comment line
+		tokens[0] = trim(tokens[0]);
+		if (tokens[0].substr(0,2) == "//") continue;
+
+		// Find parameters
+		if (tokens[0] == "") {
+			continue;
+		}
+
+
+	}
+	infile.close();
+	return;
 }
 
 std::size_t NS::get_param_size()
@@ -880,5 +885,15 @@ void NS::write_vtk_header_coord(std::ofstream& fout)
 			fout << originX+(i*dx) << " "
 			     << originY+(j*dy) << " " << 0 << std::endl;
 	return;
+}
+
+static
+string NS::trim(const string& str, const string& whitespace)
+{
+	const auto strBegin = str.find_first_not_of(whitespace);
+	if (strBegin == std::string::npos) return "";
+	const auto strEnd = str.find_last_not_of(whitespace);
+	const auto strRange = strEnd - strBegin + 1;
+	return str.substr(strBegin, strRange);
 }
 

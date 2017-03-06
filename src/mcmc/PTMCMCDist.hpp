@@ -20,7 +20,7 @@
 #define MCMC_PTMCMCDIST_HPP_
 
 #include <config.h>
-#include <ForwardModel.hpp>
+#include <model/ForwardModel.hpp>
 #include <mpi/MPIObject.hpp>
 #include <tools/io.hpp>
 

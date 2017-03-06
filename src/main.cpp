@@ -17,8 +17,8 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
+#include <model/ForwardModel.hpp>
 #include "config.h"
-#include "ForwardModel.hpp"
 #include "mpi/MPIObject.hpp"
 #include "model/NS.hpp"
 #include "surrogate/SGIDist.hpp"

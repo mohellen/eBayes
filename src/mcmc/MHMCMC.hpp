@@ -20,7 +20,7 @@
 #define MCMC_MHMCMC_HPP_
 
 #include <config.h>
-#include <ForwardModel.hpp>
+#include <model/ForwardModel.hpp>
 #include <tools/io.hpp>
 
 #include <cmath>

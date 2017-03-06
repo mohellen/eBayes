@@ -20,7 +20,7 @@
 #define SURROGATE_SGIDIST_HPP_
 
 #include <config.h>
-#include <ForwardModel.hpp>
+#include <model/ForwardModel.hpp>
 #include <mpi/MPIObject.hpp>
 #include <model/NS.hpp>
 #include <tools/io.hpp>

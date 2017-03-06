@@ -19,117 +19,83 @@
 #ifndef MODEL_NS_HPP_
 #define MODEL_NS_HPP_
 
-#include <config.h>
-#include <ForwardModel.hpp>
-#include <Eigen/Sparse>
-#include <Eigen/Eigen>
+#include "config.h"
+#include "model/ForwardModel.hpp"
+#include "Eigen/Sparse"
+#include "Eigen/Eigen"
 
 #include <cstdio>
 #include <cmath>
 #include <utility>
-#include <iostream>
-#include <fstream>
-#include <string>
 #include <memory>
-
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <iterator>
+#include <algorithm>
+#include <vector>
 
 /* Class Definiation */
 class NS : public FullModel
 {
 private:
-	// Simulation Setup
-	static constexpr double DOMAIN_SIZE_X = 10.0;
-	static constexpr double DOMAIN_SIZE_Y = 2.0;
-	static constexpr double INITIAL_VELOCITY_X = 1.0;	/// Initial velocity in x-direction
-	static constexpr double INITIAL_VELOCITY_Y = 0.0;	/// Initial velocity in y-direction
-	static constexpr double INITIAL_PRESSURE = 0.0;		/// Initial pressure
-	static constexpr double INFLOW_VELOCITY_X = 1.0;	/// In-flow velocity in x-direction
-	static constexpr double INFLOW_VELOCITY_Y = 0.0;	/// In-flow velocity in y-direction
-	static constexpr double EXTERNAL_FORCE_X = 0.0;		/// External force in x-direction
-	static constexpr double EXTERNAL_FORCE_Y = 0.0;		/// External force in y-direction
-	static constexpr double RE = 100.0;		/// Reynolds number
-	static constexpr double TAU = 0.5;		/// Safety factor for time step size computation
-	static constexpr double ALPHA = 0.9;	/// Upwind differecing factor
-	static constexpr double OMEGA = 1.7;	/// Pressure SOR solver related
-
-	// Boundary values: 1 for inflow; 2 for outflow; 3 for no-slip; 4 for free-slip
-	static const std::size_t BOUNDARY_LEFT = 1;
-	static const std::size_t BOUNDARY_RIGHT = 2;
-	static const std::size_t BOUNDARY_TOP = 3;
-	static const std::size_t BOUNDARY_BOTTOM = 3;
-
-	// Domain setup
-	static const std::size_t NUM_OBS = NS_NUM_OBS;
-	static constexpr double OBS_XMIN[] = { 1.0, 3.0, 5.5, 8.2 };
-	static constexpr double OBS_XMAX[] = { 1.4, 3.4, 5.9, 8.6 };
-	static constexpr double OBS_YMIN[] = { 0.8, 1.5, 0.2, 1.0 };
-	static constexpr double OBS_YMAX[] = { 1.2, 1.9, 0.6, 1.4 };
-
-	// Bayesian Inference Setup
-	static constexpr std::size_t NUM_SAMPLING_TIMES = 4;
-	static constexpr std::size_t NUM_SAMPLING_LOCATIONS = 10;
-	static constexpr std::size_t PARAM_SIZE = NS_NUM_OBS * 2;
-	static constexpr std::size_t DATA_SIZE = NUM_SAMPLING_TIMES * NUM_SAMPLING_LOCATIONS;
-	static constexpr double NOISE_IN_DATA = 0.2;
-	static constexpr double SAMPLING_TIMES[] = { 2.5, 5.0, 7.5, 10.0 };
-	static constexpr double SAMPLING_LOCATIONS_X[] = {
-			1.5, 3.1, 4.7, 6.3, 7.9, 1.5, 3.1, 4.7, 6.3, 7.9 };
-	static constexpr double SAMPLING_LOCATIONS_Y[] = {
-			0.6, 0.6, 0.6, 0.6, 0.6, 1.3, 1.3, 1.3, 1.3, 1.3 };
-
-#if (NS_NUM_OBS == 1)
-	static constexpr double OBSERVED_DATA[] = {
-			1.550702, 1.381798, 1.169803, 1.284388, 1.212167, 0.937018, 1.208724, 1.232352, 1.200904, 1.122890,
-			1.485995, 1.400837, 1.450246, 1.272755, 1.335284, 0.893536, 1.216029, 1.345854, 1.356359, 1.350194,
-			1.575831, 1.355027, 1.447311, 1.317794, 1.345888, 0.844182, 1.316034, 1.246116, 1.341811, 1.214408,
-			1.603132, 1.338208, 1.353566, 1.207331, 1.384773, 0.871862, 1.263172, 1.183300, 1.317644, 1.296239
+	struct Obstacle {
+		double locx;
+		double locy;
+		double sizex;
+		double sizey;
 	};
-#elif (NS_NUM_OBS == 2)
-	static constexpr double OBSERVED_DATA[] = {
-			1.439478, 1.427827, 1.677685, 1.137933, 1.087015, 0.941399, 1.685526, 1.436638, 1.121427, 1.270909,
-			1.509609, 1.405698, 1.553082, 1.371944, 1.306100, 1.065633, 1.766364, 1.148386, 1.349967, 1.350273,
-			1.448787, 1.455805, 1.615799, 1.619908, 1.255048, 0.932650, 1.617136, 1.087480, 1.287901, 1.398660,
-			1.622786, 1.518387, 1.651682, 1.579377, 1.259158, 1.050172, 1.730922, 1.016449, 1.348416, 1.333852
-	};
-#elif (NS_NUM_OBS == 3)
-	static constexpr double OBSERVED_DATA[] = {
-			1.452448, 1.462823, 1.488205, 1.308171, 1.251706, 1.058352, 1.590764, 1.322284, 1.218652, 0.835348,
-			1.590159, 1.435235, 1.756499, 1.458708, 1.368215, 0.994503, 1.715847, 1.206932, 1.352263, 0.868761,
-			1.600331, 1.516845, 1.626249, 1.670804, 1.509140, 1.111133, 1.883070, 1.169152, 1.357879, 1.062469,
-			1.526908, 1.319665, 1.635458, 1.586238, 1.459840, 1.011157, 1.631830, 1.037050, 1.188381, 0.983786
-	};
-#elif (NS_NUM_OBS == 4)
-	static constexpr double OBSERVED_DATA[] = {
-			1.434041, 1.375464, 1.402000, 0.234050, 1.387931, 1.006520, 1.850871, 1.545131, 1.563303, 0.973778,
-			1.512808, 1.387468, 1.608557, 0.141381, 1.313631, 0.990608, 1.741001, 1.551365, 1.789867, 1.170761,
-			1.597586, 1.509048, 1.549320, 0.135403, 1.191323, 1.015913, 1.682937, 1.592488, 1.743632, 1.296677,
-			1.535493, 1.341702, 1.541945, 0.137985, 1.272473, 1.041918, 1.824279, 1.690430, 1.810520, 1.358992
-	};
-#endif
 
-	//MASK VALUES [C E W N S]
-	static const int B_E  = 10111;
-	static const int B_W  = 11011;
-	static const int B_N  = 11101;
-	static const int B_S  = 11110;
-	static const int B_NE = 10101;
-	static const int B_SE = 10110;
-	static const int B_NW = 11001;
-	static const int B_SW = 11010;
-	static const int B_IN = 11111;
+	//MASK VALUES [CEWNS]
+	static const int FLUID = 0;
+	static const int B_E   = 10111;
+	static const int B_W   = 11011;
+	static const int B_N   = 11101;
+	static const int B_S   = 11110;
+	static const int B_NE  = 10101;
+	static const int B_SE  = 10110;
+	static const int B_NW  = 11001;
+	static const int B_SW  = 11010;
+	static const int B_IN  = 11111;
 
-	// Simulation variables
+    //Boundary types
+    static const int BOUNDARY_TYPE_INLET    = -10;
+    static const int BOUNDARY_TYPE_OUTLET   = -20;
+    static const int BOUNDARY_TYPE_NOSLIP   = -30;
+    static const int BOUNDARY_TYPE_FREESLIP = -40;
+
+    //Simulation variables (From input file)
+    double domain_size_x;		/// Domain size in x-direction
+    double domain_size_y;	  	/// Domain size in y-direction
+    double initial_velocity_x;	/// Initial velocity in x-direction
+    double initial_velocity_y;	/// Initial velocity in y-direction
+    double initial_pressure;	/// Initial pressure
+    double inlet_velocity_x;	/// Inlet velocity in x-direction
+    double inlet_velocity_y;	/// Inlet velocity in y-direction
+    double external_force_x;	/// External force in x-direction
+    double external_force_y;	/// External force in y-direction
+    double re;		/// Reynolds number
+    double tau;		/// Safety factor for time step size computation
+    double alpha;	/// Upwind differecing factor
+    double omega;	/// Pressure related
+    int boundary_north;	/// North boundary type
+    int boundary_south;	/// South boundary type
+	int boundary_east;	/// East boundary type
+    int boundary_west;	/// West boundary type
+    std::unique_ptr<Obstacle[]> obs;	/// List of obstacles inside domain
+
+    //Simulation domain resolution
 	std::size_t ncx;	/// Number of grid cells in x-direction
 	std::size_t ncy;	/// Number of grid cells in y-direction
-	double dx;
-	double dy;
+	double dx;			/// Grid cell size in x-direction
+	double dy;			/// Grid cell size in y-direction
 
 public:
 	/* DEFINE destructor (no ;)*/
 	~NS() {}
 
 	/* Declare constructor */
-	NS(const std::size_t num_cells_x, const std::size_t num_cells_y);
+	NS(std::string input_file, int resx, int resy);
 
 	/* Declare member functions */
 	void run(const double* m, double* d);
@@ -279,6 +245,10 @@ private:
 	 * Method for writing header information and coordinate points of a VTK file
 	 */
 	void write_vtk_header_coord(std::ofstream& fout);
+
+
+	static
+	std::string trim(const std::string& str, const std::string& whitespace=" /t");
 
 
 	/*****************************************

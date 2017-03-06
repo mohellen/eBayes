@@ -2,6 +2,8 @@
 #CC = mpiicc
 CC = mpic++
 
+BASEPATH = $(PWD)
+
 CFLAGS = -O3 -g -std=c++11 -fmessage-length=0 -Wno-unused-result -Wno-deprecated -pedantic -fopenmp
 
 INCLUDES = -Isrc/ -Iinclude/ -Idep/sgpp-base-2.0.0/base/src
@@ -101,7 +103,7 @@ bin/DomainDecomposer2D.o : src/sim/DomainDecomposer2D.cpp src/sim/DomainDecompos
 # Recompile SGpp library (needed for LRZ)
 # Compile only the SGpp/base library
 sgpp:
-	mkdir -p lib; cd dep/SGpp/; scons -c; scons SG_ALL=0 SG_BASE=1 -j4; cd ../../
+	mkdir -p $(BASEPATH)/lib; cd $(BASEPATH)/dep/sgpp-base-2.0.0; scons -c; scons BUILDDIR=$(BASEPATH)/lib -j4; cd $(BASEPATH)
 
 sgpp-clean:
 	cd dep/SGpp; scons -c; cd ../../
