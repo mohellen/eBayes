@@ -16,10 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef FORWARDMODEL_HPP_
-#define FORWARDMODEL_HPP_
+#ifndef MODEL_FORWARDMODEL_HPP_
+#define MODEL_FORWARDMODEL_HPP_
 
 #include <cstddef>
+#include <cmath>
 
 class ForwardModel
 {
@@ -30,43 +31,36 @@ public:
 	ForwardModel() {}
 
 	// Declare Pure Virtual method
-	virtual std::size_t get_param_size() = 0;
+	virtual std::size_t get_input_size() = 0;
 
-	virtual std::size_t get_data_size() = 0;
+	virtual std::size_t get_output_size() = 0;
 
-	virtual void get_param_space(
+	virtual void get_input_space(
 			int dim,
 			double& min,
 			double& max) = 0;
 
 	virtual void run(const double* m, double* d) = 0;
 
-	virtual double compute_posterior_sigma() = 0;
+	static
+	double compute_posterior_sigma(
+			const double* observed_data, 
+			std::size_t data_size, 
+			double noise_in_data);
 
-	virtual double compute_posterior(const double sigma, const double* d) = 0;
+	static
+	double compute_posterior(
+			const double* observed_data, 
+			const double* d,
+			std::size_t data_size,
+			double sigma);
+			
+	static
+	double compute_2norm(
+			const double* d1, 
+			const double* d2,
+			std::size_t data_size);
 
 }; //close class
 
-class FullModel : public ForwardModel
-{
-public:
-	virtual ~FullModel() {}
-
-	FullModel()
-		:ForwardModel()
-	{}
-};
-
-
-class SurrogateModel : public ForwardModel
-{
-public:
-	virtual ~SurrogateModel() {}
-
-	SurrogateModel()
-		:ForwardModel()
-	{}
-};
-
-
-#endif /* FORWARDMODEL_HPP_ */
+#endif /* MODEL_FORWARDMODEL_HPP_ */

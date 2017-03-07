@@ -16,31 +16,41 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#include "config.h"
 #include "model/ForwardModel.hpp"
-#include "model/NS.hpp"
-
-#include <mpi.h>
-#include <iostream>
-#include <cmath>
-#include <sys/time.h>
 
 using namespace std;
 
+double ForwardModel::compute_posterior_sigma(
+		const double* observed_data, 
+		std::size_t data_size, 
+		double noise_in_data)
+{
+	double mean = 0.0;
+	for (std::size_t j=0; j < data_size; j++)
+		mean += observed_data[j];
+	mean /= (double)data_size;
+	return noise_in_data * mean;
+}
 
-int main(int argc, char* argv[]) {
+double ForwardModel::compute_posterior(
+		const double* observed_data, 
+		const double* d,
+		std::size_t data_size,
+		double sigma)
+{
+	double sum = 0.0;
+	for (std::size_t j=0; j < data_size; j++)
+		sum += (d[j] - observed_data[j])*(d[j] - observed_data[j]);
+	return exp(-0.5 * sum / (sigma*sigma));
+}
 
-	NS* fm = new NS("./input/obstacles_in_flow.dat", 1, 1);
-
-	fm->print_info();
-
-	std::size_t input_size = fm->get_input_size();
-	std::size_t output_size = fm->get_output_size();
-
-
-
-	fm->sim();
-
-
-	return 0;
+double ForwardModel::compute_2norm(
+		const double* d1, 
+		const double* d2,
+		std::size_t data_size)
+{
+	double tmp = 0.0;
+	for (std::size_t j=0; j < data_size; j++)
+		tmp += (d1[j] - d2[j])*(d1[j] - d2[j]);
+	return sqrt(tmp);
 }

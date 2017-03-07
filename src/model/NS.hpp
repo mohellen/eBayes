@@ -36,7 +36,7 @@
 #include <vector>
 
 /* Class Definiation */
-class NS : public FullModel
+class NS : public ForwardModel
 {
 private:
 	struct Obstacle {
@@ -44,6 +44,10 @@ private:
 		double locy;
 		double sizex;
 		double sizey;
+
+		Obstacle(double lx, double ly, double sx, double sy):
+			locx(lx), locy(ly), sizex(sx), sizey(sy)
+		{}
 	};
 
 	//MASK VALUES [CEWNS]
@@ -74,15 +78,14 @@ private:
     double inlet_velocity_y;	/// Inlet velocity in y-direction
     double external_force_x;	/// External force in x-direction
     double external_force_y;	/// External force in y-direction
-    double re;		/// Reynolds number
-    double tau;		/// Safety factor for time step size computation
-    double alpha;	/// Upwind differecing factor
-    double omega;	/// Pressure related
+    double re;					/// Reynolds number
+    double tau;					/// Safety factor for time step size computation
+    double alpha;				/// Upwind differecing factor
+    double omega;				/// Pressure related
     int boundary_north;	/// North boundary type
     int boundary_south;	/// South boundary type
-	int boundary_east;	/// East boundary type
+    int boundary_east;	/// East boundary type
     int boundary_west;	/// West boundary type
-    std::unique_ptr<Obstacle[]> obs;	/// List of obstacles inside domain
 
     //Simulation domain resolution
 	std::size_t ncx;	/// Number of grid cells in x-direction
@@ -90,27 +93,37 @@ private:
 	double dx;			/// Grid cell size in x-direction
 	double dy;			/// Grid cell size in y-direction
 
+	//Inverse problem variables: y = f(x) (From input file)
+    std::vector<Obstacle> obs;		/// List of obstacles inside domain
+    std::vector<double> out_times;	/// List of output sampling time instances
+    std::vector< std::pair<double, double> > out_locs;	/// List of output sampling locations
+	std::size_t input_size;			/// size of input parameter x
+	std::size_t output_size;		/// size of output parameter y
+
+
 public:
 	/* DEFINE destructor (no ;)*/
-	~NS() {}
+	~NS();
 
 	/* Declare constructor */
 	NS(std::string input_file, int resx, int resy);
 
+	/* Run simulation with VTK output */
+	void sim();
+
 	/* Declare member functions */
 	void run(const double* m, double* d);
 
-	std::size_t get_param_size();
+	std::size_t get_input_size();
 
-	std::size_t get_data_size();
+	std::size_t get_output_size();
 
-	void get_param_space(int dim, double& min, double& max);
-
-	double compute_posterior_sigma();
-
-	double compute_posterior(const double sigma, const double* d);
+	void get_input_space(int dim, double& min, double& max);
 
 	void get_resolution(std::size_t& nx, std::size_t& ny);
+
+	/* Debug only */
+	void print_info();
 
 private:
 
@@ -246,9 +259,8 @@ private:
 	 */
 	void write_vtk_header_coord(std::ofstream& fout);
 
-
 	static
-	std::string trim(const std::string& str, const std::string& whitespace=" /t");
+	std::string trim(const std::string& str, const std::string& whitespace=" \t");
 
 
 	/*****************************************

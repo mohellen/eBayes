@@ -1,18 +1,18 @@
 // Simulation Full model: ns
 Model ns
           
-Domain_size_x 20           
-Domain_size_y 10
+Domain_size_x 10.0           
+Domain_size_y 2.0
 
-min_ncx 20
-min_ncy 10
+min_ncx 100
+min_ncy 20
 
 Initial_velocity_x 1
 Initial_velocity_y 0
 Initial_pressure   0
 
-Inflow_velocity_x 1
-Inflow_velocity_y 0
+Inlet_velocity_x 1
+Inlet_velocity_y 0
 
 External_force_x 0
 External_force_y 0
@@ -35,11 +35,22 @@ Obstacle 5.5 0.2 0.4 0.4
 Obstacle 8.2 1.0 0.4 0.4
 
 // Simulation output sampling time instances
-Sampling_time 2.5 5.0 7.5 10.0 
+Output_time 2.5
+Output_time 5.0
+Output_time 7.5
+Output_time 10.0 
 
 // Simulation output sampling locations
-Sampling_location_x 1.5 3.1 4.7 6.3 7.9 1.5 3.1 4.7 6.3 7.9
-Sampling_location_y 0.6 0.6 0.6 0.6 0.6 1.3 1.3 1.3 1.3 1.3
+Output_location 1.5 0.6
+Output_location 3.1 0.6
+Output_location 4.7 0.6
+Output_location 6.3 0.6
+Output_location 7.9 0.6
+Output_location 1.5 1.3
+Output_location 3.1 1.3
+Output_location 4.7 1.3
+Output_location 6.3 1.3
+Output_location 7.9 1.3
 
 // Assumed noise level in [0,1] in data: 0-no noise, 1-100% noise
 Noise_in_data 0.2
