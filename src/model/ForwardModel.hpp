@@ -30,7 +30,6 @@ public:
 
 	ForwardModel() {}
 
-	// Declare Pure Virtual method
 	virtual std::size_t get_input_size() = 0;
 
 	virtual std::size_t get_output_size() = 0;
@@ -40,7 +39,7 @@ public:
 			double& min,
 			double& max) = 0;
 
-	virtual void run(const double* m, double* d) = 0;
+	virtual double* run(const double* m) = 0;
 
 	static
 	double compute_posterior_sigma(

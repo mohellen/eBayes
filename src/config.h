@@ -25,28 +25,28 @@
 /******************************
  * General setting
  ******************************/
-#define YES		10
-#define NO		-10
+//#define YES		10
+//#define NO		-10
 
 // System related
 #define FULLMODEL	1	// 1: Navier-Stokes simulation, 2: Heat simulation, 3: Acoustic simulation
 #define OUTPUT_PATH	"./out"	// IMPORTANT: output path for all intermediate computation files and vtk outputs
 
 // MPI related
-#define MASTER			0   // Fix the rank of master process (master rank should not change during invasion)
-#define ENABLE_IMPI		NO	// IMPI switch
-#define IMPI_ADAPT_INTERVAL 30 // How often (in seconds) to probe the iRM (resource manager)
+//#define MASTER			0   // Fix the rank of master process (master rank should not change during invasion)
+//#define ENABLE_IMPI		NO	// IMPI switch
+//#define IMPI_ADAPT_INTERVAL 30// // How often (in seconds) to probe the iRM (resource manager)
 
 /******************************
  * Full Model: Navier-Stokes
  ******************************/
-#define NS_USE_DIRECT_SOLVER 	YES		// To use direct solver (from Eigen) or SOR solver
-#define NS_VTK_OUTPUT			YES 	// To enable VTK output or not
-#define NS_VTK_INTERVAL			0.05	// Write a VTK output every NS_VTK_INTERVAL seconds
-#define NS_NUM_OBS				4		// Simulation with 1 or 2 or 3 or 4 obstacles in the flow channel
+//#define NS_USE_DIRECT_SOLVER 	YES		// To use direct solver (from Eigen) or SOR solver
+//#define NS_VTK_OUTPUT			YES 	// To enable VTK output or not
+//#define NS_VTK_INTERVAL			0.05	// Write a VTK output every NS_VTK_INTERVAL seconds
+//#define NS_NUM_OBS				4		// Simulation with 1 or 2 or 3 or 4 obstacles in the flow channel
 #define NS_SGI_INIT_LEVEL		6		// (obs4|dim8) lv4 gps 1121, lv5 gps 6401, lv6 gps 31745
-#define NS_NCX					400		// small run: 100, big run: 200
-#define NS_NCY					80		// small run: 20,  big run: 40
+//#define NS_NCX					400		// small run: 100, big run: 200
+//#define NS_NCY					80		// small run: 20,  big run: 40
 
 /****************************************************
  * Surrogate Model: Sparse Grid Interpolation (SGI)

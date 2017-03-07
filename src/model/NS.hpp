@@ -35,6 +35,8 @@
 #include <algorithm>
 #include <vector>
 
+#define NS_USE_DIRECT_SOLVER 1 // 1: yes, 0: no
+
 /* Class Definiation */
 class NS : public ForwardModel
 {
@@ -112,7 +114,7 @@ public:
 	void sim();
 
 	/* Declare member functions */
-	void run(const double* m, double* d);
+	double* run(const double * m);
 
 	std::size_t get_input_size();
 
@@ -124,6 +126,7 @@ public:
 
 	/* Debug only */
 	void print_info();
+	void print_mask(int **& M);
 
 private:
 

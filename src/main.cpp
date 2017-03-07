@@ -37,10 +37,27 @@ int main(int argc, char* argv[]) {
 	std::size_t input_size = fm->get_input_size();
 	std::size_t output_size = fm->get_output_size();
 
+//	fm->sim();
+
+	double* m = new double[input_size];
+	m[0] = 1.0;
+	m[1] = 0.8;
+	m[2] = 3.0;
+	m[3] = 1.5;
+	m[4] = 5.5;
+	m[5] = 0.2;
+	m[6] = 8.2;
+	m[7] = 1.0;
+
+//    double* d = fm->run(m);
+//    for (size_t j=0; j < output_size; j++)
+//    	printf("%.5f\n", d[j]);
+//    printf("\n");
 
 
-	fm->sim();
-
+#if (ENABLE_IMPI==1)
+	printf("\n~~~~~~This is awesome!!~~~~~\n");
+#endif
 
 	return 0;
 }

@@ -206,7 +206,6 @@ void NS::get_input_space(
 	return;
 }
 
-
 void NS::get_resolution(
 		std::size_t& nx,
 		std::size_t& ny)
@@ -215,9 +214,7 @@ void NS::get_resolution(
 	ny = ncy;
 }
 
-void NS::run(
-		const double* m,	/// Input parameter
-		double* d)			/// Output data
+double* NS::run(const double * m)
 {
 	double t = 0.0;
 	double dt = 0.0;
@@ -225,26 +222,12 @@ void NS::run(
 	int t_out_idx = 0;
 
 	double u,v,ve;
-	size_t i,j,k;
+	std::size_t i,j,k;
 
-#if (NS_VTK_OUTPUT==YES)
-	double vtk_freq = NS_VTK_INTERVAL;
-	int vtk_cnt = 0;
-	std::string vtk_outfile = std::string(OUTPUT_PATH)+"/sim";
-	std::string data_outfile = std::string(OUTPUT_PATH)+"/data.dat";
-#endif
+	// Output data vector
+	double * d = new double[output_size];
 
-	/**
-	 * Create domain mask
-	 * 	  "0" for a fluid cell
-	 * 	  "1xxxx" for an obstacle cell
-	 */
-	int** M = create_geometry_mask(m);
-#if (NS_DEBUG == YES)
-	print_matrix<int>(M, ncy+2, ncx+2, true); // DEBUG only
-#endif
-
-	/**
+	/**********************************************************
 	 * 2D Arrays: Row-major storage, including boundary cells
 	 * 	 dim_0 along y-direction (rows,    j, ncy)
 	 * 	 dim_1 along x-direction (columns, i, ncx)
@@ -254,8 +237,8 @@ void NS::run(
 	 * 	             RIGHT  m[j][ncx+1],
 	 * 	             TOP    m[ncy+1][i],
 	 * 	             BOTTOM m[0][i]
-	 */
-	// allocate arrays
+	 **********************************************************/
+	// allocate computation arrays
 	double** U = alloc_matrix<double>(ncy+2, ncx+2, true); /// velocity in x-direction
 	double** V = alloc_matrix<double>(ncy+2, ncx+2, true); /// velocity in y-direction
 	double** P = alloc_matrix<double>(ncy+2, ncx+2, true); /// pressure
@@ -267,36 +250,29 @@ void NS::run(
 	init_matrix<double>(P, ncy+2, ncx+2, true, initial_pressure);
 	init_matrix<double>(F, ncy+2, ncx+2, true, 0.0);
 	init_matrix<double>(G, ncy+2, ncx+2, true, 0.0);
+	// Create geometry mask
+	int** M = create_geometry_mask(m);
 
-#if (NS_USE_DIRECT_SOLVER == YES)
-	/**
-	 * System matrix for the pressure equation: A*p = rhs
-	 */
+#if (NS_USE_DIRECT_SOLVER == 1)
+	// System matrix for the pressure equation: A*p = rhs
 	SparseMatrix<double> A = create_system_matrix();
 	double** RHS = alloc_matrix<double>(ncy+2, ncx+2, true);
 #endif
 
-	/*----------- Main Loop -----------*/
 	update_boundaries_uv(U, V);
 	update_domain_uv(M, U, V);
-
-#if (NS_VTK_OUTPUT==YES)
-	write_vtk_file(vtk_outfile.c_str(), vtk_cnt, M, U, V, P);
-	vtk_cnt ++;
-#endif
-
 	while(t < t_end)
 	{
-		/* 1. Compute time step */
+		// 1. Compute time step size
 		compute_dt(U, V, dt);
 
-		/* 2. Compute F and G */
+		// 2. Compute F,G
 		compute_fg(dt, U, V, F, G);
 		update_boundaries_fg(U, V, F, G);
 		update_domain_fg(M, U, V, F, G);
 
-		/* 3. Solve the pressure equation: A*p = rhs */
-#if (NS_USE_DIRECT_SOLVER == YES)
+		// 3. Solve for pressure P: A*p = rhs
+#if (NS_USE_DIRECT_SOLVER == 1)
 		compute_rhs(dt, F, G, P, RHS);
 		solve_for_p_direct(A, RHS, P);
 #else
@@ -305,18 +281,16 @@ void NS::run(
 		update_boundaries_p(P);
 		update_domain_p(M, P);
 
-		/* 4. Compute velocity U,V */
+		// 4. Compute velocity U,V
 		compute_uv(dt, F, G, P, U, V);
 		update_boundaries_uv(U, V);
 		update_domain_uv(M, U, V);
 
-		/* 5. Update simulation time */
+		// 5. Update simulation time
 		t += dt;
-#if (NS_VTK_OUTPUT==YES)
 		cout << "Simulation completed at t = " << t << ", dt = " << dt << endl;
-#endif
 
-		/* 6. Generate output data */
+		// 6. Generate output data at out_times and out_locs
 		if (t >= out_times[t_out_idx]) {
 			for(k = 0; k < out_locs.size(); k++) {
 				// Convert sampling coordinates (x,y)
@@ -336,30 +310,7 @@ void NS::run(
 			}
 			t_out_idx ++;
 		}
-
-		/* 7. Write VTK output data (if enabled) */
-#if (NS_VTK_OUTPUT==YES)
-		if (floor(t/vtk_freq) >= vtk_cnt) {
-			cout << "Writing VTK output at t = " << t << endl;
-			write_vtk_file(vtk_outfile.c_str(), vtk_cnt, M, U, V, P);
-			vtk_cnt ++;
-		}
-#endif
-	}/*----------- End main loop -----------*/
-
-#if (NS_VTK_OUTPUT==YES)
-	/* Write data file */
-	std::ofstream fout;
-	fout.open(data_outfile, std::ofstream::out);
-	if (!fout.is_open()) {
-		std::cout << "Fail to open output VTK file. Operation aborted!"
-				<< std::endl;
-		exit(EXIT_FAILURE);
-	}
-	for (k = 0; k < output_size; k++)
-		fout << d[k] << endl;
-	fout.close();
-#endif
+	}//end while
 
 	free_matrix<int>(M);
 	free_matrix<double>(U);
@@ -367,12 +318,12 @@ void NS::run(
 	free_matrix<double>(P);
 	free_matrix<double>(F);
 	free_matrix<double>(G);
-#if (NS_USE_DIRECT_SOLVER == YES)
+#if (NS_USE_DIRECT_SOLVER == 1)
 	free_matrix<double>(RHS);
 	A.resize(0,0);
 #endif
-	return;
-}
+	return d;
+}//end fun()
 
 void NS::sim()
 {
@@ -382,23 +333,25 @@ void NS::sim()
 	int t_out_idx = 0;
 
 	double u,v,ve;
-	size_t i,j,k;
+	std::size_t i,j,k;
 
 	double vtk_freq = 0.05;
 	int vtk_cnt = 0;
 	std::string vtk_outfile = std::string(OUTPUT_PATH)+"/sim";
 	std::string data_outfile = std::string(OUTPUT_PATH)+"/data.dat";
 
-	// create geometry mask  with input from file
-	double* m = new double[input_size];
-	for (k=0; k < obs.size(); k++) {
-		m[k*2 + 0] = obs[k].locx;
-		m[k*2 + 1] = obs[k].locy;
-	}
-	int** M = create_geometry_mask(m);
-	print_matrix<int>(M, ncy+2, ncx+2, true); // DEBUG only
-
-	// allocate arrays
+	/**********************************************************
+	 * 2D Arrays: Row-major storage, including boundary cells
+	 * 	 dim_0 along y-direction (rows,    j, ncy)
+	 * 	 dim_1 along x-direction (columns, i, ncx)
+	 *
+	 * 	 Inner domain: m[j][i], i=1..ncx, j=1..ncy
+	 * 	 Boundaries: LEFT   m[j][0],
+	 * 	             RIGHT  m[j][ncx+1],
+	 * 	             TOP    m[ncy+1][i],
+	 * 	             BOTTOM m[0][i]
+	 **********************************************************/
+	// allocate computation arrays
 	double** U = alloc_matrix<double>(ncy+2, ncx+2, true); /// velocity in x-direction
 	double** V = alloc_matrix<double>(ncy+2, ncx+2, true); /// velocity in y-direction
 	double** P = alloc_matrix<double>(ncy+2, ncx+2, true); /// pressure
@@ -410,34 +363,40 @@ void NS::sim()
 	init_matrix<double>(P, ncy+2, ncx+2, true, initial_pressure);
 	init_matrix<double>(F, ncy+2, ncx+2, true, 0.0);
 	init_matrix<double>(G, ncy+2, ncx+2, true, 0.0);
+	// create geometry mask  with input from file
+	double* m = new double[input_size];
+	for (k=0; k < obs.size(); k++) {
+		m[k*2 + 0] = obs[k].locx;
+		m[k*2 + 1] = obs[k].locy;
+	}
+	int** M = create_geometry_mask(m);
+	print_mask(M); // DEBUG only
 
-#if (NS_USE_DIRECT_SOLVER == YES)
-	/**
-	 * System matrix for the pressure equation: A*p = rhs
-	 */
+#if (NS_USE_DIRECT_SOLVER == 1)
+	// System matrix for the pressure equation: A*p = rhs
 	SparseMatrix<double> A = create_system_matrix();
 	double** RHS = alloc_matrix<double>(ncy+2, ncx+2, true);
 #endif
 
-	/*----------- Main Loop -----------*/
 	update_boundaries_uv(U, V);
 	update_domain_uv(M, U, V);
 
+	// Initial VTK output
 	write_vtk_file(vtk_outfile.c_str(), vtk_cnt, M, U, V, P);
 	vtk_cnt ++;
 
 	while(t < t_end)
 	{
-		/* 1. Compute time step */
+		// 1. Compute time step
 		compute_dt(U, V, dt);
 
-		/* 2. Compute F and G */
+		// 2. Compute F,G
 		compute_fg(dt, U, V, F, G);
 		update_boundaries_fg(U, V, F, G);
 		update_domain_fg(M, U, V, F, G);
 
-		/* 3. Solve the pressure equation: A*p = rhs */
-#if (NS_USE_DIRECT_SOLVER == YES)
+		// 3. Solve the pressure P: A*p = rhs
+#if (NS_USE_DIRECT_SOLVER == 1)
 		compute_rhs(dt, F, G, P, RHS);
 		solve_for_p_direct(A, RHS, P);
 #else
@@ -446,22 +405,21 @@ void NS::sim()
 		update_boundaries_p(P);
 		update_domain_p(M, P);
 
-		/* 4. Compute velocity U,V */
+		// 4. Compute velocity U,V
 		compute_uv(dt, F, G, P, U, V);
 		update_boundaries_uv(U, V);
 		update_domain_uv(M, U, V);
 
-		/* 5. Update simulation time */
+		// 5. Update simulation time
 		t += dt;
 		cout << "Simulation completed at t = " << t << ", dt = " << dt << endl;
 
-		/* 6. Write VTK output data (if enabled) */
+		// 6. Write VTK output data (if enabled) */
 		if (floor(t/vtk_freq) >= vtk_cnt) {
 			cout << "Writing VTK output at t = " << t << endl;
 			write_vtk_file(vtk_outfile.c_str(), vtk_cnt, M, U, V, P);
 			vtk_cnt ++;
 		}
-
 	}//end while
 
 	free_matrix<int>(M);
@@ -470,7 +428,7 @@ void NS::sim()
 	free_matrix<double>(P);
 	free_matrix<double>(F);
 	free_matrix<double>(G);
-#if (NS_USE_DIRECT_SOLVER == YES)
+#if (NS_USE_DIRECT_SOLVER == 1)
 	free_matrix<double>(RHS);
 	A.resize(0,0);
 #endif
@@ -517,19 +475,29 @@ void NS::print_info()
 	printf("----------------------------\n");
 }
 
+void NS::print_mask(int **& M)
+{
+	printf("\n");
+	for (std::size_t j=0; j<=ncy+1; j++) {
+		for (std::size_t i=0; i<=ncx+1; i++)
+			printf("%5d ", M[(ncy+1)-j][i]);
+		printf("\n");
+	}
+	printf("\n");
+	return;
+}
+
 /*****************************************
  * Internal core functions
  *****************************************/
 
-int** NS::create_geometry_mask(
-		const double* m) /// Input parameter vector: locations of obstacles [obs0_x, obs0_y, obs1_x, obs1_y, ...]
+int** NS::create_geometry_mask(const double* m) /// Input parameter vector: locations of obstacles [obs0_x, obs0_y, obs1_x, obs1_y, ...]
 {
 	std::size_t i,j,k; // looping indices
 	std::size_t jl, jh, il, ih; // low & high index of columns
 
 	int** M = alloc_matrix<int>(ncy+2, ncx+2, true);
 	init_matrix<int>(M, ncy+2, ncx+2, true, 0);
-
 
 	// 1. Initialize all non-fluid cells to 10000
 	// 1.1 Setup boundaries
@@ -551,8 +519,6 @@ int** NS::create_geometry_mask(
 	}
 	// 1.2 Construct obs based on input locations, setup inner domain
 	for (k=0; k < obs.size(); k++) {
-//		obs[k].locx = m[k*2 + 0];
-//		obs[k].locy = m[k*2 + 1];
 		il = size_t(round(m[k*2 + 0]/dx) + 1);
 		ih = size_t(round((m[k*2 + 0] + obs[k].sizex)/dx));
 		jl = size_t(round(m[k*2 + 1]/dy) + 1);
@@ -766,9 +732,9 @@ void NS::update_boundaries_p(
 }
 
 void NS::update_domain_uv(
-		int**&    M, /// Input
-		double**& U, /// Input/Output
-		double**& V) /// Input/Output
+		int **& M, /// Input
+		double **&    U, /// Input/Output
+		double **&    V) /// Input/Output
 {
 	for (size_t j=1; j<=ncy; j++) {
 		for (size_t i=1; i<=ncx; i++) {

@@ -1,6 +1,4 @@
-.project
-.cproject
-.settings
+.*
 dep/sgpp-base-2.0.0/.sconf_temp/
 dep/sgpp-base-2.0.0/base/examples/JSONExample
 dep/sgpp-base-2.0.0/base/examples/dataMatrixSerializeDemo
