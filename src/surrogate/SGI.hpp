@@ -26,34 +26,37 @@
 #include <mpi.h>
 #include <memory>
 #include <vector>
+#include <string>
+#include <sstream>
+#include <iomanip>
 
 class SGI : public ForwardModel
 {
 private:
-
-#if (ENABLE_MPI==1)
 	int mpi_rank;	/// MPI rank
 	int mpi_size;	/// Size of MPI_COMM_WORLD
 #if (ENABLE_IMPI==1)
 	int mpi_status;	/// iMPI adapt status
 #endif
-#endif
-	
-	std::unique_ptr<ForwardModel> 			  fullmodel;
-	std::unique_ptr<sgpp::base::Grid> 		  grid;
-	std::unique_ptr<sgpp::base::DataVector[]> alphas;
 	
 	std::size_t input_size;
 	std::size_t output_size;
+
+	std::unique_ptr<ForwardModel> 			  	fullmodel;
+	std::unique_ptr<sgpp::base::Grid> 		  	grid;
+	std::unique_ptr<sgpp::base::DataVector[]> 	alphas;
+	std::unique_ptr<sgpp::base::OperationEval> 	eval;
 	
-	std::size_t maxpos_seq;
+	std::unique_ptr<double[]> odata;
+	double noise;
+	double sigma;
 	double maxpos;
-
-
+	std::size_t maxpos_seq;
+	
 public:
 	~SGI(){}
 	
-	SGI(ForwardModel* fm);
+	SGI(ForwardModel* fm, const std::string& observed_data_file);
 
 	std::size_t get_input_size();
 
@@ -64,9 +67,59 @@ public:
 			double& min,
 			double& max);
 
-	double* run(const double* m);
+	void run(const double* m, double* d);
 	
+	void initialize(
+			std::size_t level,
+			bool is_masterworker=false); // MPI scheme default to naive
+
+
 private:
+	sgpp::base::DataVector arr_to_vec(const double *& in, std::size_t size);
+
+	double* vec_to_arr(sgpp::base::DataVector& in);
+
+	double* seg_to_coord_arr(std::size_t seq);
+
+	std::string vec_to_str(sgpp::base::DataVector& v);
+
+	sgpp::base::BoundingBox* create_boundingbox();
+
+	void create_alphas();
+
+	void mpiio_read_full_grid();
+
+	void mpiio_write_full_grid();
+
+	void mpiio_partial_data(
+			bool is_read,
+			std::size_t seq_min,
+			std::size_t seq_max,
+			double* buff);
+
+	void mpiio_partial_posterior(
+			bool is_read,
+			std::size_t seq_min,
+			std::size_t seq_max,
+			double* buff);
+
+	void mpi_find_global_update_maxpos();
+
+	void compute_grid_points(
+			std::size_t gp_offset,
+			bool is_masterworker);
+
+	void mpina_get_local_range(
+			const std::size_t& gmin,
+			const std::size_t& gmax,
+			std::size_t& lmin,
+			std::size_t& lmax);
+
+	void mpina_compute_range(
+			const std::size_t& seq_min,
+			const std::size_t& seq_max);
+
+
 
 };
 #endif /* SURROGATE_SGI_HPP_ */

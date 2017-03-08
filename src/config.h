@@ -51,11 +51,10 @@
 /****************************************************
  * Surrogate Model: Sparse Grid Interpolation (SGI)
  ****************************************************/
-#define SGI_ENABLE_TIMER		YES		// For performance analysis
-#define SGI_PRINT_RANK_PROGRESS	YES
-#define SGI_PRINT_GRID_POINTS	NO		// For debug only
-#define SGI_GRID_WITH_BOUNDARY	NO		// Use grid with or without boundary points //TODO: SGpp bug LinearBoundaryGrid
-#define SGI_MINION_TRUNK_SIZE	3		// Trunk size for master-minion scheme
+#define SGI_OUT_TIMER		YES		// For performance analysis
+#define SGI_OUT_RANK_PROGRESS	YES
+#define SGI_OUT_GRID_POINTS	NO		// For debug only
+#define SGI_MPIMW_TRUNK_SIZE	3		// Trunk size for master-minion scheme
 
 /******************************
  * MCMC Solver Setting

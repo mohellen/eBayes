@@ -106,13 +106,13 @@ public:
 	~NS();
 
 	/* Declare constructor */
-	NS(std::string input_file, int resx, int resy);
+	NS(const std::string& input_file, int resx=1, int resy=1);
 
 	/* Run simulation with VTK output */
 	void sim();
 
 	/* Declare member functions */
-	double* run(const double * m);
+	void run(const double* m, double* d);
 
 	std::size_t get_input_size();
 
@@ -414,10 +414,6 @@ private:
 		return;
 	}
 
-	/*****************************************
-	 * Other helper methods
-	 *****************************************/
-	std::string trim_white_space(const std::string& str);
 
 }; //end of class
 

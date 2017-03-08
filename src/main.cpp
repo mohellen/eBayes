@@ -29,11 +29,30 @@
 using namespace std;
 
 
-int main(int argc, char* argv[]) {
+void test_ns_mpi()
+{
+#if(1==0)
+	int mpisize, mpirank, mpistatus;
+	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
 
-	NS* fm = new NS("./input/obstacles_in_flow.dat", 1, 1);
+	string inputfile = "./input/obstacles_in_flow.dat";
+
+	NS* fm = new NS(inputfile, 1, 1);
 	std::size_t input_size = fm->get_input_size();
 	std::size_t output_size = fm->get_output_size();
+
+	double noise;
+	double* od = ForwardModel::get_observed_data(inputfile, output_size, noise);
+
+	for (int p=0; p < mpisize; p++) {
+		if (mpirank == p) {
+			printf("\nRank %d: Observed data\n", mpirank);
+			for (size_t j=0; j < output_size; j++)
+				printf("%.6f ", od[j]);
+			printf("\n");
+		}
+	}
 
 	double* m = new double[input_size];
 	m[0] = 1.0;
@@ -45,14 +64,56 @@ int main(int argc, char* argv[]) {
 	m[6] = 8.2;
 	m[7] = 1.0;
 
-//	SGI* sm = new SGI(fm);  // this is working!
-	SGI* sm = new SGI(new NS("./input/obstacles_in_flow.dat", 1, 1)); // this is working too!
-	sm->run(m);
+	double* d = new double[output_size];
+	fm->run(m, d);
 
+	for (int p=0; p < mpisize; p++) {
+		if (mpirank == p) {
+			printf("\nRank %d: Output data\n", mpirank);
+			for (size_t j=0; j < output_size; j++)
+				printf("%.6f ", d[j]);
+			printf("\n");
+		}
+	}
+
+	double sigma = ForwardModel::compute_posterior_sigma(od, output_size, noise);
+	double pos = ForwardModel::compute_posterior(od, d, output_size, sigma);
+
+	for (int p=0; p < mpisize; p++) {
+		if (mpirank == p) {
+			printf("\nRank %d: sigma = %.6f, posterior = %.6f\n", mpirank, sigma, pos);
+		}
+	}
+#endif
+}
+
+void test_sgi_mpi() {
+#if (1==1)
+	int mpisize, mpirank, mpistatus;
+	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+
+	string inputfile = "./input/obstacles_in_flow.dat";
+
+	NS* fm = new NS(inputfile, 1, 1);
+	std::size_t input_size = fm->get_input_size();
+	std::size_t output_size = fm->get_output_size();
+
+	SGI* sm = new SGI(fm, inputfile);
+	sm->initialize(2);
+#endif
+}
+
+int main(int argc, char* argv[]) {
+	MPI_Init(&argc, &argv);
+
+	test_ns_mpi();
+	test_sgi_mpi();
 
 #if (ENABLE_IMPI==1)
 	printf("\n~~~~~~This is awesome!!~~~~~\n");
 #endif
 
+	MPI_Finalize();
 	return 0;
 }

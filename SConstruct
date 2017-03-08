@@ -5,6 +5,7 @@ import SCons
 ###### Ininitialize env virables #######
 ########################################
 # Include paths: -Iinclude without '-I'
+cxx = 'mpicxx'
 cpppath = ['src', 'include', 'dep/sgpp-base-2.0.0/base/src']
 # Compile flags
 cppflags = ['-O3','-g','-std=c++11','-fmessage-length=0',
@@ -27,6 +28,7 @@ vars.Add("IMPI_ADAPT", "Set iMPI resource adaptation frequency (defalt: 30)", 30
 ########## Setup environment ###########
 ########################################
 env = Environment(variables=vars, ENV=os.environ)
+env.Replace(CXX=cxx)
 env.Append(CPPPATH=cpppath)
 env.Append(CPPFLAGS=cppflags)
 env["ENABLE_IMPI"] = env.get("ENABLE_IMPI")

@@ -33,7 +33,7 @@ NS::~NS()
 	this->out_locs.clear();
 }
 
-NS::NS(string input_file, int resx, int resy)
+NS::NS(const string& input_file, int resx, int resy)
 		: ForwardModel()
 {
 	ifstream infile(input_file);
@@ -173,7 +173,7 @@ NS::NS(string input_file, int resx, int resy)
 					pair<double, double>(stod(tokens[1]), stod(tokens[2])) );
 			continue;
 		}
-	}
+	}//end while
 	infile.close();
 
 	this->input_size  = std::size_t(this->obs.size() * 2);
@@ -216,7 +216,7 @@ void NS::get_resolution(
 	ny = ncy;
 }
 
-double* NS::run(const double * m)
+void NS::run(const double* m, double* d)
 {
 	double t = 0.0;
 	double dt = 0.0;
@@ -225,9 +225,6 @@ double* NS::run(const double * m)
 
 	double u,v,ve;
 	std::size_t i,j,k;
-
-	// Output data vector
-	double * d = new double[output_size];
 
 	/**********************************************************
 	 * 2D Arrays: Row-major storage, including boundary cells
@@ -290,7 +287,6 @@ double* NS::run(const double * m)
 
 		// 5. Update simulation time
 		t += dt;
-		cout << "Simulation completed at t = " << t << ", dt = " << dt << endl;
 
 		// 6. Generate output data at out_times and out_locs
 		if (t >= out_times[t_out_idx]) {
@@ -324,7 +320,7 @@ double* NS::run(const double * m)
 	free_matrix<double>(RHS);
 	A.resize(0,0);
 #endif
-	return d;
+	return;
 }//end fun()
 
 void NS::sim()
@@ -339,7 +335,7 @@ void NS::sim()
 
 	double vtk_freq = 0.05;
 	int vtk_cnt = 0;
-	std::string vtk_outfile = "./output/ns_sim";
+	std::string vtk_outfile = string(OUTPATH) + "/ns_sim";
 
 	/**********************************************************
 	 * 2D Arrays: Row-major storage, including boundary cells
@@ -371,7 +367,7 @@ void NS::sim()
 		m[k*2 + 1] = obs[k].locy;
 	}
 	int** M = create_geometry_mask(m);
-	print_mask(M); // DEBUG only
+//	print_mask(M); // DEBUG only
 
 #if (NS_USE_DIRECT_SOLVER == 1)
 	// System matrix for the pressure equation: A*p = rhs
@@ -1198,13 +1194,4 @@ void NS::write_vtk_header_coord(std::ofstream& fout)
 	return;
 }
 
-string NS::trim_white_space(const string& str)
-{
-	std::string whitespace=" \t";
-	const auto strBegin = str.find_first_not_of(whitespace);
-	if (strBegin == std::string::npos) return "";
-	const auto strEnd = str.find_last_not_of(whitespace);
-	const auto strRange = strEnd - strBegin + 1;
-	return str.substr(strBegin, strRange);
-}
 
