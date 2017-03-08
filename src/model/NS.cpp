@@ -29,6 +29,8 @@ using namespace Eigen;
 NS::~NS()
 {
 	this->obs.clear();
+	this->out_times.clear();
+	this->out_locs.clear();
 }
 
 NS::NS(string input_file, int resx, int resy)

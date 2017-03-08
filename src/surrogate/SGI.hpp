@@ -21,6 +21,7 @@
 
 #include "model/ForwardModel.hpp"
 #include "model/NS.hpp"
+#include "sgpp_base.hpp"
 
 #include <mpi.h>
 #include <memory>
@@ -38,9 +39,9 @@ private:
 #endif
 #endif
 	
-	std::unique_ptr<ForwardModel> 		fullmodel;
-	std::unique_ptr<sgpp::base::Grid> 	grid;
-	std::vector<sgpp::base::DataVector> alphas;
+	std::unique_ptr<ForwardModel> 			  fullmodel;
+	std::unique_ptr<sgpp::base::Grid> 		  grid;
+	std::unique_ptr<sgpp::base::DataVector[]> alphas;
 	
 	std::size_t input_size;
 	std::size_t output_size;
@@ -50,9 +51,9 @@ private:
 
 
 public:
-	~SGI();
+	~SGI(){}
 	
-	SGI(ForwardModel fm); /// Pass by copy on purpose
+	SGI(ForwardModel* fm);
 
 	std::size_t get_input_size();
 

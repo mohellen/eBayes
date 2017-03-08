@@ -18,6 +18,7 @@
 
 #include "model/ForwardModel.hpp"
 #include "model/NS.hpp"
+#include "surrogate/SGI.hpp"
 
 #include <mpi.h>
 #include <iostream>
@@ -31,13 +32,8 @@ using namespace std;
 int main(int argc, char* argv[]) {
 
 	NS* fm = new NS("./input/obstacles_in_flow.dat", 1, 1);
-
-	fm->print_info();
-
 	std::size_t input_size = fm->get_input_size();
 	std::size_t output_size = fm->get_output_size();
-
-//	fm->sim();
 
 	double* m = new double[input_size];
 	m[0] = 1.0;
@@ -49,10 +45,9 @@ int main(int argc, char* argv[]) {
 	m[6] = 8.2;
 	m[7] = 1.0;
 
-//    double* d = fm->run(m);
-//    for (size_t j=0; j < output_size; j++)
-//    	printf("%.5f\n", d[j]);
-//    printf("\n");
+//	SGI* sm = new SGI(fm);  // this is working!
+	SGI* sm = new SGI(new NS("./input/obstacles_in_flow.dat", 1, 1)); // this is working too!
+	sm->run(m);
 
 
 #if (ENABLE_IMPI==1)

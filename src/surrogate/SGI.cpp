@@ -18,7 +18,54 @@
 
 #include "surrogate/SGI.hpp"
 
-SGI:~SGI()
+using namespace std;
+using namespace	sgpp::base;
+
+
+SGI::SGI(ForwardModel* fm)
 {
-	alphas.clear();
+#if (ENABLE_MPI==1)
+	mpi_rank = -1;
+	mpi_size = -1;
+#if (ENABLE_IMPI==1)
+	mpi_status = -1;
+#endif
+#endif
+
+	this->input_size = fm->get_input_size();
+	this->output_size = fm->get_output_size();
+	this->maxpos_seq = 0;
+	this->maxpos = 0.0;
+
+	this->fullmodel = unique_ptr<ForwardModel>(fm);
+	this->grid = nullptr;
+	this->alphas = unique_ptr<DataVector[]>(new DataVector[output_size]);
+}
+
+std::size_t SGI::get_input_size()
+{
+	return this->input_size;
+}
+
+std::size_t SGI::get_output_size()
+{
+	return this->output_size;
+}
+
+void SGI::get_input_space(
+			int dim,
+			double& min,
+			double& max)
+{
+	fullmodel->get_input_space(dim, min, max);
+}
+
+double* SGI::run(const double* m)
+{
+	double* d = new double[output_size];
+
+
+	printf("\n I am awesome!! \n");
+
+	return d;
 }
