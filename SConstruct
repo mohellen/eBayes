@@ -1,4 +1,5 @@
 import os
+import shutil
 import SCons
 
 ###### Ininitialize env virables #######
@@ -66,9 +67,9 @@ BuildName = 'main'
 BASEPATH = os.getcwd()
 BUILDPATH = BASEPATH + '/bin/' + BuildName + '_build'
 TARGET = BASEPATH + '/bin/' + BuildName
-# Make bin and bin/<build> if not exists
-if not os.path.exists(BASEPATH + '/bin'):
-    os.makedirs(BASEPATH + '/bin')
+# Make output and build dir
+if not os.path.exists(BASEPATH + '/output'):
+    os.makedirs(BASEPATH + '/output')
 if not os.path.exists(BUILDPATH):
     os.makedirs(BUILDPATH)
 # List of objects for the build
@@ -106,7 +107,6 @@ for sdir in os.listdir('src'):
         env.Object(srcfile)
 # Build program
 env.Program(TARGET, OBJ, LIBS=libs, LIBPATH=libpath)
-env.Default(TARGET)
 ########################################
 
 
