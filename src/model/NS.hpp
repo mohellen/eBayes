@@ -19,7 +19,6 @@
 #ifndef MODEL_NS_HPP_
 #define MODEL_NS_HPP_
 
-#include "config.h"
 #include "model/ForwardModel.hpp"
 #include "Eigen/Sparse"
 #include "Eigen/Eigen"
@@ -35,9 +34,10 @@
 #include <algorithm>
 #include <vector>
 
-#define NS_USE_DIRECT_SOLVER 1 // 1: yes, 0: no
+#define NS_USE_DIRECT_SOLVER 1
 
-/* Class Definiation */
+
+
 class NS : public ForwardModel
 {
 private:
@@ -48,8 +48,7 @@ private:
 		double sizey;
 
 		Obstacle(double lx, double ly, double sx, double sy):
-			locx(lx), locy(ly), sizex(sx), sizey(sy)
-		{}
+			locx(lx), locy(ly), sizex(sx), sizey(sy) {}
 	};
 
 	//MASK VALUES [CEWNS]
@@ -137,14 +136,14 @@ private:
 	/**
 	 * Create a mask array to distinguish fluid and different types of obstacle cells
 	 */
-	int** create_geometry_mask(const double* m);
 
+	int** create_geometry_mask(const double* m);
 	/**
 	 * Create system matrix A
 	 * A is N-by-N (no boundary cells)
 	 */
-	Eigen::SparseMatrix<double> create_system_matrix();
 
+	Eigen::SparseMatrix<double> create_system_matrix();
 	/**
 	 * Compute the right hand side of the pressure equation
 	 */
@@ -261,10 +260,6 @@ private:
 	 * Method for writing header information and coordinate points of a VTK file
 	 */
 	void write_vtk_header_coord(std::ofstream& fout);
-
-	static
-	std::string trim(const std::string& str, const std::string& whitespace=" \t");
-
 
 	/*****************************************
 	 * In-line functions (Finite-Difference)
@@ -419,6 +414,11 @@ private:
 		}
 		return;
 	}
+
+	/*****************************************
+	 * Other helper methods
+	 *****************************************/
+	std::string trim_white_space(const std::string& str);
 
 }; //end of class
 

@@ -44,7 +44,7 @@ NS::NS(string input_file, int resx, int resy)
 		if (tokens.size() <= 0) continue;
 
 		// Ignore comment line
-		tokens[0] = trim(tokens[0]);
+		tokens[0] = trim_white_space(tokens[0]);
 		if (tokens[0].substr(0,2) == "//") continue;
 
 		// Find parameters
@@ -337,8 +337,7 @@ void NS::sim()
 
 	double vtk_freq = 0.05;
 	int vtk_cnt = 0;
-	std::string vtk_outfile = std::string(OUTPUT_PATH)+"/sim";
-	std::string data_outfile = std::string(OUTPUT_PATH)+"/data.dat";
+	std::string vtk_outfile = "./output/ns_sim";
 
 	/**********************************************************
 	 * 2D Arrays: Row-major storage, including boundary cells
@@ -1197,8 +1196,9 @@ void NS::write_vtk_header_coord(std::ofstream& fout)
 	return;
 }
 
-string NS::trim(const string& str, const string& whitespace)
+string NS::trim_white_space(const string& str)
 {
+	std::string whitespace=" \t";
 	const auto strBegin = str.find_first_not_of(whitespace);
 	if (strBegin == std::string::npos) return "";
 	const auto strEnd = str.find_last_not_of(whitespace);

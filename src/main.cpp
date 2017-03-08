@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#include "config.h"
 #include "model/ForwardModel.hpp"
 #include "model/NS.hpp"
 
@@ -24,6 +23,7 @@
 #include <iostream>
 #include <cmath>
 #include <sys/time.h>
+
 
 using namespace std;
 
