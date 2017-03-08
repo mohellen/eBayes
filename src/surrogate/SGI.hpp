@@ -16,49 +16,56 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef MODEL_FORWARDMODEL_HPP_
-#define MODEL_FORWARDMODEL_HPP_
+#ifndef SURROGATE_SGI_HPP_
+#define SURROGATE_SGI_HPP_
 
-#include <cstddef>
-#include <cmath>
+#include "model/ForwardModel.hpp"
+#include "model/NS.hpp"
 
-class ForwardModel
+#include <mpi.h>
+#include <memory>
+#include <vector>
+
+class SGI : public ForwardModel
 {
+private:
+
+#if (ENABLE_MPI==1)
+	int mpi_rank;	/// MPI rank
+	int mpi_size;	/// Size of MPI_COMM_WORLD
+#if (ENABLE_IMPI==1)
+	int mpi_status;	/// iMPI adapt status
+#endif
+#endif
+	
+	std::unique_ptr<ForwardModel> 		fullmodel;
+	std::unique_ptr<sgpp::base::Grid> 	grid;
+	std::vector<sgpp::base::DataVector> alphas;
+	
+	std::size_t input_size;
+	std::size_t output_size;
+	
+	std::size_t maxpos_seq;
+	double maxpos;
+
+
 public:
-	// Define virtual destructor
-	virtual ~ForwardModel() {}
+	~SGI();
+	
+	SGI(ForwardModel fm); /// Pass by copy on purpose
 
-	ForwardModel() {}
+	std::size_t get_input_size();
 
-	virtual std::size_t get_input_size() = 0;
+	std::size_t get_output_size();
 
-	virtual std::size_t get_output_size() = 0;
-
-	virtual void get_input_space(
+	void get_input_space(
 			int dim,
 			double& min,
-			double& max) = 0;
+			double& max);
 
-	virtual double* run(const double* m) = 0;
-
-	static
-	double compute_posterior_sigma(
-			const double* observed_data, 
-			std::size_t data_size, 
-			double noise_in_data);
-
-	static
-	double compute_posterior(
-			const double* observed_data, 
-			const double* d,
-			std::size_t data_size,
-			double sigma);
-			
-	static
-	double compute_2norm(
-			const double* d1, 
-			const double* d2,
-			std::size_t data_size);
+	double* run(const double* m);
+	
+private:
 
 };
-#endif /* MODEL_FORWARDMODEL_HPP_ */
+#endif /* SURROGATE_SGI_HPP_ */

@@ -33,7 +33,7 @@
 #include <string>
 
 
-class SGIDist : public SurrogateModel
+class SGIDist : public ForwardModel
 {
 private:
 	MPIObject* const mpi;	/// External MPI object

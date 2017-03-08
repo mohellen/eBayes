@@ -6,7 +6,7 @@ import SCons
 # Include paths: -Iinclude without '-I'
 cpppath = ['src', 'include', 'dep/sgpp-base-2.0.0/base/src']
 # Compile flags
-cppflags = ['-O3','-g','-std=c++11','-length=0',
+cppflags = ['-O3','-g','-std=c++11','-fmessage-length=0',
             '-Wno-unused-result','-Wno-deprecated','-pedantic','-fopenmp']
 # Library look up paths: -Lpath without '-L'
 libpath = ['lib']
@@ -117,7 +117,8 @@ env.Clean("clean", [TARGET, BUILDPATH])
 
 # TODO: make phony target 'scons sgpp' 
 
-
+#sgpp:
+#    mkdir -p $(BASEPATH)/lib; cd $(BASEPATH)/dep/sgpp-base-2.0.0; scons -c; scons BUILDDIR=$(BASEPATH)/lib -j4; cd $(BASEPATH)
 
 
 

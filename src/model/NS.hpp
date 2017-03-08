@@ -37,7 +37,6 @@
 #define NS_USE_DIRECT_SOLVER 1
 
 
-
 class NS : public ForwardModel
 {
 private:
