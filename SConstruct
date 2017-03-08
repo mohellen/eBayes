@@ -106,6 +106,7 @@ for sdir in os.listdir('src'):
         env.Object(srcfile)
 # Build program
 env.Program(TARGET, OBJ, LIBS=libs, LIBPATH=libpath)
+env.Default(TARGET)
 ########################################
 
 
@@ -113,5 +114,14 @@ env.Program(TARGET, OBJ, LIBS=libs, LIBPATH=libpath)
 ########################################
 env.Clean("clean", [TARGET, BUILDPATH])
 ########################################
+
+# TODO: make phony target 'scons sgpp' 
+
+
+
+
+
+
+
 
 
