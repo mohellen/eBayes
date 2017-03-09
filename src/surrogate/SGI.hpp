@@ -67,10 +67,10 @@ public:
 
 	void run(const double* m, double* d);
 	
-	void initialize(
-			std::size_t level,
+	void refine(
+			double refine_portion,
+			std::size_t init_grid_level=4,
 			bool is_masterworker=false); // MPI scheme default to naive
-
 
 private:
 	sgpp::base::DataVector arr_to_vec(const double *& in, std::size_t size);
@@ -84,6 +84,8 @@ private:
 	sgpp::base::BoundingBox* create_boundingbox();
 
 	void update_alphas();
+
+	void refine_grid(double portion);
 
 	void mpiio_read_full_grid();
 

@@ -47,7 +47,6 @@ SGI::SGI(
 			this->odata.get(), this->output_size, this->noise);
 }
 
-
 std::size_t SGI::get_input_size()
 {
 	return this->input_size;
@@ -82,32 +81,48 @@ void SGI::run(const double* m, double* d)
 	return;
 }
 
-void SGI::initialize(
-		std::size_t level,
+void SGI::refine(
+		double refine_portion,
+		std::size_t init_grid_level,
 		bool is_masterworker)
 {
-	std::size_t num_points;
+	std::size_t num_points, new_num_points;
+	// find out whether it's grid initialization or refinement
+	bool is_init = (!this->eval) ? true : false;
 
 #if (ENABLE_IMPI==1)
 	if (mpi_status == MPI_ADAPT_STATUS_JOINING) {
 		num_points = CarryOver.gp_offset;
 	} else {
 #endif
-	// 1. All: Construct grid
-	bbox.reset(create_boundingbox());
-//	grid.reset(Grid::createLinearBoundaryGrid(input_size).release());	// create empty grid
-	grid.reset(Grid::createModLinearGrid(input_size).release());	// create empty grid
-	grid->getGenerator().regular(level);			// populate grid points
-	grid->setBoundingBox(*bbox);	// set up bounding box
-	num_points = grid->getSize();
-
-	// Master:
-	if (mpi_rank == MASTER) {
-		// Print progress
-		printf("\n...Initializing SGI model...\n");
-		printf("%lu grid points to be added. Total # grid points = %lu.\n", num_points, num_points);
-		// Write grid to file
-		mpiio_write_full_grid();
+	if (is_init) {
+		// 1. All: Construct grid
+		bbox.reset(create_boundingbox());
+	//	grid.reset(Grid::createLinearBoundaryGrid(input_size).release()); // create empty grid
+		grid.reset(Grid::createModLinearGrid(input_size).release()); // create empty grid
+		grid->getGenerator().regular(init_grid_level); // populate grid points
+		grid->setBoundingBox(*bbox); // set up bounding box
+		num_points = grid->getSize();
+		// Master only
+		if (mpi_rank == MASTER) {
+			// Print progress
+			printf("\n...Initializing SGI model...\n");
+			printf("%lu grid points to be added. Total # grid points = %lu.\n",
+					num_points, num_points);
+			// Write grid to file
+			mpiio_write_full_grid();
+		}
+	} else {
+		if (mpi_rank == MASTER)
+			printf("\n...Refining SGI model...\n");
+		// 1. All: refine grid
+		num_points = grid->getSize();
+		refine_portion = fmax(0.0, refine_portion); // ensure portion is non-negative
+		refine_grid(refine_portion);
+		new_num_points = grid->getSize();
+		if (mpi_rank == MASTER)
+			printf("%lu grid points to be added. Total # grid points = %lu.\n",
+					new_num_points-num_points, new_num_points);
 	}
 #if (ENABLE_IMPI==1)
 	}
@@ -115,7 +130,11 @@ void SGI::initialize(
 
 	// 2. All: Compute data at each grid point (result written to MPI IO file)
 	//			and find the max posterior point
-	compute_grid_points(0, is_masterworker);
+	if (is_init) {
+		compute_grid_points(0, is_masterworker);
+	} else {
+		compute_grid_points(num_points, is_masterworker);
+	}
 	mpi_find_global_update_maxpos();
 
 	// 3. All: Create alphas
@@ -129,10 +148,19 @@ void SGI::initialize(
 		unique_ptr<double[]> m_maxpos (seg_to_coord_arr(maxpos_seq));
 		printf("Max posterior = %.6f, at %s.\n",
 				maxpos, arr_to_string(m_maxpos.get(), input_size).c_str());
-		printf("...Initialize SGI model successful...\n");
+		if (is_init)
+			printf("...Initialize SGI model successful...\n");
+		else
+			printf("...Refine SGI model successful...\n");
 	}
 	return;
 }
+
+
+
+
+
+
 
 /*********************************************
  *********************************************
@@ -227,7 +255,44 @@ void SGI::update_alphas()
 	return;
 }
 
+void SGI::refine_grid(double portion)
+{
+#if (SGI_OUT_TIMER==1)
+	double tic = MPI_Wtime();
+#endif
+	std::size_t num_gps = this->grid->getSize();
+	std::size_t refine_gps = num_gps * fmax(0.0, portion);
+	DataVector refine_idx (num_gps);
 
+	// Read posterior from file
+	unique_ptr<double[]> pos (new double[num_gps]);
+	mpiio_partial_posterior(true, 0, num_gps-1, &pos[0]);
+
+	// For each gp, compute the refinement index
+	double data_norm;
+	for (std::size_t i=0; i<num_gps; i++) {
+		data_norm = 0;
+		for (std::size_t j=0; j<output_size; j++) {
+			data_norm += (alphas[j][i] * alphas[j][i]);
+		}
+		data_norm = sqrt(data_norm);
+		// refinement_index = |alpha| * posterior
+		refine_idx[i] = data_norm * pos[i];
+	}
+
+	// refine grid
+	grid->refine(refine_idx, std::size_t(ceil(double(num_gps)*portion)));
+
+	// Master write grid to file
+	if (mpi_rank == MASTER) {
+		// Write grid to file
+		mpiio_write_full_grid();
+#if (SGI_OUT_TIMER==1)
+		printf("Rank %d: refined grid in %.5f seconds.\n", mpi_rank, MPI_Wtime()-tic);
+#endif
+	}
+	return;
+}
 
 /***************************
  * MPI related operations
