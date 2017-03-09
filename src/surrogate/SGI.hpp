@@ -30,6 +30,13 @@
 #include <sstream>
 #include <iomanip>
 
+// Local constants
+#define MPIMW_TAG_TERMINATE 10
+#define MPIMW_TAG_WORK		20
+#define MPIMW_TAG_ADAPT		30
+#define MPIMW_TRUNK_SIZE	5
+#define IMPI_ADAPT_FREQ		60	// Adapt frequency in seconds
+
 class SGI : public ForwardModel
 {
 private:
@@ -67,7 +74,7 @@ public:
 
 	void run(const double* m, double* d);
 	
-	void refine(
+	void build(
 			double refine_portion,
 			std::size_t init_grid_level=4,
 			bool is_masterworker=false); // MPI scheme default to naive
@@ -87,9 +94,15 @@ private:
 
 	void refine_grid(double portion);
 
-	void mpiio_read_full_grid();
+	bool is_master();
 
-	void mpiio_write_full_grid();
+	void mpiio_read_grid();
+
+	void mpiio_write_grid_master();
+
+	void mpiio_write_grid();
+
+	void mpiio_delete_grid();
 
 	void mpiio_partial_data(
 			bool is_read,
@@ -109,17 +122,30 @@ private:
 			std::size_t gp_offset,
 			bool is_masterworker);
 
+	void mpi_compute_range(
+			const std::size_t& seq_min,
+			const std::size_t& seq_max);
+
 	void mpina_get_local_range(
 			const std::size_t& gmin,
 			const std::size_t& gmax,
 			std::size_t& lmin,
 			std::size_t& lmax);
 
-	void mpina_compute_range(
-			const std::size_t& seq_min,
-			const std::size_t& seq_max);
+	void mpimw_get_job_range(
+			const std::size_t& jobid,
+			const std::size_t& seq_offset,
+			std::size_t& seq_min,
+			std::size_t& seq_max);
 
+	void mpimw_worker_compute(std::size_t gp_offset);
 
+	void mpimw_master_compute(std::size_t gp_offset);
+
+	void mpimw_seed_workers(
+			const int& num_jobs,
+			int& scnt,
+			int* jobs);
 
 };
 #endif /* SURROGATE_SGI_HPP_ */

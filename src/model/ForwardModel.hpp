@@ -34,7 +34,7 @@
 
 #define SGI_OUT_TIMER			1 //(1 or 0)
 #define SGI_OUT_RANK_PROGRESS	1 //(1 or 0)
-#define SGI_OUT_GRID_POINTS		1 //(1 or 0)
+#define SGI_OUT_GRID_POINTS		0 //(1 or 0)
 #define SGI_MPIMW_TRUNK_SIZE	3 //(integer)
 
 class ForwardModel
@@ -83,7 +83,7 @@ public:
 			double sigma);
 			
 	static
-	double compute_2norm(
+	double compute_l2norm(
 			const double* d1, 
 			const double* d2,
 			std::size_t data_size);

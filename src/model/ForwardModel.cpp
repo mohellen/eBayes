@@ -45,7 +45,7 @@ double ForwardModel::compute_posterior(
 	return exp(-0.5 * sum / (sigma*sigma));
 }
 
-double ForwardModel::compute_2norm(
+double ForwardModel::compute_l2norm(
 		const double* d1, 
 		const double* d2,
 		std::size_t data_size)

@@ -32,17 +32,17 @@ SGI::SGI(
 #if (ENABLE_IMPI==1)
 	mpi_status = -1;
 #endif
-	this->fullmodel = unique_ptr<ForwardModel>(fm);
+	this->fullmodel.reset(fm);
+	this->alphas.reset(new DataVector[output_size]);
 	this->grid = nullptr;
 	this->eval = nullptr;
-	this->alphas = unique_ptr<DataVector[]>(new DataVector[output_size]);
 	this->bbox = nullptr;
 
 	this->maxpos_seq = 0;
 	this->maxpos = 0.0;
 	this->noise = 0.0;
-	this->odata = unique_ptr<double[]>(
-		get_observed_data(observed_data_file, this->output_size, this->noise));
+	this->odata.reset( get_observed_data(observed_data_file,
+			this->output_size, this->noise) );
 	this->sigma = compute_posterior_sigma(
 			this->odata.get(), this->output_size, this->noise);
 }
@@ -69,7 +69,7 @@ void SGI::run(const double* m, double* d)
 {
 	// Grid check
 	if (!eval) {
-		cout << "Grid is not properly setup or computed. Progam abort!" << endl;
+		cout << "SGI model is not properly built. Progam abort!" << endl;
 		exit(EXIT_FAILURE);
 	}
 	// Convert m into data vector
@@ -81,7 +81,7 @@ void SGI::run(const double* m, double* d)
 	return;
 }
 
-void SGI::refine(
+void SGI::build(
 		double refine_portion,
 		std::size_t init_grid_level,
 		bool is_masterworker)
@@ -91,10 +91,9 @@ void SGI::refine(
 	bool is_init = (!this->eval) ? true : false;
 
 #if (ENABLE_IMPI==1)
-	if (mpi_status == MPI_ADAPT_STATUS_JOINING) {
-		num_points = CarryOver.gp_offset;
-	} else {
+	if (mpi_status != MPI_ADAPT_STATUS_JOINING) {
 #endif
+
 	if (is_init) {
 		// 1. All: Construct grid
 		bbox.reset(create_boundingbox());
@@ -104,27 +103,30 @@ void SGI::refine(
 		grid->setBoundingBox(*bbox); // set up bounding box
 		num_points = grid->getSize();
 		// Master only
-		if (mpi_rank == MASTER) {
+		if (is_master()) {
 			// Print progress
 			printf("\n...Initializing SGI model...\n");
 			printf("%lu grid points to be added. Total # grid points = %lu.\n",
 					num_points, num_points);
-			// Write grid to file
-			mpiio_write_full_grid();
 		}
 	} else {
-		if (mpi_rank == MASTER)
+		if (is_master())
 			printf("\n...Refining SGI model...\n");
 		// 1. All: refine grid
 		num_points = grid->getSize();
 		refine_portion = fmax(0.0, refine_portion); // ensure portion is non-negative
 		refine_grid(refine_portion);
 		new_num_points = grid->getSize();
-		if (mpi_rank == MASTER)
+		if (is_master())
 			printf("%lu grid points to be added. Total # grid points = %lu.\n",
 					new_num_points-num_points, new_num_points);
 	}
+
 #if (ENABLE_IMPI==1)
+		// Write grid to file (scratch file only needed by JOINING ranks during compute_grid_points)
+		mpiio_write_grid();
+	} else {
+		num_points = CarryOver.gp_offset;
 	}
 #endif
 
@@ -137,6 +139,11 @@ void SGI::refine(
 	}
 	mpi_find_global_update_maxpos();
 
+#if (ENABLE_IMPI==1)
+	// Delete scatch file
+	mpiio_delete_grid();
+#endif
+
 	// 3. All: Create alphas
 	update_alphas();
 
@@ -144,7 +151,7 @@ void SGI::refine(
 	eval.reset(sgpp::op_factory::createOperationEval(*grid).release());
 
 	// Master: print grogress
-	if (mpi_rank == MASTER) {
+	if (is_master()) {
 		unique_ptr<double[]> m_maxpos (seg_to_coord_arr(maxpos_seq));
 		printf("Max posterior = %.6f, at %s.\n",
 				maxpos, arr_to_string(m_maxpos.get(), input_size).c_str());
@@ -155,11 +162,6 @@ void SGI::refine(
 	}
 	return;
 }
-
-
-
-
-
 
 
 /*********************************************
@@ -248,7 +250,7 @@ void SGI::update_alphas()
 		hier->doHierarchisation(alphas[j]);
 
 #if (SGI_OUT_TIMER==1)
-	if (mpi_rank == MASTER)
+	if (is_master())
 		printf("Rank %d: created alphas in %.5f seconds.\n",
 				mpi_rank, MPI_Wtime()-tic);
 #endif
@@ -279,40 +281,42 @@ void SGI::refine_grid(double portion)
 		// refinement_index = |alpha| * posterior
 		refine_idx[i] = data_norm * pos[i];
 	}
-
 	// refine grid
 	grid->refine(refine_idx, std::size_t(ceil(double(num_gps)*portion)));
 
-	// Master write grid to file
-	if (mpi_rank == MASTER) {
-		// Write grid to file
-		mpiio_write_full_grid();
 #if (SGI_OUT_TIMER==1)
+	if (is_master())
 		printf("Rank %d: refined grid in %.5f seconds.\n", mpi_rank, MPI_Wtime()-tic);
 #endif
-	}
 	return;
 }
 
 /***************************
  * MPI related operations
  ***************************/
-void SGI::mpiio_write_full_grid()
+bool SGI::is_master()
 {
-	// Pack a grid
+	if (mpi_rank == 0) {
+#if (ENABLE_IMPI==1)
+		if (mpi_status != MPI_ADAPT_STATUS_JOINING)
+#endif
+			return true;
+	}
+	return false;
+}
+
+void SGI::mpiio_write_grid_master()
+{
+	if (!is_master()) return; // Only the master performs this operation.
+
+	// Pack grid into Char array
 	string sg_str = grid->getStorage().serialize(1);
 	size_t count = sg_str.size();
 	unique_ptr<char[]> buff (new char[count]);
 	strcpy(buff.get(), sg_str.c_str());
-
 	// Write to file
 	string ofile = string(OUTPATH) + "/grid.mpibin";
 	MPI_File fh;
-	// Delete existing grid file first
-	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
-			== MPI_SUCCESS) {
-		MPI_File_delete(ofile.c_str(), MPI_INFO_NULL);
-	}
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 			!= MPI_SUCCESS) {
 		cout << "MPI write grid file open failed. Operation aborted! " << endl;
@@ -323,8 +327,43 @@ void SGI::mpiio_write_full_grid()
 	return;
 }
 
-void SGI::mpiio_read_full_grid()
+void SGI::mpiio_write_grid()
+{
+	// Pack grid into Char array
+	string sg_str = grid->getStorage().serialize(1);
+	size_t count = sg_str.size();
+	unique_ptr<char[]> buff (new char[count]);
+	strcpy(buff.get(), sg_str.c_str());
+
+	// Get local range (local protion to write)
+	std::size_t lmin, lmax;
+	mpina_get_local_range(0, count-1, lmin, lmax);
+
+	// Write to file
+	string ofile = string(OUTPATH) + "/grid.mpibin";
+	MPI_File fh;
+	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
+			!= MPI_SUCCESS) {
+		cout << "MPI write grid file open failed. Operation aborted! " << endl;
+		exit(EXIT_FAILURE);
+	}
+	MPI_File_write_at(fh, lmin-1, buff.get(), lmax-lmin+1, MPI_CHAR, MPI_STATUS_IGNORE);
+	MPI_File_close(&fh);
+	return;
+}
+
+void SGI::mpiio_read_grid()
 {}
+
+void SGI::mpiio_delete_grid()
+{
+	string ofile = string(OUTPATH) + "/grid.mpibin";
+	MPI_File fh;
+	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
+			== MPI_SUCCESS) {
+		MPI_File_delete(ofile.c_str(), MPI_INFO_NULL);
+	}
+}
 
 void SGI::mpiio_partial_data(
 		bool is_read,
@@ -423,30 +462,81 @@ void SGI::compute_grid_points(
 #if (SGI_OUT_TIMER==1)
 	double tic = MPI_Wtime(); // start the timer
 #endif
-
 	// NOTE: both "Master-minion" or "Naive" schemes can run under MPI & iMPI
 	//		settings, but only the "Master-minion" scheme uses the iMPI features.
 	if (is_masterworker) {
-//		// Master-worker style
-//		if (mpi_rank == MASTER)
-//			mpimw_master_compute(gp_offset);
-//		else
-//			mpimw_worker_compute(gp_offset);
+		// Master-worker style
+		if (is_master())
+			mpimw_master_compute(gp_offset);
+		else
+			mpimw_worker_compute(gp_offset);
 	} else {
 		// MPI native style (default)
 		std::size_t num_gps = grid->getSize();
 		std::size_t mymin, mymax;
 		mpina_get_local_range(gp_offset, num_gps-1, mymin, mymax);
-		mpina_compute_range(mymin, mymax);
+		mpi_compute_range(mymin, mymax);
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 
 #if (SGI_OUT_TIMER==1)
-	if (mpi_rank == MASTER)
+	if (is_master())
 		printf("%d Ranks: computed %lu grid points (%lu to %lu) in %.5f seconds.\n",
 				mpi_size, grid->getSize()-gp_offset,
 				gp_offset, grid->getSize()-1, MPI_Wtime()-tic);
 #endif
+	return;
+}
+
+void SGI::mpi_compute_range(
+		const std::size_t& seq_min,
+		const std::size_t& seq_max)
+{
+	// IMPORTANT: Ensure workload is at least 1 grid point!
+	// This also prevents overriding wrong data to data files!
+	if (seq_max < seq_min) return;
+
+#if (SGI_OUT_RANK_PROGRESS==1)
+	printf("Rank %d: computing grid points %lu to %lu.\n",
+			mpi_rank, seq_min, seq_max);
+#endif
+	// Compute data & posterior
+	DataVector gp_coord (input_size);
+	GridStorage* gs = &(grid->getStorage());
+
+	std::size_t load = std::size_t(fmax(0, seq_max - seq_min + 1));
+	unique_ptr<double[]> data (new double[load * output_size]);
+	unique_ptr<double[]> pos (new double[load]);
+
+	unique_ptr<double[]> m;
+	double* d = nullptr;
+	double* p = nullptr;
+
+	std::size_t i,dim;  // loop index
+	for (i=seq_min; i <= seq_max; i++) {
+		// Set output pointer
+		d = &data[0] + (i-seq_min) * output_size;
+		p = &pos[0] + (i-seq_min);
+		// Get grid point coordinate
+		gs->get(i)->getCoordsBB(gp_coord, *bbox);
+		m.reset(vec_to_arr(gp_coord));
+		// compute with full model
+		fullmodel->run(m.get(), d);
+		// compute posterior
+		*p = compute_posterior(odata.get(), d, output_size, sigma);
+		// Find max posterior
+		if (*p > maxpos) {
+			maxpos = *p;
+			maxpos_seq = i;
+		}
+#if (SGI_OUT_GRID_POINTS==1)
+		printf("Rank %d: grid point %lu at %s completed, pos = %.6f.\n",
+				mpi_rank, i, vec_to_str(gp_coord).c_str(), *p);
+#endif
+	}
+	// Write results to file
+	mpiio_partial_data(false, seq_min, seq_max, data.get());
+	mpiio_partial_posterior(false, seq_min, seq_max, pos.get());
 	return;
 }
 
@@ -470,64 +560,155 @@ void SGI::mpina_get_local_range(
 	return;
 }
 
-void SGI::mpina_compute_range(
-		const std::size_t& seq_min,
-		const std::size_t& seq_max)
+void SGI::mpimw_get_job_range(
+		const std::size_t& jobid,
+		const std::size_t& seq_offset,
+		std::size_t& seq_min,
+		std::size_t& seq_max)
 {
-	// IMPORTANT: Ensure workload is at least 1 grid point!
-	// This also prevents overriding wrong data to data files!
-	if (seq_max < seq_min) return;
+	seq_min = seq_offset + jobid * MPIMW_TRUNK_SIZE;
+	seq_max = min( seq_min + MPIMW_TRUNK_SIZE - 1, grid->getSize()-1 );
+}
 
-#if (SGI_OUT_RANK_PROGRESS==1)
-	printf("Rank %d: computing grid points %lu to %lu.\n",
-			mpi_rank, seq_min, seq_max);
-#endif
-	// Compute data & posterior
-	DataVector gp_coord (input_size);
-	GridStorage* gs = &(grid->getStorage());
-	BoundingBox* bb = &(grid->getBoundingBox());
+void SGI::mpimw_worker_compute(std::size_t gp_offset)
+{
+	// Setup variables
+	int job_todo, job_done; // use separate buffers for send and receive
+	std::size_t seq_min, seq_max;
+	MPI_Status status;
 
-	std::size_t load = std::size_t(fmax(0, seq_max - seq_min + 1));
-	unique_ptr<double[]> data (new double[load * output_size]);
-	unique_ptr<double[]> pos (new double[load]);
+	while (true) {
+		// Receive a signal from MASTER
+		MPI_Recv(&job_todo, 1, MPI_INT, MASTER, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
-	unique_ptr<double[]> m;
-	double* d = nullptr;
-	double* p = nullptr;
+		if (status.MPI_TAG == MPIMW_TAG_TERMINATE) break;
 
-	std::size_t i,dim;  // loop index
-	for (i=seq_min; i <= seq_max; i++) {
-		// Set output pointer
-		d = &data[0] + (i-seq_min) * output_size;
-		p = &pos[0] + (i-seq_min);
-		// Get grid point coordinate
-		gs->get(i)->getCoordsBB(gp_coord, *bb);
-		m.reset(vec_to_arr(gp_coord));
-		// compute with full model
-		fullmodel->run(m.get(), d);
-
-		// compute posterior
-		*p = compute_posterior(odata.get(), d, output_size, sigma);
-
-		// Find max posterior
-		if (*p > maxpos) {
-			maxpos = *p;
-			maxpos_seq = i;
+		if (status.MPI_TAG == MPIMW_TAG_WORK) {
+			// get the job range and compute
+			mpimw_get_job_range(job_todo, gp_offset, seq_min, seq_max);
+			mpi_compute_range(seq_min, seq_max);
+			// tell master the job is done
+			job_done = job_todo;
+			MPI_Send(&job_done, 1, MPI_INT, MASTER, job_done, MPI_COMM_WORLD);
 		}
-#if (SGI_OUT_GRID_POINTS==1)
-		printf("Rank %d: grid point %lu at %s completed, pos = %.6f.\n",
-				mpi_rank, i, vec_to_str(gp_coord).c_str(), *p);
+#if (ENABLE_IMPI==1)
+		if (status.MPI_TAG == MPIMW_TAG_ADAPT) impi_adapt();
 #endif
-	}
-	// Write results to file
-	mpiio_partial_data(false, seq_min, seq_max, data.get());
-	mpiio_partial_posterior(false, seq_min, seq_max, pos.get());
+	} // end while
 	return;
 }
 
+void SGI::mpimw_master_compute(std::size_t gp_offset)
+{
+	std::size_t added_gps;
+	int num_jobs, jobid, worker, scnt=0;
+	MPI_Status status;
+	unique_ptr<int[]> jobs; // use array to have unique send buffer
+	vector<int> jobs_done;
 
+#if (ENABLE_IMPI==1)
+	double tic, toc;
+	int jobs_per_tic;
+#endif
 
+	// Determine total # jobs (compute only the newly added points)
+	added_gps = grid->getSize() - gp_offset;
+	num_jobs = (added_gps % MPIMW_TRUNK_SIZE > 0) ?
+			added_gps/MPIMW_TRUNK_SIZE + 1 :
+			added_gps/MPIMW_TRUNK_SIZE;
 
+	// Initialize job queues
+	jobs_done.reserve(num_jobs);
+	jobs.reset(new int[num_jobs]);
+	for (int i = 0; i < num_jobs; i++)
+		jobs[i] = i;
 
+#if (ENABLE_IMPI==1)
+	tic = MPI_Wtime();
+	jobs_per_tic = 0;
+#endif
+
+	// Seed workers if any
+	if (mpi_size > 1)
+		mpimw_seed_workers(num_jobs, scnt, jobs.get());
+
+	// As long as not all jobs are done, keep working...
+	while (jobs_done.size() < num_jobs) {
+		if (mpi_size > 1) {
+			// #1. Receive a finished job
+			MPI_Recv(&jobid, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+			worker = status.MPI_SOURCE;
+			jobs_done.push_back(jobid); // mark the job as done
+#if (ENABLE_IMPI==1)
+			jobs_per_tic++;
+#endif
+			// #2. Send another job if any
+			if (scnt < num_jobs) {
+				MPI_Send(&jobs[scnt], 1, MPI_INT, worker, MPIMW_TAG_WORK, MPI_COMM_WORLD);
+				scnt++;
+			}
+		} else { // if there is NO worker
+			// #1. Take out job
+			jobid = jobs[scnt];
+			scnt++;
+			// #2. Compute a job
+			std::size_t seq_min, seq_max;
+			mpimw_get_job_range(jobid, gp_offset, seq_min, seq_max);
+			mpi_compute_range(seq_min, seq_max);
+			jobs_done.push_back(jobid);
+#if (ENABLE_IMPI==1)
+			jobs_per_tic++;
+#endif
+		}
+
+		// #3. Check for adaption every IMPI_ADAPT_FREQ seconds
+#if (ENABLE_IMPI==1)
+		toc = MPI_Wtime()-tic;
+		if (toc >= IMPI_ADAPT_FREQ) {
+			// performance measure: # gps computed per second
+			printf("PERFORMANCE MEASURE: # forward simulations per second = %.6f\n",
+					double(jobs_per_tic * MPIMW_TRUNK_SIZE)/toc);
+			// Only when there are remaining jobs, it's worth trying to adapt
+			if (scnt < num_jobs) {
+				// Prepare minions for adapt (receive done jobs, then send adapt signal)
+				if (mpi_size > 1)
+					prepare_minions_for_adapt(jobs_done, jobs_per_tic);
+				// Adapt
+				impi_adapt();
+				// Seed minions again
+				if (mpi_size > 1)
+					seed_minions(num_jobs, scnt, jobs.get());
+			}
+			// reset timer
+			tic = MPI_Wtime();
+			jobs_per_tic = 0;
+		} // end if-toc
+#endif
+	} // end while
+
+	// All jobs done
+	if (mpi_size > 1) {
+		for (int mi=1; mi < mpi_size; mi++)
+			MPI_Send(&jobid, 1, MPI_INT, mi, MPIMW_TAG_TERMINATE, MPI_COMM_WORLD);
+	}
+	return;
+}
+
+void SGI::mpimw_seed_workers(
+		const int& num_jobs,
+		int& scnt,
+		int* jobs)
+{
+	// the smaller of (remainning jobs) or (# workers)
+	int size = int(fmin(num_jobs-scnt, mpi_size-1));
+	unique_ptr<MPI_Request[]> tmp_req (new MPI_Request[size]);
+	for (int i=0; i < size; i++) {
+		MPI_Isend(&jobs[scnt], 1, MPI_INT, i+1, MPIMW_TAG_WORK,
+				MPI_COMM_WORLD, &tmp_req[i]);
+		scnt++;
+	}
+	MPI_Waitall(size, tmp_req.get(), MPI_STATUS_IGNORE);
+	return;
+}
 
 
