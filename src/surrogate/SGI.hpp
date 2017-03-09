@@ -38,14 +38,12 @@ private:
 #if (ENABLE_IMPI==1)
 	int mpi_status;	/// iMPI adapt status
 #endif
-	
-	std::size_t input_size;
-	std::size_t output_size;
 
 	std::unique_ptr<ForwardModel> 			  	fullmodel;
 	std::unique_ptr<sgpp::base::Grid> 		  	grid;
 	std::unique_ptr<sgpp::base::DataVector[]> 	alphas;
 	std::unique_ptr<sgpp::base::OperationEval> 	eval;
+	std::unique_ptr<sgpp::base::BoundingBox>	bbox;
 	
 	std::unique_ptr<double[]> odata;
 	double noise;
@@ -85,7 +83,7 @@ private:
 
 	sgpp::base::BoundingBox* create_boundingbox();
 
-	void create_alphas();
+	void update_alphas();
 
 	void mpiio_read_full_grid();
 

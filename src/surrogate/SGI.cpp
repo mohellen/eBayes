@@ -25,20 +25,18 @@ using namespace	sgpp::base;
 SGI::SGI(
 		ForwardModel* fm,
 		const string& observed_data_file)
-		: ForwardModel()
+		: ForwardModel(fm->get_input_size(), fm->get_output_size())
 {
 	MPI_Comm_rank(MPI_COMM_WORLD, &(this->mpi_rank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpi_size));
 #if (ENABLE_IMPI==1)
 	mpi_status = -1;
 #endif
-	this->input_size = fm->get_input_size();
-	this->output_size = fm->get_output_size();
-
 	this->fullmodel = unique_ptr<ForwardModel>(fm);
 	this->grid = nullptr;
 	this->eval = nullptr;
 	this->alphas = unique_ptr<DataVector[]>(new DataVector[output_size]);
+	this->bbox = nullptr;
 
 	this->maxpos_seq = 0;
 	this->maxpos = 0.0;
@@ -79,7 +77,7 @@ void SGI::run(const double* m, double* d)
 	DataVector point = arr_to_vec(m, input_size);
 	// Evaluate m
 	for (std::size_t j=0; j < output_size; j++) {
-		d[j] = eval->eval(this->alphas[j], point);
+		d[j] = eval->eval(alphas[j], point);
 	}
 	return;
 }
@@ -96,10 +94,11 @@ void SGI::initialize(
 	} else {
 #endif
 	// 1. All: Construct grid
-	grid.reset(Grid::createLinearBoundaryGrid(input_size).release());	// create empty grid
-//	grid.reset(Grid::createModLinearGrid(input_size).release());	// create empty grid
+	bbox.reset(create_boundingbox());
+//	grid.reset(Grid::createLinearBoundaryGrid(input_size).release());	// create empty grid
+	grid.reset(Grid::createModLinearGrid(input_size).release());	// create empty grid
 	grid->getGenerator().regular(level);			// populate grid points
-	grid->setBoundingBox(*create_boundingbox());	// set up bounding box
+	grid->setBoundingBox(*bbox);	// set up bounding box
 	num_points = grid->getSize();
 
 	// Master:
@@ -120,10 +119,10 @@ void SGI::initialize(
 	mpi_find_global_update_maxpos();
 
 	// 3. All: Create alphas
-	create_alphas();
+	update_alphas();
 
 	// 4. Update op_eval
-	eval.reset(sgpp::op_factory::createOperationEval(*grid).get());
+	eval.reset(sgpp::op_factory::createOperationEval(*grid).release());
 
 	// Master: print grogress
 	if (mpi_rank == MASTER) {
@@ -195,7 +194,7 @@ BoundingBox* SGI::create_boundingbox()
 	return bb;
 }
 
-void SGI::create_alphas()
+void SGI::update_alphas()
 {
 #if (SGI_OUT_TIMER==1)
 	double tic = MPI_Wtime();
@@ -215,7 +214,8 @@ void SGI::create_alphas()
 			alphas[j].set(i, data[i*output_size+j]);
 
 	// hierarchize alphas
-	unique_ptr<OperationHierarchisation> hier (sgpp::op_factory::createOperationHierarchisation(*grid));
+//	unique_ptr<OperationHierarchisation> hier (sgpp::op_factory::createOperationHierarchisation(*grid));
+	auto hier = sgpp::op_factory::createOperationHierarchisation(*grid);
 	for (std::size_t j=0; j<output_size; j++)
 		hier->doHierarchisation(alphas[j]);
 

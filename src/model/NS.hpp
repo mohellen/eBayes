@@ -97,9 +97,6 @@ private:
     std::vector<Obstacle> obs;		/// List of obstacles inside domain
     std::vector<double> out_times;	/// List of output sampling time instances
     std::vector< std::pair<double, double> > out_locs;	/// List of output sampling locations
-	std::size_t input_size;			/// size of input parameter x
-	std::size_t output_size;		/// size of output parameter y
-
 
 public:
 	/* DEFINE destructor (no ;)*/

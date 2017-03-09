@@ -39,11 +39,18 @@
 
 class ForwardModel
 {
+protected:
+	std::size_t input_size = 0;
+	std::size_t output_size = 0;
+
 public:
 	// Define virtual destructor
 	virtual ~ForwardModel() {}
 
 	ForwardModel() {}
+
+	ForwardModel(std::size_t lin, std::size_t lout)
+			: input_size(lin), output_size(lout) {}
 
 	virtual std::size_t get_input_size() = 0;
 

@@ -94,13 +94,55 @@ void test_sgi_mpi() {
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
 
 	string inputfile = "./input/obstacles_in_flow.dat";
-
 	NS* fm = new NS(inputfile, 1, 1);
 	std::size_t input_size = fm->get_input_size();
 	std::size_t output_size = fm->get_output_size();
 
+	double* d = new double[output_size];
+	double* m = new double[input_size];
+	m[0] = 1.0;
+	m[1] = 0.8;
+//	m[2] = 3.0;
+//	m[3] = 1.5;
+//	m[4] = 5.5;
+//	m[5] = 0.2;
+//	m[6] = 8.2;
+//	m[7] = 1.0;
+
+	double noise;
+	double* od = ForwardModel::get_observed_data(inputfile, output_size, noise);
+
+	for (int p=0; p < mpisize; p++) {
+		if (mpirank == p) {
+			printf("\nRank %d: Observed data\n", mpirank);
+			for (size_t j=0; j < output_size; j++)
+				printf("%.6f ", od[j]);
+			printf("\n");
+		}
+	}
+
 	SGI* sm = new SGI(fm, inputfile);
-	sm->initialize(2);
+	sm->initialize(4);
+	sm->run(m, d);
+
+	for (int p=0; p < mpisize; p++) {
+		if (mpirank == p) {
+			printf("\nRank %d: Output data\n", mpirank);
+			for (size_t j=0; j < output_size; j++)
+				printf("%.6f ", d[j]);
+			printf("\n");
+		}
+	}
+
+	double sigma = ForwardModel::compute_posterior_sigma(od, output_size, noise);
+	double pos = ForwardModel::compute_posterior(od, d, output_size, sigma);
+
+	for (int p=0; p < mpisize; p++) {
+		if (mpirank == p) {
+			printf("\nRank %d: sigma = %.6f, posterior = %.6f\n", mpirank, sigma, pos);
+		}
+	}
+
 #endif
 }
 
