@@ -37,6 +37,7 @@
 #define SGI_OUT_GRID_POINTS		0 //(1 or 0)
 #define SGI_MPIMW_TRUNK_SIZE	3 //(integer)
 
+
 class ForwardModel
 {
 protected:

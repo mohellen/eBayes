@@ -126,7 +126,13 @@ void test_sgi_mpi() {
 }
 
 int main(int argc, char* argv[]) {
+	int mpistatus;
+
+#if (ENABLE_IMPI==1)
+	MPI_Init_adapt(&argc, &argv, &mpistatus);
+#elif
 	MPI_Init(&argc, &argv);
+#endif
 
 	test_ns_mpi();
 	test_sgi_mpi();

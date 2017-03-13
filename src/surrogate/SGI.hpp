@@ -37,6 +37,10 @@
 #define MPIMW_TRUNK_SIZE	5
 #define IMPI_ADAPT_FREQ		60	// Adapt frequency in seconds
 
+//TODO: remove this!
+//#define ENABLE_IMPI 1
+
+
 class SGI : public ForwardModel
 {
 private:
@@ -44,6 +48,7 @@ private:
 	int mpi_size;	/// Size of MPI_COMM_WORLD
 #if (ENABLE_IMPI==1)
 	int mpi_status;	/// iMPI adapt status
+	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
 #endif
 
 	std::unique_ptr<ForwardModel> 			  	fullmodel;
@@ -78,6 +83,8 @@ public:
 			double refine_portion,
 			std::size_t init_grid_level=4,
 			bool is_masterworker=false); // MPI scheme default to naive
+
+	void impi_adapt();
 
 private:
 	sgpp::base::DataVector arr_to_vec(const double *& in, std::size_t size);
@@ -146,6 +153,10 @@ private:
 			const int& num_jobs,
 			int& scnt,
 			int* jobs);
+
+	void mpimw_adapt_preparation(
+			std::vector<int> & jobs_done,
+			int & jobs_per_tic);
 
 };
 #endif /* SURROGATE_SGI_HPP_ */

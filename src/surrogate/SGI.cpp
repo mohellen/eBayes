@@ -21,6 +21,13 @@
 using namespace std;
 using namespace	sgpp::base;
 
+//int MPI_Init_adapt(int *argc, char ***argv, int *local_status);
+//int MPI_Probe_adapt(int *current_operation, int *local_status, MPI_Info *info);
+//int MPI_Comm_adapt_begin(MPI_Comm *intercomm, MPI_Comm *new_comm_world,
+//		int *staying_count, int *leaving_count, int *joining_count);
+//int MPI_Comm_adapt_commit(void);
+
+
 
 SGI::SGI(
 		ForwardModel* fm,
@@ -31,6 +38,7 @@ SGI::SGI(
 	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpi_size));
 #if (ENABLE_IMPI==1)
 	mpi_status = -1;
+	impi_gpoffset = -1;
 #endif
 	this->fullmodel.reset(fm);
 	this->alphas.reset(new DataVector[output_size]);
@@ -126,7 +134,7 @@ void SGI::build(
 		// Write grid to file (scratch file only needed by JOINING ranks during compute_grid_points)
 		mpiio_write_grid();
 	} else {
-		num_points = CarryOver.gp_offset;
+		num_points = impi_gpoffset;
 	}
 #endif
 
@@ -163,6 +171,58 @@ void SGI::build(
 	return;
 }
 
+void SGI::impi_adapt()
+{
+#if (ENABLE_IMPI==1)
+	int adapt_flag;
+	MPI_Info info;
+	MPI_Comm intercomm;
+	MPI_Comm newcomm;
+	int staying_count, leaving_count, joining_count;
+	double tic, toc;
+	double tic1, toc1;
+
+	tic = MPI_Wtime();
+	MPI_Probe_adapt(&adapt_flag, &mpi_status, &info);
+
+	toc = MPI_Wtime() - tic;
+	printf("Rank %d [STATUS %1d]: MPI_Probe_adapt %.6f seconds.\n",
+			mpi_rank, mpi_status, toc);
+
+	if (adapt_flag == MPI_ADAPT_TRUE){
+		tic1 = MPI_Wtime();
+		tic = MPI_Wtime();
+		MPI_Comm_adapt_begin(&intercomm, &newcomm,
+				&staying_count, &leaving_count, &joining_count);
+
+		toc = MPI_Wtime() - tic;
+		printf("Rank %d [STATUS %1d]: MPI_Comm_adapt_begin %.6f seconds.\n",
+				mpi_rank, mpi_status, toc);
+
+		//************************ ADAPT WINDOW ****************************
+		if (mpi_status == MPI_ADAPT_STATUS_JOINING) mpiio_read_grid();
+
+		MPI_Bcast(&impi_gpoffset, 1, MPI_UNSIGNED_LONG, MASTER, newcomm);
+		//************************ ADAPT WINDOW ****************************
+
+		tic = MPI_Wtime();
+		MPI_Comm_adapt_commit();
+
+		toc = MPI_Wtime() - tic;
+		printf("Rank %d [STATUS %1d]: MPI_Comm_adapt_commit %.6f seconds.\n",
+				mpi_rank, mpi_status, toc);
+
+		MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+		MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+		mpi_status = MPI_ADAPT_STATUS_STAYING;
+
+		toc1 = MPI_Wtime() - tic1;
+		printf("Rank %d [STATUS %1d]: TOTAL adaption %.6f seconds.\n",
+				mpi_rank, mpi_status, toc);
+	}
+	return;
+#endif
+}
 
 /*********************************************
  *********************************************
@@ -353,7 +413,35 @@ void SGI::mpiio_write_grid()
 }
 
 void SGI::mpiio_read_grid()
-{}
+{
+	// Open file and get file size
+	string ofile = string(OUTPATH) + "/grid.mpibin";
+	MPI_File fh;
+	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
+			!= MPI_SUCCESS) {
+		printf("MPI read grid file open failed. Operation aborted!\n");
+		exit(EXIT_FAILURE);
+	}
+	long long int count = 0;
+	MPI_File_get_size(fh, &count);
+	unique_ptr<char[]> buff (new char[count]);
+
+	// Read from file
+	MPI_File_read_at(fh, 0, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE);
+	MPI_File_close(&fh);
+
+	// Create serialized grid string
+	string sg_str(buff.get());
+
+	// Construct new grid from grid string
+//	grid.reset(Grid::createLinearBoundaryGrid(input_size).release()); // create empty grid
+	grid.reset(Grid::createModLinearGrid(input_size).release()); // create empty grid
+	grid->getStorage().emptyStorage();
+	grid->getStorage().unserialize_noAlgoDims(sg_str);	// restore grid from string object
+	grid->setBoundingBox(*bbox); // set up bounding box
+	eval.reset(sgpp::op_factory::createOperationEval(*grid).release());
+	return;
+}
 
 void SGI::mpiio_delete_grid()
 {
@@ -670,14 +758,14 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 					double(jobs_per_tic * MPIMW_TRUNK_SIZE)/toc);
 			// Only when there are remaining jobs, it's worth trying to adapt
 			if (scnt < num_jobs) {
-				// Prepare minions for adapt (receive done jobs, then send adapt signal)
+				// Prepare workers for adapt (receive done jobs, then send adapt signal)
 				if (mpi_size > 1)
-					prepare_minions_for_adapt(jobs_done, jobs_per_tic);
+					mpimw_adapt_preparation(jobs_done, jobs_per_tic);
 				// Adapt
 				impi_adapt();
-				// Seed minions again
+				// Seed workers again
 				if (mpi_size > 1)
-					seed_minions(num_jobs, scnt, jobs.get());
+					mpimw_seed_workers(num_jobs, scnt, jobs.get());
 			}
 			// reset timer
 			tic = MPI_Wtime();
@@ -711,4 +799,28 @@ void SGI::mpimw_seed_workers(
 	return;
 }
 
+void SGI::mpimw_adapt_preparation(
+		vector<int> & jobs_done,
+		int & jobs_per_tic)
+{
+#if (ENABLE_IMPI==1)
+	unique_ptr<MPI_Request[]> tmp_req (new MPI_Request[(mpi_size-1)*2]);
+	unique_ptr<int[]> tmp_rbuf (new int[mpi_size-1]);
+	unique_ptr<int[]> tmp_sbuf (new int[mpi_size-1]); // dummy send buffer
 
+	for (int i=1; i < mpi_size; i++) {
+		// First receive a finished job
+		MPI_Irecv(&tmp_rbuf[i-1], 1, MPI_INT, MPI_ANY_SOURCE,
+				MPI_ANY_TAG, MPI_COMM_WORLD, &tmp_req[i-1]);
+		// Then send "adapt signal", send buffer is dummy
+		MPI_Isend(&tmp_sbuf[i-1], 1, MPI_INT, i, MPIMW_TAG_ADAPT,
+				MPI_COMM_WORLD, &tmp_req[(mpi_size-1) + i-1]);
+	}
+	MPI_Waitall((mpi_size-1)*2, tmp_req.get(), MPI_STATUS_IGNORE);
+	for (int i=1; i < mpi_size; i++) {
+		jobs_done.push_back(tmp_rbuf[i-1]);
+		jobs_per_tic++;
+	}
+	return;
+#endif
+}
