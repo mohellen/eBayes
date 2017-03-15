@@ -45,9 +45,7 @@ double EA::err()
 {
 	auto d = unique_ptr<double[]>(new double[output_size]);
 	sm->run(test_point.get(), d.get());
-	double err = ForwardModel::compute_l2norm(fm_data.get(), d.get(), output_size);
-	printf("\nSurrogate l2norm error: %.6f\n", err);
-	return err;
+	return ForwardModel::compute_l2norm(fm_data.get(), d.get(), output_size);
 }
 
 double EA::err(const double* m)
@@ -55,9 +53,7 @@ double EA::err(const double* m)
 	fm->run(m, fm_data.get());
 	auto d = unique_ptr<double[]>(new double[output_size]);
 	sm->run(m, d.get());
-	double err = ForwardModel::compute_l2norm(fm_data.get(), d.get(), output_size);
-	printf("\nSurrogate l2norm error: %.6f\n", err);
-	return err;
+	return ForwardModel::compute_l2norm(fm_data.get(), d.get(), output_size);
 }
 
 

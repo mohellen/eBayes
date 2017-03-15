@@ -103,6 +103,8 @@ void SGI::build(
 #endif
 
 	if (is_init) {
+		if (is_master())
+			printf("\n...Initializing SGI model...\n");
 		// 1. All: Construct grid
 		bbox.reset(create_boundingbox());
 	//	grid.reset(Grid::createLinearBoundaryGrid(input_size).release()); // create empty grid
@@ -110,12 +112,9 @@ void SGI::build(
 		grid->getGenerator().regular(init_grid_level); // populate grid points
 		grid->setBoundingBox(*bbox); // set up bounding box
 		num_points = grid->getSize();
-		// Master only
 		if (is_master()) {
-			// Print progress
-			printf("\n...Initializing SGI model...\n");
-			printf("%lu grid points to be added. Total # grid points = %lu.\n",
-					num_points, num_points);
+			printf("Grid points added: %lu\n", num_points);
+			printf("Total grid points: %lu\n", num_points);
 		}
 	} else {
 		if (is_master())
@@ -125,9 +124,10 @@ void SGI::build(
 		refine_portion = fmax(0.0, refine_portion); // ensure portion is non-negative
 		refine_grid(refine_portion);
 		new_num_points = grid->getSize();
-		if (is_master())
-			printf("%lu grid points to be added. Total # grid points = %lu.\n",
-					new_num_points-num_points, new_num_points);
+		if (is_master()) {
+			printf("Grid points added: %lu\n", new_num_points-num_points);
+			printf("Total grid points: %lu\n", new_num_points);
+		}
 	}
 
 #if (ENABLE_IMPI==1)
@@ -304,7 +304,6 @@ void SGI::update_alphas()
 			alphas[j].set(i, data[i*output_size+j]);
 
 	// hierarchize alphas
-//	unique_ptr<OperationHierarchisation> hier (sgpp::op_factory::createOperationHierarchisation(*grid));
 	auto hier = sgpp::op_factory::createOperationHierarchisation(*grid);
 	for (std::size_t j=0; j<output_size; j++)
 		hier->doHierarchisation(alphas[j]);

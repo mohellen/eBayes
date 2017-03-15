@@ -104,24 +104,29 @@ void test_sgi_mpi() {
 	double* m = new double[input_size];
 	m[0] = 1.0;
 	m[1] = 0.8;
-//	m[2] = 3.0;
-//	m[3] = 1.5;
-//	m[4] = 5.5;
-//	m[5] = 0.2;
-//	m[6] = 8.2;
-//	m[7] = 1.0;
+	m[2] = 3.0;
+	m[3] = 1.5;
+	m[4] = 5.5;
+	m[5] = 0.2;
+	m[6] = 8.2;
+	m[7] = 1.0;
 
 	EA* ea = new EA(fm, sm, m);
-
-	double noise, sigma, pos;
+	double tol = 0.01;
+	double noise, sigma, pos, err;
 	double* od = ForwardModel::get_observed_data(inputfile, output_size, noise);
 	sigma = ForwardModel::compute_posterior_sigma(od, output_size, noise);
-
-	for (int it=0; it < 5; it++) {
-		sm->build(0.1, 4, true);
-		if(mpirank == MASTER) ea->err();
+	int count = 0;
+	while (true) {
+		sm->build(0.1, 4, false);
+		err = ea->err();
+		count += 1;
+		if(mpirank == MASTER) {
+			printf("\nRefinement # %d\n", count);
+			printf("Surrogate model error: %.6f\n", err);
+		}
+		if (err <= tol) break;
 	}
-
 #endif
 }
 
@@ -130,7 +135,7 @@ int main(int argc, char* argv[]) {
 
 #if (ENABLE_IMPI==1)
 	MPI_Init_adapt(&argc, &argv, &mpistatus);
-#elif
+#else
 	MPI_Init(&argc, &argv);
 #endif
 
