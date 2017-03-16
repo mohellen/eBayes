@@ -9,7 +9,7 @@ cxx = 'mpicxx'
 cpppath = ['src', 'include', 'dep/sgpp-base-2.0.0/base/src']
 # Compile flags
 cppflags = ['-O3','-g','-std=c++11','-fmessage-length=0',
-            '-Wno-unused-result','-Wno-deprecated','-pedantic','-fopenmp']
+            '-Wno-unused-result','-Wno-deprecated','-pedantic']
 # Library look up paths: -Lpath without '-L'
 libpath = ['lib']
 # Libraries to link: -lmylib without '-l'
