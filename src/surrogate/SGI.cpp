@@ -322,7 +322,9 @@ void SGI::refine_grid(double portion)
 	double tic = MPI_Wtime();
 #endif
 	std::size_t num_gps = this->grid->getSize();
-	std::size_t refine_gps = num_gps * fmax(0.0, portion);
+	int refine_numOfPoints = int(ceil(num_gps * portion));
+	// regulate maximum num of points to refine, to avoid when grid getting too big
+	refine_numOfPoints = (refine_numOfPoints > 1000) ? 1000 : refine_numOfPoints;
 	DataVector refine_idx (num_gps);
 
 	// Read posterior from file
@@ -341,7 +343,7 @@ void SGI::refine_grid(double portion)
 		refine_idx[i] = data_norm * pos[i];
 	}
 	// refine grid
-	grid->refine(refine_idx, std::size_t(ceil(double(num_gps)*portion)));
+	grid->refine(refine_idx, refine_numOfPoints);
 
 #if (SGI_OUT_TIMER==1)
 	if (is_master())
