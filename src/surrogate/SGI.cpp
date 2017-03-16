@@ -584,8 +584,8 @@ void SGI::mpi_compute_range(
 	if (seq_max < seq_min) return;
 
 #if (SGI_OUT_RANK_PROGRESS==1)
-	printf("Rank %d: computing grid points %lu to %lu.\n",
-			mpi_rank, seq_min, seq_max);
+	printf("Rank %d: computing %lu grid points: [%lu, %lu]\n",
+			mpi_rank, (seq_max-seq_min+1), seq_min, seq_max);
 #endif
 	// Compute data & posterior
 	DataVector gp_coord (input_size);
