@@ -66,7 +66,7 @@ private:
 public:
 	~SGI(){}
 	
-	SGI(ForwardModel* fm, const std::string& observed_data_file);
+	SGI(const std::string& input_file, int resx, int resy);
 
 	std::size_t get_input_size();
 
@@ -84,6 +84,11 @@ public:
 			std::size_t init_grid_level=4,
 			bool is_masterworker=false); // MPI scheme default to naive
 
+	void duplicate(
+			const std::string& gridfile,
+			const std::string& datafile,
+			const std::string& posfile);
+
 	void impi_adapt();
 
 private:
@@ -97,31 +102,37 @@ private:
 
 	sgpp::base::BoundingBox* create_boundingbox();
 
-	void update_alphas();
+	void update_alphas(const std::string& outfile="");
 
 	void refine_grid(double portion);
 
 	bool is_master();
 
-	void mpiio_read_grid();
+	void mpiio_read_grid(
+			const std::string& outfile="");
 
-	void mpiio_write_grid_master();
+	void mpiio_write_grid_master(
+			const std::string& outfile="");
 
-	void mpiio_write_grid();
+	void mpiio_write_grid(
+			const std::string& outfile="");
 
-	void mpiio_delete_grid();
+	void mpiio_delete_grid(
+			const std::string& outfile="");
 
 	void mpiio_partial_data(
 			bool is_read,
 			std::size_t seq_min,
 			std::size_t seq_max,
-			double* buff);
+			double* buff,
+			const std::string& outfile="");
 
 	void mpiio_partial_posterior(
 			bool is_read,
 			std::size_t seq_min,
 			std::size_t seq_max,
-			double* buff);
+			double* buff,
+			const std::string& outfile="");
 
 	void mpi_find_global_update_maxpos();
 

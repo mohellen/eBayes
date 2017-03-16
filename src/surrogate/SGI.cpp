@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#include "surrogate/SGI.hpp"
+#include "SGI.hpp"
 
 using namespace std;
 using namespace	sgpp::base;
@@ -30,9 +30,10 @@ using namespace	sgpp::base;
 
 
 SGI::SGI(
-		ForwardModel* fm,
-		const string& observed_data_file)
-		: ForwardModel(fm->get_input_size(), fm->get_output_size())
+		const string& input_file,
+		int resx,
+		int resy)
+		: ForwardModel()
 {
 	MPI_Comm_rank(MPI_COMM_WORLD, &(this->mpi_rank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpi_size));
@@ -40,7 +41,10 @@ SGI::SGI(
 	mpi_status = -1;
 	impi_gpoffset = -1;
 #endif
-	this->fullmodel.reset(fm);
+	this->fullmodel.reset(new NS(input_file, resx, resy));
+	this->input_size = fullmodel->get_input_size();   // inherited from ForwardModel
+	this->output_size = fullmodel->get_output_size(); // inherited from ForwardModel
+
 	this->alphas.reset(new DataVector[output_size]);
 	this->grid = nullptr;
 	this->eval = nullptr;
@@ -49,7 +53,7 @@ SGI::SGI(
 	this->maxpos_seq = 0;
 	this->maxpos = 0.0;
 	this->noise = 0.0;
-	this->odata.reset( get_observed_data(observed_data_file,
+	this->odata.reset( get_observed_data(input_file,
 			this->output_size, this->noise) );
 	this->sigma = compute_posterior_sigma(
 			this->odata.get(), this->output_size, this->noise);
@@ -106,10 +110,10 @@ void SGI::build(
 		if (is_master())
 			printf("\n...Initializing SGI model...\n");
 		// 1. All: Construct grid
-		bbox.reset(create_boundingbox());
-	//	grid.reset(Grid::createLinearBoundaryGrid(input_size).release()); // create empty grid
+//		grid.reset(Grid::createLinearBoundaryGrid(input_size).release()); // create empty grid
 		grid.reset(Grid::createModLinearGrid(input_size).release()); // create empty grid
 		grid->getGenerator().regular(init_grid_level); // populate grid points
+		bbox.reset(create_boundingbox());
 		grid->setBoundingBox(*bbox); // set up bounding box
 		num_points = grid->getSize();
 		if (is_master()) {
@@ -129,10 +133,9 @@ void SGI::build(
 			printf("Total grid points: %lu\n", new_num_points);
 		}
 	}
+	mpiio_write_grid();
 
 #if (ENABLE_IMPI==1)
-		// Write grid to file (scratch file only needed by JOINING ranks during compute_grid_points)
-		mpiio_write_grid();
 	} else {
 		num_points = impi_gpoffset;
 	}
@@ -167,6 +170,32 @@ void SGI::build(
 			printf("...Initialize SGI model successful...\n");
 		else
 			printf("...Refine SGI model successful...\n");
+	}
+	return;
+}
+
+void SGI::duplicate(
+		const string& gridfile,
+		const string& datafile,
+		const string& posfile)
+{
+	// Set: grid, eval, bbox
+	mpiio_read_grid(gridfile);
+
+	// Set: alphas
+	update_alphas(datafile);
+
+	// Read posterior
+	std::size_t num_gps = grid->getSize();
+	unique_ptr<double[]> pos (new double[num_gps]);
+	mpiio_partial_posterior(true, 0, num_gps-1, pos.get(), posfile);
+
+	// Find max pos
+	for (std::size_t i=0; i < num_gps; i++) {
+		if (pos[i] > maxpos) {
+			maxpos = pos[i];
+			maxpos_seq = i;
+		}
 	}
 	return;
 }
@@ -284,7 +313,7 @@ BoundingBox* SGI::create_boundingbox()
 	return bb;
 }
 
-void SGI::update_alphas()
+void SGI::update_alphas(const string& outfile)
 {
 #if (SGI_OUT_TIMER==1)
 	double tic = MPI_Wtime();
@@ -292,7 +321,7 @@ void SGI::update_alphas()
 	// read raw data
 	std::size_t num_gps = grid->getSize();
 	unique_ptr<double[]> data (new double[output_size * num_gps]);
-	mpiio_partial_data(true, 0, num_gps-1, data.get());
+	mpiio_partial_data(true, 0, num_gps-1, data.get(), outfile);
 
 	// re-allocate alphas
 	for (std::size_t j=0; j < output_size; j++)
@@ -366,29 +395,36 @@ bool SGI::is_master()
 	return false;
 }
 
-void SGI::mpiio_write_grid_master()
+void SGI::mpiio_write_grid_master(const string& outfile)
 {
-	if (!is_master()) return; // Only the master performs this operation.
-
-	// Pack grid into Char array
-	string sg_str = grid->getStorage().serialize(1);
-	size_t count = sg_str.size();
-	unique_ptr<char[]> buff (new char[count]);
-	strcpy(buff.get(), sg_str.c_str());
-	// Write to file
-	string ofile = string(OUTPATH) + "/grid.mpibin";
-	MPI_File fh;
-	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
-			!= MPI_SUCCESS) {
-		cout << "MPI write grid file open failed. Operation aborted! " << endl;
-		exit(EXIT_FAILURE);
-	}
-	MPI_File_write_at(fh, 0, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE);
-	MPI_File_close(&fh);
-	return;
+//	// Delete existing grid file, if any
+//	MPI_Barrier(MPI_COMM_WORLD);
+//	if (is_master()) mpiio_delete_grid(outfile);
+//	MPI_Barrier(MPI_COMM_WORLD);
+//
+//	if (!is_master()) return; // Only the master performs this operation.
+//
+//	// Pack grid into Char array
+//	string sg_str = grid->getStorage().serialize(1);
+//	size_t count = sg_str.size();
+//	unique_ptr<char[]> buff (new char[count]);
+//	strcpy(buff.get(), sg_str.c_str());
+//	// Write to file
+//	string ofile = outfile;
+//	if (ofile == "")
+//		ofile = string(OUTPATH) + "/grid.mpibin";
+//	MPI_File fh;
+//	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
+//			!= MPI_SUCCESS) {
+//		cout << "MPI write grid file open failed. Operation aborted! " << endl;
+//		exit(EXIT_FAILURE);
+//	}
+//	MPI_File_write_at(fh, 0, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE);
+//	MPI_File_close(&fh);
+//	return;
 }
 
-void SGI::mpiio_write_grid()
+void SGI::mpiio_write_grid(const string& outfile)
 {
 	// Pack grid into Char array
 	string sg_str = grid->getStorage().serialize(1);
@@ -401,22 +437,26 @@ void SGI::mpiio_write_grid()
 	mpina_get_local_range(0, count-1, lmin, lmax);
 
 	// Write to file
-	string ofile = string(OUTPATH) + "/grid.mpibin";
+	string ofile = outfile;
+	if (ofile == "")
+		ofile = string(OUTPATH) + "/grid.mpibin";
 	MPI_File fh;
-	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
+	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 			!= MPI_SUCCESS) {
-		cout << "MPI write grid file open failed. Operation aborted! " << endl;
+		printf("MPI write grid file open failed. Operation aborted!\n");
 		exit(EXIT_FAILURE);
 	}
-	MPI_File_write_at(fh, lmin-1, buff.get(), lmax-lmin+1, MPI_CHAR, MPI_STATUS_IGNORE);
+	MPI_File_write_at(fh, lmin, buff.get(), lmax-lmin+1, MPI_CHAR, MPI_STATUS_IGNORE);
 	MPI_File_close(&fh);
 	return;
 }
 
-void SGI::mpiio_read_grid()
+void SGI::mpiio_read_grid(const string& outfile)
 {
 	// Open file and get file size
-	string ofile = string(OUTPATH) + "/grid.mpibin";
+	string ofile = outfile;
+	if (ofile == "")
+		ofile = string(OUTPATH) + "/grid.mpibin";
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 			!= MPI_SUCCESS) {
@@ -439,14 +479,17 @@ void SGI::mpiio_read_grid()
 	grid.reset(Grid::createModLinearGrid(input_size).release()); // create empty grid
 	grid->getStorage().emptyStorage();
 	grid->getStorage().unserialize_noAlgoDims(sg_str);	// restore grid from string object
+	bbox.reset(create_boundingbox());
 	grid->setBoundingBox(*bbox); // set up bounding box
 	eval.reset(sgpp::op_factory::createOperationEval(*grid).release());
 	return;
 }
 
-void SGI::mpiio_delete_grid()
+void SGI::mpiio_delete_grid(const string& outfile)
 {
-	string ofile = string(OUTPATH) + "/grid.mpibin";
+	string ofile = outfile;
+	if (ofile == "")
+		ofile = string(OUTPATH) + "/grid.mpibin";
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 			== MPI_SUCCESS) {
@@ -458,18 +501,20 @@ void SGI::mpiio_partial_data(
 		bool is_read,
 		std::size_t seq_min,
 		std::size_t seq_max,
-		double* buff)
+		double* buff,
+		const string& outfile)
 {
 	// Do something only when seq_min <= seq_max
 	if (seq_min > seq_max) return;
 
-	string ofile;
-	ofile = string(OUTPATH) + "/data.mpibin";;
+	string ofile = outfile;
+	if (ofile == "")
+		ofile = string(OUTPATH) + "/data.mpibin";
 	MPI_File fh;
 	if (is_read) { // Read data from file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			cout << "MPI read file open failed. Operation aborted! " << endl;
+			printf("MPI read data file open failed. Operation aborted!\n");
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
@@ -479,7 +524,7 @@ void SGI::mpiio_partial_data(
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			cout << "MPI write file open failed. Operation aborted! " << endl;
+			printf("MPI write data file open failed. Operation aborted!\n");
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
@@ -494,33 +539,35 @@ void SGI::mpiio_partial_posterior(
 		bool is_read,
 		std::size_t seq_min,
 		std::size_t seq_max,
-		double* buff)
+		double* buff,
+		const string& outfile)
 {
 	// Do something only when seq_min <= seq_max
 	if (seq_min > seq_max) return;
 
-	string ofile;
-	ofile = string(OUTPATH) + "/pos.mpibin";;
+	string ofile = outfile;
+	if (ofile == "")
+		ofile = string(OUTPATH) + "/pos.mpibin";;
 	MPI_File fh;
 	if (is_read) { // Read data from file
-	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
-			!= MPI_SUCCESS) {
-		cout << "MPI read file open failed. Operation aborted! " << endl;
-		exit(EXIT_FAILURE);
-	}
-	// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
-	MPI_File_read_at(fh, seq_min*sizeof(double), buff,
-			(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE);
+		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
+				!= MPI_SUCCESS) {
+			printf("MPI read pos file open failed. Operation aborted!\n");
+			exit(EXIT_FAILURE);
+		}
+		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
+		MPI_File_read_at(fh, seq_min*sizeof(double), buff,
+				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE);
 
 	} else { // Write data to file
-	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
-			!= MPI_SUCCESS) {
-		cout << "MPI write file open failed. Operation aborted! " << endl;
-		exit(EXIT_FAILURE);
-	}
-	// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
-	MPI_File_write_at(fh, seq_min*sizeof(double), buff,
-			(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE);
+		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
+				!= MPI_SUCCESS) {
+			printf("MPI write pos file open failed. Operation aborted!\n");
+			exit(EXIT_FAILURE);
+		}
+		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
+		MPI_File_write_at(fh, seq_min*sizeof(double), buff,
+				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE);
 	}
 	MPI_File_close(&fh);
 	return;

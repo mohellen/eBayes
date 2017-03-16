@@ -26,6 +26,8 @@
 #include <sys/time.h>
 
 
+
+
 using namespace std;
 
 
@@ -95,30 +97,30 @@ void test_sgi_mpi() {
 
 	string inputfile = "./input/obstacles_in_flow.dat";
 
-	NS* fm = new NS(inputfile, 1, 1);
-	SGI* sm = new SGI(fm, inputfile);
+	unique_ptr<NS> fm (new NS(inputfile, 1, 1));
+	unique_ptr<SGI> sm (new SGI(inputfile, 1, 1));
 
 	std::size_t input_size = fm->get_input_size();
 	std::size_t output_size = fm->get_output_size();
 
-	double* m = new double[input_size];
+	unique_ptr<double[]> m (new double[input_size]);
 	m[0] = 1.0;
 	m[1] = 0.8;
-	m[2] = 3.0;
-	m[3] = 1.5;
-	m[4] = 5.5;
-	m[5] = 0.2;
-	m[6] = 8.2;
-	m[7] = 1.0;
+//	m[2] = 3.0;
+//	m[3] = 1.5;
+//	m[4] = 5.5;
+//	m[5] = 0.2;
+//	m[6] = 8.2;
+//	m[7] = 1.0;
 
-	EA* ea = new EA(fm, sm, m);
+	unique_ptr<EA> ea (new EA(fm.get(), sm.get(), m.get()));
 	double tol = 0.01;
 	double noise, sigma, pos, err;
 	double* od = ForwardModel::get_observed_data(inputfile, output_size, noise);
 	sigma = ForwardModel::compute_posterior_sigma(od, output_size, noise);
 	int count = 0;
 	while (true) {
-		sm->build(0.1, 4, false);
+		sm->build(0.1, 2, false);
 		err = ea->err();
 		count += 1;
 		if(mpirank == MASTER) {
@@ -127,6 +129,45 @@ void test_sgi_mpi() {
 		}
 		if (err <= tol) break;
 	}
+
+	if(mpirank == MASTER) {
+		printf("\n\n ----- NEW -----\n\n");
+	}
+
+	sm.reset(new SGI(inputfile, 1, 1));
+	system("rm -rf output/*");
+	ea.reset(new EA(fm.get(), sm.get(), m.get()));
+
+	int it;
+	for (it=1; it < 4; it++) {
+		sm->build(0.1, 2, false);
+		err = ea->err();
+		if(mpirank == MASTER) {
+			printf("\nRefinement # %d\n", it);
+			printf("Surrogate model error: %.6f\n", err);
+		}
+	}
+
+	if(mpirank == MASTER) {
+		printf("\n\n ----- Delete sgi -----\n\n");
+	}
+
+	sm.reset(new SGI(inputfile, 1, 1));
+	sm->duplicate("","","");
+	ea.reset(new EA(fm.get(), sm.get(), m.get()));
+
+	while (true) {
+		sm->build(0.1, 4, false);
+		err = ea->err();
+		it += 1;
+		if(mpirank == MASTER) {
+			printf("\nRefinement # %d\n", it);
+			printf("Surrogate model error: %.6f\n", err);
+		}
+		if (err <= tol) break;
+	}
+
+
 #endif
 }
 
