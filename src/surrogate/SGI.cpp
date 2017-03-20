@@ -124,10 +124,24 @@ void SGI::build(
 		if (is_master())
 			printf("\n...Refining SGI model...\n");
 		// 1. All: refine grid
+
+		cout << "Rank " << mpi_rank << ": TAG 1....." << endl;
+
 		num_points = grid->getSize();
+
+		cout << "Rank " << mpi_rank << ": TAG 2....." << endl;
+
 		refine_portion = fmax(0.0, refine_portion); // ensure portion is non-negative
+
+		cout << "Rank " << mpi_rank << ": TAG 3....." << endl;
+
 		refine_grid(refine_portion);
+
+		cout << "Rank " << mpi_rank << ": TAG 4....." << endl;
 		new_num_points = grid->getSize();
+
+
+		cout << "Rank " << mpi_rank << ": TAG 5....." << endl;
 		if (is_master()) {
 			printf("Grid points added: %lu\n", new_num_points-num_points);
 			printf("Total grid points: %lu\n", new_num_points);
@@ -181,9 +195,11 @@ void SGI::duplicate(
 {
 	// Set: grid, eval, bbox
 	mpiio_read_grid(gridfile);
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	// Set: alphas
 	update_alphas(datafile);
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	// Read posterior
 	std::size_t num_gps = grid->getSize();
@@ -351,14 +367,26 @@ void SGI::refine_grid(double portion)
 	double tic = MPI_Wtime();
 #endif
 	std::size_t num_gps = this->grid->getSize();
+
+	cout << "Rank " << mpi_rank << ": BLAH 1....." << endl;
+
+
 	int refine_numOfPoints = int(ceil(num_gps * portion));
+
+
+	cout << "Rank " << mpi_rank << ": BLAH 2...." << endl;
+
 	// regulate maximum num of points to refine, to avoid when grid getting too big
 	refine_numOfPoints = (refine_numOfPoints > 1000) ? 1000 : refine_numOfPoints;
 	DataVector refine_idx (num_gps);
 
+	cout << "Rank " << mpi_rank << ": BLAH 3....." << endl;
+
 	// Read posterior from file
 	unique_ptr<double[]> pos (new double[num_gps]);
 	mpiio_partial_posterior(true, 0, num_gps-1, &pos[0]);
+
+	cout << "Rank " << mpi_rank << ": BLAH 4....." << endl;
 
 	// For each gp, compute the refinement index
 	double data_norm;
@@ -371,8 +399,13 @@ void SGI::refine_grid(double portion)
 		// refinement_index = |alpha| * posterior
 		refine_idx[i] = data_norm * pos[i];
 	}
+
+	cout << "Rank " << mpi_rank << ": BLAH 5....." << endl;
+
 	// refine grid
 	grid->refine(refine_idx, refine_numOfPoints);
+
+	cout << "Rank " << mpi_rank << ": BLAH 6....." << endl;
 
 #if (SGI_OUT_TIMER==1)
 	if (is_master())
@@ -427,7 +460,7 @@ void SGI::mpiio_write_grid_master(const string& outfile)
 void SGI::mpiio_write_grid(const string& outfile)
 {
 	// Pack grid into Char array
-	string sg_str = grid->getStorage().serialize(1);
+	string sg_str = grid->getStorage().serialize(2);
 	size_t count = sg_str.size();
 	unique_ptr<char[]> buff (new char[count]);
 	strcpy(buff.get(), sg_str.c_str());
@@ -441,8 +474,8 @@ void SGI::mpiio_write_grid(const string& outfile)
 	if (ofile == "")
 		ofile = string(OUTPATH) + "/grid.mpibin";
 	MPI_File fh;
-	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
-			!= MPI_SUCCESS) {
+	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
+			MPI_INFO_NULL, &fh) != MPI_SUCCESS) {
 		printf("MPI write grid file open failed. Operation aborted!\n");
 		exit(EXIT_FAILURE);
 	}

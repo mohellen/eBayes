@@ -119,16 +119,16 @@ void test_sgi_mpi() {
 	double* od = ForwardModel::get_observed_data(inputfile, output_size, noise);
 	sigma = ForwardModel::compute_posterior_sigma(od, output_size, noise);
 	int count = 0;
-	while (true) {
-		sm->build(0.1, 2, false);
-		err = ea->err();
-		count += 1;
-		if(mpirank == MASTER) {
-			printf("\nRefinement # %d\n", count);
-			printf("Surrogate model error: %.6f\n", err);
-		}
-		if (err <= tol) break;
-	}
+//	while (true) {
+//		sm->build(0.1, 2, false);
+//		err = ea->err();
+//		count += 1;
+//		if(mpirank == MASTER) {
+//			printf("\nRefinement # %d\n", count);
+//			printf("Surrogate model error: %.6f\n", err);
+//		}
+//		if (err <= tol) break;
+//	}
 
 	if(mpirank == MASTER) {
 		printf("\n\n ----- NEW -----\n\n");
@@ -139,7 +139,7 @@ void test_sgi_mpi() {
 	ea.reset(new EA(fm.get(), sm.get(), m.get()));
 
 	int it;
-	for (it=1; it < 4; it++) {
+	for (it=1; it < 3; it++) {
 		sm->build(0.1, 2, false);
 		err = ea->err();
 		if(mpirank == MASTER) {
