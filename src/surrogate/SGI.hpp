@@ -111,13 +111,7 @@ private:
 	void mpiio_read_grid(
 			const std::string& outfile="");
 
-	void mpiio_write_grid_master(
-			const std::string& outfile="");
-
 	void mpiio_write_grid(
-			const std::string& outfile="");
-
-	void mpiio_delete_grid(
 			const std::string& outfile="");
 
 	void mpiio_partial_data(

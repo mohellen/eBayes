@@ -159,11 +159,11 @@ void test_sgi_mpi() {
 	while (true) {
 		sm->build(0.1, 4, false);
 		err = ea->err();
-		it += 1;
 		if(mpirank == MASTER) {
 			printf("\nRefinement # %d\n", it);
 			printf("Surrogate model error: %.6f\n", err);
 		}
+		it += 1;
 		if (err <= tol) break;
 	}
 
