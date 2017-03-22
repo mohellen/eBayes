@@ -1,0 +1,59 @@
+// This file is part of BayeSIFSG - Bayesian Statistical Inference Framework with Sparse Grid
+// Copyright (C) 2015-today Ao Mo-Hellenbrand.
+//
+// SIPFSG is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SIPFSG is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License.
+// If not, see <http://www.gnu.org/licenses/>.
+
+#ifndef MCMC_MCMC_HPP_
+#define MCMC_MCMC_HPP_
+
+#include <model/ForwardModel.hpp>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <iterator>
+
+/******************************************
+ * MCMC solver writes output data into a text file.
+ * 	 - Data type: double
+ * 	 - Each line consists of a sample_point & its posterior
+ * 	 - A sample_point is double[input_size]
+ * 	 - Therfore, each line has (input_size + 1) number of data
+ ******************************************/
+
+class MCMC {
+protected:
+	ForwardModel* model;
+	std::size_t input_size;
+	std::size_t output_size;
+
+	std::unique_ptr<double[]> rand_walk_size;
+	std::unique_ptr<double[]> observed_data;
+	double observed_data_noise;
+	double pos_sigma;
+
+
+public:
+	virtual ~MCMC() {}
+
+	MCMC();
+
+	virtual void run(
+			const std::string& output_file,
+			ForwardModel* model,
+			int num_samples) = 0;
+
+	double* get_last_sample(const std::string& input_file);
+};
+#endif /* MCMC_MCMC_HPP_ */

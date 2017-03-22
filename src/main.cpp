@@ -16,10 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#include "eanalysis/EA.hpp"
-#include "model/ForwardModel.hpp"
-#include "model/NS.hpp"
-#include "surrogate/SGI.hpp"
+#include <eanalysis/EA.hpp>
+#include <model/ForwardModel.hpp>
+#include <model/NS.hpp>
+#include <surrogate/SGI.hpp>
+#include <mcmc/MCMC.hpp>
+#include <mcmc/MetropolisHastings.hpp>
+
 #include <mpi.h>
 #include <iostream>
 #include <cmath>
@@ -90,7 +93,7 @@ void test_ns_mpi()
 }
 
 void test_sgi_mpi() {
-#if (1==1)
+#if (1==0)
 	int mpisize, mpirank, mpistatus;
 	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
@@ -195,6 +198,20 @@ void test_sgi_mpi() {
 #endif
 }
 
+
+void test_mcmc() {
+#if (1==1)
+	MCMC* mcmc = new MetropolisHastings();
+
+	double* m = mcmc->get_last_sample("./input/test.dat");
+
+	printf("Last sample = [%f, %f, %f]\n", m[0], m[1], m[2]);
+
+#endif
+}
+
+
+
 int main(int argc, char* argv[]) {
 	int mpistatus;
 
@@ -206,6 +223,7 @@ int main(int argc, char* argv[]) {
 
 	test_ns_mpi();
 	test_sgi_mpi();
+	test_mcmc();
 
 #if (ENABLE_IMPI==1)
 	printf("\n~~~~~~This is awesome!!~~~~~\n");

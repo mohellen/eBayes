@@ -56,7 +56,6 @@ double ForwardModel::compute_l2norm(
 	return sqrt(tmp);
 }
 
-
 double* ForwardModel::get_observed_data(
 		const std::string & input_file,
 		std::size_t data_size,
