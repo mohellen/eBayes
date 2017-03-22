@@ -323,7 +323,7 @@ void NS::run(const double* m, double* d)
 	return;
 }//end fun()
 
-void NS::sim()
+void NS::sim(const string& output_prefix)
 {
 	double t = 0.0;
 	double dt = 0.0;
@@ -335,7 +335,8 @@ void NS::sim()
 
 	double vtk_freq = 0.05;
 	int vtk_cnt = 0;
-	std::string vtk_outfile = string(OUTPATH) + "/ns_sim";
+	std::string vtk_outfile =
+			(output_prefix == "") ? "output/ns_sim" : output_prefix;
 
 	/**********************************************************
 	 * 2D Arrays: Row-major storage, including boundary cells

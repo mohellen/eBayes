@@ -98,6 +98,8 @@ private:
     std::vector<double> out_times;	/// List of output sampling time instances
     std::vector< std::pair<double, double> > out_locs;	/// List of output sampling locations
 
+    std::string outprefix; /// vtk output prefix
+
 public:
 	/* DEFINE destructor (no ;)*/
 	~NS();
@@ -106,7 +108,7 @@ public:
 	NS(const std::string& input_file, int resx=1, int resy=1);
 
 	/* Run simulation with VTK output */
-	void sim();
+	void sim(const std::string& output_file = "");
 
 	/* Declare member functions */
 	void run(const double* m, double* d);

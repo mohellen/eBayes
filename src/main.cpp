@@ -26,9 +26,9 @@
 #include <sys/time.h>
 
 
-
-
 using namespace std;
+
+double true_input[] = {1.0, 0.8, 3.0, 1.5, 5.5, 0.2, 8.2, 1.0};
 
 
 void test_ns_mpi()
@@ -95,77 +95,101 @@ void test_sgi_mpi() {
 	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
 
-	string inputfile = "./input/obstacles_in_flow.dat";
+	string inputfile = "./input/ns_obs1.dat";
 
-	unique_ptr<NS> fm (new NS(inputfile, 1, 1));
-	unique_ptr<SGI> sm (new SGI(inputfile, 1, 1));
+	// Create forward models
+	unique_ptr<NS>  full (new NS(inputfile, 1, 1));	 /// full model
+	unique_ptr<SGI> ssgi (new SGI(inputfile, "./output/ssgi_", 1, 1)); /// static sgi
+	unique_ptr<SGI> asgi (new SGI(inputfile, "./output/asgi_", 1, 1)); /// adaptive sgi
 
-	std::size_t input_size = fm->get_input_size();
-	std::size_t output_size = fm->get_output_size();
+	// Get problem dimensions
+	std::size_t input_size = full->get_input_size();
+	std::size_t output_size = full->get_output_size();
 
+	// Initialize the true input vector
 	unique_ptr<double[]> m (new double[input_size]);
-	m[0] = 1.0;
-	m[1] = 0.8;
-//	m[2] = 3.0;
-//	m[3] = 1.5;
-//	m[4] = 5.5;
-//	m[5] = 0.2;
-//	m[6] = 8.2;
-//	m[7] = 1.0;
+	for (std::size_t i=0; i < input_size; i++)
+		m[i] = true_input[i];
 
-	unique_ptr<EA> ea (new EA(fm.get(), sm.get(), m.get()));
-	double tol = 0.01;
-	double noise, sigma, pos, err;
-	double* od = ForwardModel::get_observed_data(inputfile, output_size, noise);
-	sigma = ForwardModel::compute_posterior_sigma(od, output_size, noise);
+	// Error analysis objects
+	unique_ptr<EA> eas (new EA(full.get(), ssgi.get()));
+	eas->add_test_points(20);
+
+	unique_ptr<EA> eaa (new EA(full.get(), asgi.get()));
+	eaa->copy_test_points(eas.get());
+
+	// Construct Static SGI
+	ssgi->build(0.1, 2, false);
+	double errs = eas->compute_model_error();
+
+	// Construct Adaptive SGI
+	double erra = 0.0, erra_old = -1.0, tol = 0.1;
 	int count = 0;
-//	while (true) {
+	while (true) {
+		asgi->build(0.1, 2, false);
+		erra = eaa->compute_model_error();
+		count += 1;
+		if(mpirank == MASTER) {
+			printf("\nRefinement # %d\n", count);
+			printf("Surrogate model error: %.6f\n", erra);
+		}
+		if ((erra - erra_old < 0) && (fabs(erra - erra_old) < tol)) break;
+		erra_old = erra;
+	}
+
+
+//	double tol = 0.01;
+//	double noise, sigma, pos, err;
+//	double* od = ForwardModel::get_observed_data(inputfile, output_size, noise);
+//	sigma = ForwardModel::compute_posterior_sigma(od, output_size, noise);
+//	int count = 0;
+////	while (true) {
+////		sm->build(0.1, 2, false);
+////		err = ea->err();
+////		count += 1;
+////		if(mpirank == MASTER) {
+////			printf("\nRefinement # %d\n", count);
+////			printf("Surrogate model error: %.6f\n", err);
+////		}
+////		if (err <= tol) break;
+////	}
+//
+//	if(mpirank == MASTER) {
+//		printf("\n\n ----- NEW -----\n\n");
+//	}
+//
+//	sm.reset(new SGI(inputfile, 1, 1));
+//	system("rm -rf output/*");
+//	ea.reset(new EA(fm.get(), sm.get(), m.get()));
+//
+//	int it;
+//	for (it=1; it < 3; it++) {
 //		sm->build(0.1, 2, false);
 //		err = ea->err();
-//		count += 1;
 //		if(mpirank == MASTER) {
-//			printf("\nRefinement # %d\n", count);
+//			printf("\nRefinement # %d\n", it);
 //			printf("Surrogate model error: %.6f\n", err);
 //		}
+//	}
+//
+//	if(mpirank == MASTER) {
+//		printf("\n\n ----- Delete sgi -----\n\n");
+//	}
+//
+//	sm.reset(new SGI(inputfile, 1, 1));
+//	sm->duplicate("","","");
+//	ea.reset(new EA(fm.get(), sm.get(), m.get()));
+//
+//	while (true) {
+//		sm->build(0.1, 4, false);
+//		err = ea->err();
+//		if(mpirank == MASTER) {
+//			printf("\nRefinement # %d\n", it);
+//			printf("Surrogate model error: %.6f\n", err);
+//		}
+//		it += 1;
 //		if (err <= tol) break;
 //	}
-
-	if(mpirank == MASTER) {
-		printf("\n\n ----- NEW -----\n\n");
-	}
-
-	sm.reset(new SGI(inputfile, 1, 1));
-	system("rm -rf output/*");
-	ea.reset(new EA(fm.get(), sm.get(), m.get()));
-
-	int it;
-	for (it=1; it < 3; it++) {
-		sm->build(0.1, 2, false);
-		err = ea->err();
-		if(mpirank == MASTER) {
-			printf("\nRefinement # %d\n", it);
-			printf("Surrogate model error: %.6f\n", err);
-		}
-	}
-
-	if(mpirank == MASTER) {
-		printf("\n\n ----- Delete sgi -----\n\n");
-	}
-
-	sm.reset(new SGI(inputfile, 1, 1));
-	sm->duplicate("","","");
-	ea.reset(new EA(fm.get(), sm.get(), m.get()));
-
-	while (true) {
-		sm->build(0.1, 4, false);
-		err = ea->err();
-		if(mpirank == MASTER) {
-			printf("\nRefinement # %d\n", it);
-			printf("Surrogate model error: %.6f\n", err);
-		}
-		it += 1;
-		if (err <= tol) break;
-	}
 
 
 #endif

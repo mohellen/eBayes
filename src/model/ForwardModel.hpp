@@ -30,12 +30,11 @@
 #include <algorithm>
 
 #define MASTER 	0
-#define OUTPATH "./output"
 
 #define SGI_OUT_TIMER			1 //(1 or 0)
 #define SGI_OUT_RANK_PROGRESS	1 //(1 or 0)
 #define SGI_OUT_GRID_POINTS		0 //(1 or 0)
-#define SGI_MPIMW_TRUNK_SIZE	3 //(integer)
+#define SGI_MPIMW_TRUNK_SIZE	10 //(integer)
 
 
 class ForwardModel

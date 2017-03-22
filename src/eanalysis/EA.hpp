@@ -21,24 +21,33 @@
 
 #include <memory>
 #include <iostream>
+#include <vector>
+#include <random>
 
 
 class EA {
 private:
 	std::size_t input_size;
 	std::size_t output_size;
-	ForwardModel* fm;
-	ForwardModel* sm;
-	std::unique_ptr<double[]> test_point;
-	std::unique_ptr<double[]> fm_data;
+	ForwardModel* fullmodel;
+	ForwardModel* surrogate;
+
+	std::vector< std::unique_ptr<double[]> > test_points;
+	std::vector< std::unique_ptr<double[]> > test_points_data;
 
 public:
-	EA(ForwardModel* fullmodel, ForwardModel* surrogatemodel, const double* m);
+	EA(ForwardModel* fullmodel, ForwardModel* surrogatemodel);
 
-	void set_test_point(double* m);
+	void update_surrogate(ForwardModel* surrogatemodel);
 
-	double err();
+	void add_test_point(const double* m = nullptr);
 
-	double err(const double* m);
+	void add_test_points(int M);
+
+	void copy_test_points(const EA* that);
+
+	double compute_model_error();
+
+	double compute_model_error(const double* m);
 };
 #endif /* EANALYSIS_QA_HPP_ */

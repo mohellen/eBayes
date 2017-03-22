@@ -50,7 +50,7 @@ private:
 	int mpi_status;	/// iMPI adapt status
 	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
 #endif
-
+	std::string outprefix;
 	std::unique_ptr<ForwardModel> 			  	fullmodel;
 	std::unique_ptr<sgpp::base::Grid> 		  	grid;
 	std::unique_ptr<sgpp::base::DataVector[]> 	alphas;
@@ -66,7 +66,10 @@ private:
 public:
 	~SGI(){}
 	
-	SGI(const std::string& input_file, int resx, int resy);
+	SGI(const std::string& input_file,
+			const std::string& output_prefix,
+			int resx,
+			int resy);
 
 	std::size_t get_input_size();
 

@@ -31,6 +31,7 @@ using namespace	sgpp::base;
 
 SGI::SGI(
 		const string& input_file,
+		const string& output_prefix,
 		int resx,
 		int resy)
 		: ForwardModel()
@@ -41,6 +42,8 @@ SGI::SGI(
 	mpi_status = -1;
 	impi_gpoffset = -1;
 #endif
+
+	this->outprefix = output_prefix;
 	this->fullmodel.reset(new NS(input_file, resx, resy));
 	this->input_size = fullmodel->get_input_size();   // inherited from ForwardModel
 	this->output_size = fullmodel->get_output_size(); // inherited from ForwardModel
@@ -420,7 +423,7 @@ void SGI::mpiio_write_grid(const string& outfile)
 	// Write to file
 	string ofile = outfile;
 	if (ofile == "")
-		ofile = string(OUTPATH) + "/grid.mpibin";
+		ofile = outprefix + "grid.mpibin";
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
 			MPI_INFO_NULL, &fh) != MPI_SUCCESS) {
@@ -437,7 +440,7 @@ void SGI::mpiio_read_grid(const string& outfile)
 	// Open file
 	string ofile = outfile;
 	if (ofile == "")
-		ofile = string(OUTPATH) + "/grid.mpibin";
+		ofile = outprefix + "grid.mpibin";
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 			!= MPI_SUCCESS) {
@@ -476,7 +479,7 @@ void SGI::mpiio_partial_data(
 
 	string ofile = outfile;
 	if (ofile == "")
-		ofile = string(OUTPATH) + "/data.mpibin";
+		ofile = outprefix + "data.mpibin";
 	MPI_File fh;
 	if (is_read) { // Read data from file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
@@ -514,7 +517,7 @@ void SGI::mpiio_partial_posterior(
 
 	string ofile = outfile;
 	if (ofile == "")
-		ofile = string(OUTPATH) + "/pos.mpibin";;
+		ofile = outprefix + "pos.mpibin";;
 	MPI_File fh;
 	if (is_read) { // Read data from file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)

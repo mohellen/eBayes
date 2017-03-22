@@ -19,41 +19,94 @@
 
 using namespace std;
 
-EA::EA (ForwardModel* fullmodel, ForwardModel* surrogatemodel, const double* m)
+EA::EA (ForwardModel* full, ForwardModel* surr)
 {
-	this->fm = fullmodel;
-	this->sm = surrogatemodel;
-	this->input_size = fm->get_input_size();
-	this->output_size = fm->get_output_size();
-
-	this->test_point.reset(new double[input_size]);
-	for (std::size_t i=0; i < input_size; i++)
-		test_point[i] = m[i];
-
-	this->fm_data.reset(new double[output_size]);
-	fm->run(m, fm_data.get());
+	this->fullmodel = full;
+	this->surrogate = surr;
+	this->input_size = fullmodel->get_input_size();
+	this->output_size = fullmodel->get_output_size();
 }
 
 
-void EA::set_test_point(double* m)
+void EA::update_surrogate(ForwardModel* surrogatemodel)
 {
-	test_point.reset(m);
-	fm->run(m, fm_data.get());
+	this->surrogate = surrogatemodel;
 }
 
-double EA::err()
+void EA::add_test_point(const double* m)
 {
-	auto d = unique_ptr<double[]>(new double[output_size]);
-	sm->run(test_point.get(), d.get());
-	return ForwardModel::compute_l2norm(fm_data.get(), d.get(), output_size);
+	// Add a new test_point slot and its data
+	test_points.push_back( unique_ptr<double[]>(new double[input_size]) );
+	test_points_data.push_back( unique_ptr<double[]>(new double[output_size]) );
+
+	// If m is not nullptr, copy it.
+	// Otherwize, generate a random test point.
+	if (m) {
+		for (size_t i=0; i<input_size; i++)
+			test_points.back()[i] = m[i];
+	} else {
+		double dmin, dmax;
+		default_random_engine gen;
+		for (size_t i=0; i<input_size; i++) {
+			fullmodel->get_input_space(i, dmin, dmax);
+			uniform_real_distribution<double> udist (dmin, dmax);
+			test_points.back()[i] = udist(gen);
+		}
+	}
+	// Compute test point data
+	fullmodel->run(test_points.back().get(), test_points_data.back().get());
+	return;
 }
 
-double EA::err(const double* m)
+void EA::add_test_points(int M)
 {
-	fm->run(m, fm_data.get());
-	auto d = unique_ptr<double[]>(new double[output_size]);
-	sm->run(m, d.get());
-	return ForwardModel::compute_l2norm(fm_data.get(), d.get(), output_size);
+	for (int k=0; k < M; k++)
+		add_test_point();
+}
+
+void EA::copy_test_points(const EA* that)
+{
+	int num_tps = that->test_points.size();
+	this->test_points.resize(num_tps);
+	this->test_points_data.resize(num_tps);
+
+	for (int k=0; k < num_tps; k++) {
+		// copy k-th test point
+		this->test_points[k].reset(new double[input_size]);
+		for (size_t i=0; i < input_size; i++)
+			this->test_points[k][i] = that->test_points[k][i];
+
+		// copy k-th test point data
+		this->test_points_data[k].reset(new double[output_size]);
+		for (size_t j=0; j < output_size; j++)
+			this->test_points_data[k][j] = that->test_points_data[k][j];
+	}
+	return;
+}
+
+double EA::compute_model_error()
+{
+	size_t num_tps = test_points.size();
+	unique_ptr<double[]> d (new double[output_size]);
+
+	// Compute surrogate model error for each test point
+	double mean = 0.0;
+	for (size_t i=0; i < num_tps; i++) {
+		surrogate->run(test_points[i].get(), d.get());
+		mean += ForwardModel::compute_l2norm(test_points_data[i].get(), d.get(), output_size);
+	}
+	return mean/double(num_tps);
+}
+
+double EA::compute_model_error(const double* m)
+{
+	unique_ptr<double[]> data_full (new double[output_size]);
+	fullmodel->run(m, data_full.get());
+
+	unique_ptr<double[]> data_surr (new double[output_size]);
+	surrogate->run(m, data_surr.get());
+
+	return ForwardModel::compute_l2norm(data_full.get(), data_surr.get(), output_size);
 }
 
 
