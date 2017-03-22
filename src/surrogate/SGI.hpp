@@ -102,9 +102,9 @@ private:
 
 	sgpp::base::BoundingBox* create_boundingbox();
 
-	void update_alphas(const std::string& outfile="");
+	void compute_hier_alphas(const std::string& outfile="");
 
-	void refine_grid(double portion);
+	bool refine_grid(double portion_to_refine);
 
 	bool is_master();
 

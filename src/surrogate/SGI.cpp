@@ -125,8 +125,12 @@ void SGI::build(
 			printf("\n...Refining SGI model...\n");
 		// 1. All: refine grid
 		num_points = grid->getSize();
-		refine_portion = fmax(0.0, refine_portion); // ensure portion is non-negative
-		refine_grid(refine_portion);
+		if (!refine_grid(refine_portion)) {
+			printf("Grid not refined!!");
+			printf("Grid points added: 0\n");
+			printf("Total grid points: %lu\n", num_points);
+			return;
+		}
 		new_num_points = grid->getSize();
 		if (is_master()) {
 			printf("Grid points added: %lu\n", new_num_points-num_points);
@@ -150,8 +154,8 @@ void SGI::build(
 	}
 	mpi_find_global_update_maxpos();
 
-	// 3. All: Create alphas
-	update_alphas();
+	// 3. All: Compute and hierarchize alphas
+	compute_hier_alphas();
 
 	// 4. Update op_eval
 	eval.reset(sgpp::op_factory::createOperationEval(*grid).release());
@@ -176,11 +180,9 @@ void SGI::duplicate(
 {
 	// Set: grid, eval, bbox
 	mpiio_read_grid(gridfile);
-	MPI_Barrier(MPI_COMM_WORLD);
 
 	// Set: alphas
-	update_alphas(datafile);
-	MPI_Barrier(MPI_COMM_WORLD);
+	compute_hier_alphas(datafile);
 
 	// Read posterior
 	std::size_t num_gps = grid->getSize();
@@ -310,7 +312,7 @@ BoundingBox* SGI::create_boundingbox()
 	return bb;
 }
 
-void SGI::update_alphas(const string& outfile)
+void SGI::compute_hier_alphas(const string& outfile)
 {
 #if (SGI_OUT_TIMER==1)
 	double tic = MPI_Wtime();
@@ -324,7 +326,7 @@ void SGI::update_alphas(const string& outfile)
 	for (std::size_t j=0; j < output_size; j++)
 		alphas[j].resize(num_gps);
 
-	// unpack raw data into alphas
+	// unpack raw data
 	for (std::size_t i=0; i < num_gps; i++)
 		for (std::size_t j=0; j < output_size; j++)
 			alphas[j].set(i, data[i*output_size+j]);
@@ -342,17 +344,23 @@ void SGI::update_alphas(const string& outfile)
 	return;
 }
 
-void SGI::refine_grid(double portion)
+bool SGI::refine_grid(double portion_to_refine)
 {
 #if (SGI_OUT_TIMER==1)
 	double tic = MPI_Wtime();
 #endif
-	std::size_t num_gps = this->grid->getSize();
-	int refine_numOfPoints = int(ceil(num_gps * portion));
+	// Compute threshold number of grid points to be added
+	// NOTE: to refine X points, maximum (2*dim*X) points can be added to grid
+	int maxi = 10000;
+	int thres = int(ceil(maxi / 2 / input_size));
 
-	// regulate maximum num of points to refine, to avoid when grid getting too big
-	refine_numOfPoints = (refine_numOfPoints > 1000) ? 1000 : refine_numOfPoints;
-	DataVector refine_idx (num_gps);
+	// Number of points to refine
+	std::size_t num_gps = this->grid->getSize();
+	int refine_gps = int(ceil(num_gps * portion_to_refine));
+	refine_gps = (refine_gps > thres) ? thres : refine_gps;
+
+	// If not points to refine, return false (meaning grid not refined)
+	if (refine_gps < 1) return false;
 
 	// Read posterior from file
 	unique_ptr<double[]> pos (new double[num_gps]);
@@ -360,6 +368,7 @@ void SGI::refine_grid(double portion)
 
 	// For each gp, compute the refinement index
 	double data_norm;
+	DataVector refine_idx (num_gps);
 	for (std::size_t i=0; i<num_gps; i++) {
 		data_norm = 0;
 		for (std::size_t j=0; j<output_size; j++) {
@@ -370,13 +379,13 @@ void SGI::refine_grid(double portion)
 		refine_idx[i] = data_norm * pos[i];
 	}
 	// refine grid
-	grid->refine(refine_idx, refine_numOfPoints);
+	grid->refine(refine_idx, refine_gps);
 
 #if (SGI_OUT_TIMER==1)
 	if (is_master())
 		printf("Rank %d: refined grid in %.5f seconds.\n", mpi_rank, MPI_Wtime()-tic);
 #endif
-	return;
+	return true;
 }
 
 /***************************
