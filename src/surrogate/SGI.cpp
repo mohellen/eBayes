@@ -150,11 +150,6 @@ void SGI::build(
 	}
 	mpi_find_global_update_maxpos();
 
-#if (ENABLE_IMPI==1)
-	// Delete scatch file
-	mpiio_delete_grid();
-#endif
-
 	// 3. All: Create alphas
 	update_alphas();
 
@@ -430,7 +425,7 @@ void SGI::mpiio_write_grid(const string& outfile)
 
 void SGI::mpiio_read_grid(const string& outfile)
 {
-	// Open file and get file size
+	// Open file
 	string ofile = outfile;
 	if (ofile == "")
 		ofile = string(OUTPATH) + "/grid.mpibin";
@@ -440,7 +435,8 @@ void SGI::mpiio_read_grid(const string& outfile)
 		printf("MPI read grid file open failed. Operation aborted!\n");
 		exit(EXIT_FAILURE);
 	}
-	long long int count = 0;
+	// Get file size,create buffer
+	long long int count;
 	MPI_File_get_size(fh, &count);
 	unique_ptr<char[]> buff (new char[count]);
 
