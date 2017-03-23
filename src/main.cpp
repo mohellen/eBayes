@@ -16,12 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#include <eanalysis/EA.hpp>
 #include <model/ForwardModel.hpp>
 #include <model/NS.hpp>
 #include <surrogate/SGI.hpp>
 #include <mcmc/MCMC.hpp>
 #include <mcmc/MetropolisHastings.hpp>
+#include <analysis/ErrorAnalysis.hpp>
 
 #include <mpi.h>
 #include <iostream>
@@ -93,7 +93,7 @@ void test_ns_mpi()
 }
 
 void test_sgi_mpi() {
-#if (1==0)
+#if (1==1)
 	int mpisize, mpirank, mpistatus;
 	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
@@ -115,10 +115,10 @@ void test_sgi_mpi() {
 		m[i] = true_input[i];
 
 	// Error analysis objects
-	unique_ptr<EA> eas (new EA(full.get(), ssgi.get()));
+	unique_ptr<ErrorAnalysis> eas (new ErrorAnalysis(full.get(), ssgi.get()));
 	eas->add_test_points(20);
 
-	unique_ptr<EA> eaa (new EA(full.get(), asgi.get()));
+	unique_ptr<ErrorAnalysis> eaa (new ErrorAnalysis(full.get(), asgi.get()));
 	eaa->copy_test_points(eas.get());
 
 	// Construct Static SGI

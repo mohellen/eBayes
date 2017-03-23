@@ -19,9 +19,9 @@
 #ifndef SURROGATE_SGI_HPP_
 #define SURROGATE_SGI_HPP_
 
-#include "model/ForwardModel.hpp"
-#include "model/NS.hpp"
-#include "sgpp_base.hpp"
+#include <model/ForwardModel.hpp>
+#include <model/NS.hpp>
+#include <sgpp_base.hpp>
 
 #include <mpi.h>
 #include <memory>

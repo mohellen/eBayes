@@ -16,12 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#include <eanalysis/EA.hpp>
+#include <analysis/ErrorAnalysis.hpp>
 
 
 using namespace std;
 
-EA::EA (ForwardModel* full, ForwardModel* surr)
+ErrorAnalysis::ErrorAnalysis (ForwardModel* full, ForwardModel* surr)
 {
 	this->fullmodel = full;
 	this->surrogate = surr;
@@ -30,12 +30,12 @@ EA::EA (ForwardModel* full, ForwardModel* surr)
 }
 
 
-void EA::update_surrogate(ForwardModel* surrogatemodel)
+void ErrorAnalysis::update_surrogate(ForwardModel* surrogatemodel)
 {
 	this->surrogate = surrogatemodel;
 }
 
-void EA::add_test_point(const double* m)
+void ErrorAnalysis::add_test_point(const double* m)
 {
 	// Add a new test_point slot and its data
 	test_points.push_back( unique_ptr<double[]>(new double[input_size]) );
@@ -60,13 +60,13 @@ void EA::add_test_point(const double* m)
 	return;
 }
 
-void EA::add_test_points(int M)
+void ErrorAnalysis::add_test_points(int M)
 {
 	for (int k=0; k < M; k++)
 		add_test_point();
 }
 
-void EA::copy_test_points(const EA* that)
+void ErrorAnalysis::copy_test_points(const ErrorAnalysis* that)
 {
 	int num_tps = that->test_points.size();
 	this->test_points.resize(num_tps);
@@ -86,7 +86,7 @@ void EA::copy_test_points(const EA* that)
 	return;
 }
 
-double EA::compute_model_error()
+double ErrorAnalysis::compute_model_error()
 {
 	size_t num_tps = test_points.size();
 	unique_ptr<double[]> d (new double[output_size]);
@@ -100,7 +100,7 @@ double EA::compute_model_error()
 	return mean/double(num_tps);
 }
 
-double EA::compute_model_error(const double* m)
+double ErrorAnalysis::compute_model_error(const double* m)
 {
 	unique_ptr<double[]> data_full (new double[output_size]);
 	fullmodel->run(m, data_full.get());

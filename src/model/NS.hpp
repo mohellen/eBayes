@@ -19,9 +19,9 @@
 #ifndef MODEL_NS_HPP_
 #define MODEL_NS_HPP_
 
-#include "model/ForwardModel.hpp"
-#include "Eigen/Sparse"
-#include "Eigen/Eigen"
+#include <model/ForwardModel.hpp>
+#include <Eigen/Sparse>
+#include <Eigen/Eigen>
 
 #include <cstdio>
 #include <cmath>

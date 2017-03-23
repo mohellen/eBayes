@@ -16,12 +16,47 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-
 #ifndef MCMC_PARALLELTEMPERING_HPP_
 #define MCMC_PARALLELTEMPERING_HPP_
 
+#include <model/ForwardModel.hpp>
+#include <mcmc/MCMC.hpp>
+
+#include <mpi.h>
+#include <cmath>
+#include <memory>
+
+
+#define MCMCPT_MAX_CHAINS 10
+
+class ParallelTempering : public MCMC
+{
+private:
+	int mpi_rank;	/// MPI rank
+	int mpi_size;	/// Size of MPI_COMM_WORLD
+#if (ENABLE_IMPI==1)
+	int mpi_status;	/// iMPI adapt status
+	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
+#endif
+
+	int num_chains;
+	std::unique_ptr<double[]> inv_temps;
+
+public:
+	~ParallelTempering() {}
+
+	ParallelTempering(
+			ForwardModel* forwardmodel,
+			const std::string& observed_data_file,
+			double rand_walk_size_domain_percent = 0.2);
+
+	void run(const std::string& output_file,
+				int num_samples,
+				double& maxpos,
+				double* maxpos_point,
+				const double* init_sample_pos = nullptr);
 
 
 
-
+};
 #endif /* MCMC_PARALLELTEMPERING_HPP_ */
