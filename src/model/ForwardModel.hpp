@@ -36,6 +36,7 @@
 #define SGI_OUT_GRID_POINTS		0 //(1 or 0)
 #define SGI_MPIMW_TRUNK_SIZE	10 //(integer)
 #define MCMC_OUT_PROGRESS		1 //(1 or 0)
+#define MCMCPT_MAX_CHAINS 		10	//(integer)
 
 
 class ForwardModel

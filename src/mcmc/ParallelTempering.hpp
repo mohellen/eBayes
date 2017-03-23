@@ -25,9 +25,8 @@
 #include <mpi.h>
 #include <cmath>
 #include <memory>
+#include <string>
 
-
-#define MCMCPT_MAX_CHAINS 10
 
 class ParallelTempering : public MCMC
 {
@@ -39,6 +38,7 @@ private:
 	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
 #endif
 
+	double mixing_rate; /// [0,1]. How often we should mix (exchange) samples
 	int num_chains;
 	std::unique_ptr<double[]> inv_temps;
 
@@ -48,6 +48,7 @@ public:
 	ParallelTempering(
 			ForwardModel* forwardmodel,
 			const std::string& observed_data_file,
+			double mixing_chain_rate,
 			double rand_walk_size_domain_percent = 0.2);
 
 	void run(const std::string& output_file,
@@ -56,7 +57,8 @@ public:
 				double* maxpos_point,
 				const double* init_sample_pos = nullptr);
 
-
+private:
+	bool is_master();
 
 };
 #endif /* MCMC_PARALLELTEMPERING_HPP_ */
