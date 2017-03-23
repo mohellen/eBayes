@@ -1,18 +1,20 @@
-// This file is part of BayeSIFSG - Bayesian Statistical Inference Framework with Sparse Grid
-// Copyright (C) 2015-today Ao Mo-Hellenbrand.
+// iBayes - Elastic Bayesian Inference Framework with Sparse Grid
+// Copyright (C) 2015-today Ao Mo-Hellenbrand
 //
-// SIPFSG is free software: you can redistribute it and/or modify
+// All copyrights remain with the respective authors.
+//
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// SIPFSG is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License.
-// If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #include <mcmc/MetropolisHastings.hpp>
 
@@ -95,41 +97,4 @@ void MetropolisHastings::run(
 }
 
 
-void MetropolisHastings::one_step_single_dim(
-		int dim,
-		double& pos,
-		double* p,
-		double* d)
-{
-	double pos_tmp = 0.0;
-	double dmin, dmax;
-	double p_dim_old = p[dim]; /// When reject a proposal, we need ot restore p[dim];
 
-	// Initialize random generators
-	mt19937 gen(chrono::system_clock::now().time_since_epoch().count());
-	normal_distribution<double> ndist(p[dim], rand_walk_size[dim]);
-	uniform_real_distribution<double> udist(0.0,1.0);
-
-	// 1. Draw a proposal (we only update p[dim])
-	p[dim] = ndist(gen);
-	model->get_input_space(dim, dmin, dmax);
-	while ((p[dim] < dmin) || (p[dim] > dmax)) /// ensure p[dim] is in range
-		p[dim] = ndist(gen);
-
-	// 2. Compute acceptance rate
-	model->run(p, d);
-	pos_tmp = ForwardModel::compute_posterior(observed_data.get(), d, output_size, pos_sigma);
-	double acc = fmin(1.0, pos_tmp/pos);
-
-	// 3. Accept or reject proposal
-	if (udist(gen) <= acc) {
-		// Case accept:
-		// p is already updated, only update pos
-		pos = pos_tmp;
-	} else {
-		// Case reject:
-		// restore p[dim], pos stays the same
-		p[dim] = p_dim_old;
-	}
-	return;
-}

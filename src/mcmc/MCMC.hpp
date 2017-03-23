@@ -1,18 +1,20 @@
-// This file is part of BayeSIFSG - Bayesian Statistical Inference Framework with Sparse Grid
-// Copyright (C) 2015-today Ao Mo-Hellenbrand.
+// iBayes - Elastic Bayesian Inference Framework with Sparse Grid
+// Copyright (C) 2015-today Ao Mo-Hellenbrand
 //
-// SIPFSG is free software: you can redistribute it and/or modify
+// All copyrights remain with the respective authors.
+//
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// SIPFSG is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License.
-// If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #ifndef MCMC_MCMC_HPP_
 #define MCMC_MCMC_HPP_
@@ -45,7 +47,6 @@ protected:
 	double observed_data_noise;
 	double pos_sigma;
 
-
 public:
 	virtual ~MCMC() {}
 
@@ -60,6 +61,7 @@ public:
 			double* maxpos_point,
 			const double* init_sample_pos = nullptr) = 0;
 
+protected:
 	double* gen_random_sample();
 
 	bool read_last_sample_pos(
@@ -71,5 +73,11 @@ public:
 			std::fstream& fout,
 			const double* point,
 			double pos);
+
+	void one_step_single_dim(
+			int dim,
+			double& pos,
+			double* p,
+			double* d);
 };
 #endif /* MCMC_MCMC_HPP_ */
