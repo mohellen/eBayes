@@ -39,55 +39,87 @@ MCMC::MCMC(
 			ForwardModel::get_observed_data(observed_data_file, output_size,
 					this->observed_data_noise));
 
-	this->pos_sigma;
-
-
-
+	// Compute posterior sigma
+	this->pos_sigma = ForwardModel::compute_posterior_sigma(
+			this->observed_data.get(), output_size, observed_data_noise);
 }
 
 
-
-double* MCMC::get_last_sample(const string& input_file)
+double* MCMC::gen_random_sample()
 {
-	double* last_sample = nullptr;
-
-	// Open file and place cursor at EOF
-	ifstream fin (input_file, std::ios_base::ate);
-	if (!fin.is_open()) {
-		printf("MCMC get last samle open file fail. Abort!");
-		return last_sample;
+	double* sample = new double[input_size];
+	mt19937 gen (chrono::system_clock::now().time_since_epoch().count());
+	double dmin, dmax;
+	for (size_t i=0; i < input_size; i++) {
+		model->get_input_space(i, dmin, dmax);
+		uniform_real_distribution<double> udist(dmin,dmax);
+		sample[i] = udist(gen);
 	}
+	return sample;
+}
+
+
+bool MCMC::read_last_sample_pos(
+		fstream& fin,
+		double* point,
+		double& pos)
+{
+	fin.seekg(0, fin.end);
 	size_t len = fin.tellg(); // Get length of file
 
 	// Loop backwards
 	char c;
 	string line;
-	for (size_t i=len-2; i > 0; i--) {
+	for (long int i=len-2; i > 0; i--) {
 		fin.seekg(i);
 		c = fin.get();
 		if (c == '\r' || c == '\n') {
 			std::getline(fin, line);
 			istringstream iss(line);
 			vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
-			size_t ntokens = tokens.size();
+			size_t num = tokens.size();
 
-			if (ntokens <= 0) {// skip empty line
+			if (num <= 0) {// skip empty line
 				continue;
 			} else {
-				last_sample = new double[ntokens];
-				for (int k=0; k < ntokens; k++)
-					last_sample[k] = stod(tokens[k]);
-				break;
+				for (int k=0; k < num-1; k++) {
+					point[k] = stod(tokens[k]);
+				}
+				pos = stod(tokens[num-1]); // last token is pos
+				fin.seekg(0, fin.end);
+				return true;
 			} //end if ntokens
 		}
 	}//end for
-	fin.close();
-	return last_sample;
+	fin.seekg(0, fin.end);
+	return false;
 }
 
-double* gen_random_sample()
+
+void MCMC::write_sample_pos(
+		fstream& fout,
+		const double* point,
+		double pos)
 {
-
-
-
+	for (size_t i=0; i < input_size; i++) {
+		fout << point[i] << " ";
+	}
+	fout << pos << endl;
+	return;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

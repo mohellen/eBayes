@@ -23,6 +23,8 @@
 #include <fstream>
 #include <sstream>
 #include <iterator>
+#include <random>
+#include <chrono>
 
 /******************************************
  * MCMC solver writes output data into a text file.
@@ -47,13 +49,27 @@ protected:
 public:
 	virtual ~MCMC() {}
 
-	MCMC();
+	MCMC(ForwardModel* forwardmodel,
+			const std::string& observed_data_file,
+			double rand_walk_size_domain_percent);
 
 	virtual void run(
 			const std::string& output_file,
-			ForwardModel* model,
-			int num_samples) = 0;
+			int num_samples,
+			double& maxpos,
+			double* maxpos_point,
+			const double* init_sample_pos = nullptr) = 0;
 
-	double* get_last_sample(const std::string& input_file);
+	double* gen_random_sample();
+
+	bool read_last_sample_pos(
+			std::fstream& fin,
+			double* point,
+			double& pos);
+
+	void write_sample_pos(
+			std::fstream& fout,
+			const double* point,
+			double pos);
 };
 #endif /* MCMC_MCMC_HPP_ */

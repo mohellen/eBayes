@@ -21,21 +21,33 @@
 #include <mcmc/MCMC.hpp>
 #include <string>
 #include <memory>
+#include <random>
+#include <chrono>
+#include <cmath>
 
 class MetropolisHastings : public MCMC
 {
 public:
 	~MetropolisHastings() {}
 
-	MetropolisHastings(): MCMC() {}
+	MetropolisHastings(
+			ForwardModel* forwardmodel,
+			const std::string& observed_data_file,
+			double rand_walk_size_domain_percent = 0.2)
+			: MCMC(forwardmodel, observed_data_file, rand_walk_size_domain_percent) {}
 
 	void run(
 			const std::string& output_file,
-			ForwardModel* model,
 			int num_samples,
-			const double* initial_point = nullptr);
+			double& maxpos,
+			double* maxpos_point,
+			const double* init_sample_pos = nullptr);
 
 private:
-	void one_step_single_dim();
+	void one_step_single_dim(
+			int dim,
+			double& pos,
+			double* p,
+			double* d);
 };
 #endif /* MCMC_METROPOLISHASTINGS_HPP_ */

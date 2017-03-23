@@ -201,11 +201,27 @@ void test_sgi_mpi() {
 
 void test_mcmc() {
 #if (1==1)
-	MCMC* mcmc = new MetropolisHastings();
+	int mpisize, mpirank, mpistatus;
+	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
 
-	double* m = mcmc->get_last_sample("./input/test.dat");
+	string inputfile = "./input/ns_obs1.dat";
 
-	printf("Last sample = [%f, %f, %f]\n", m[0], m[1], m[2]);
+	// Create forward models
+	unique_ptr<NS> full (new NS(inputfile, 1, 1));
+	std::size_t input_size = full->get_input_size();
+	std::size_t output_size = full->get_output_size();
+
+	unique_ptr<MCMC> mcmc (new MetropolisHastings(full.get(), inputfile));
+
+	unique_ptr<double[]> init_point_pos (new double[input_size + 1]);
+	init_point_pos[0] = 5.91354;
+	init_point_pos[1] = 0.605936;
+	init_point_pos[2] = 1.84159e-30;
+
+	double maxpos;
+	unique_ptr<double[]> maxpos_point (new double[input_size]);
+	mcmc->run("./output/mcmc.dat", 20, maxpos, maxpos_point.get());
 
 #endif
 }
