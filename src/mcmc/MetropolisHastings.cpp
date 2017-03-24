@@ -21,16 +21,15 @@
 using namespace std;
 
 void MetropolisHastings::run(
-		const string& output_file,		/// Input
+		const std::string& output_file, /// Input
 		int num_samples,				/// Input
-		double& maxpos,					/// Output
-		double* maxpos_point,			/// Output
-		const double* init_sample_pos)	/// Optional input
+		const vector<vector<double> >& init_sample_pos) /// Optional input
 {
 	// Initialize starting point
-	double pos;
+	double pos, maxpos;
 	unique_ptr<double[]> p (new double[input_size]);
 	unique_ptr<double[]> d (new double[output_size]);
+	unique_ptr<double[]> maxpos_p (new double[input_size]);
 
 	// Open file: append if exists, or create it if not
 	fstream fout (output_file, fstream::in | fstream::out | fstream::app);
@@ -43,16 +42,16 @@ void MetropolisHastings::run(
 	// 	 1. initial_point, if this is not available then
 	//   2. last sample ponit from output_file, if this is not avail either then
 	//   3. generate a random point
-	if (init_sample_pos) {
+	if (!init_sample_pos.empty()) {
 		// 1.
 		for (std::size_t i=0; i < input_size; i++) {
-			p[i] = init_sample_pos[i];
+			p[i] = init_sample_pos[0][i];
 		}
-		pos = init_sample_pos[input_size];
+		pos = init_sample_pos[0][input_size];
 		write_sample_pos(fout, p.get(), pos);
 
 	} else {
-		if (!read_last_sample_pos(fout, p.get(), pos)) { //2.
+		if (!read_maxpos_sample(fout, p.get(), pos)) { //2.
 			// 3.
 			p.reset(gen_random_sample());
 			model->run(p.get(), d.get());
@@ -60,11 +59,10 @@ void MetropolisHastings::run(
 			write_sample_pos(fout, p.get(), pos);
 		}
 	}
-
 	/// Initialize maxpos point
 	maxpos = pos;
 	for (size_t i=0; i < input_size; i++) {
-		maxpos_point[i] = p[i];
+		maxpos_p[i] = p[i];
 	}
 
 	// Run the MCMC chain
@@ -82,7 +80,7 @@ void MetropolisHastings::run(
 		if (pos > maxpos) {
 			maxpos = pos;
 			for (int i=0; i < input_size; i++)
-				maxpos_point[i] = p[i];
+				maxpos_p[i] = p[i];
 		}
 		// 4. keeping track
 #if (MCMC_OUT_PROGRESS == 1)
@@ -92,6 +90,10 @@ void MetropolisHastings::run(
 		}
 #endif
 	}
+	// Insert MAXPOS point to file
+	fout << "MAXPOS ";
+	write_sample_pos(fout, maxpos_p.get(), maxpos);
+
 	fout.close();
 	return;
 }

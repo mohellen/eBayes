@@ -255,6 +255,50 @@ void SGI::impi_adapt()
 #endif
 }
 
+vector<vector<double> > SGI::get_top_maxpos(int num_tops, string posfile)
+{
+	// Read in all posterior
+	size_t num_gps = grid->getSize();
+	unique_ptr<double[]> pos (new double[num_gps]);
+	mpiio_partial_posterior(true, 0, num_gps-1, pos.get(), posfile);
+
+	// Initialize output
+	vector<vector<double> > tops;
+	tops.resize(num_tops);
+	for (int k=0; k < num_tops; k++) {
+		tops[k].resize(input_size + 1);
+	}
+	// Find the top N...
+	// Initialize the tracking book
+	vector<pair<double, size_t> > tracking;
+	for (int k=0; k < num_tops; k++) {
+		tracking[k].first = pos[k]; /// first is pos
+		tracking[k].second = k;     /// second is the pos's seq number
+	}
+	// Search
+	for (size_t i=0; i < num_gps; i++) {
+		for (int k=0; k < num_tops; k++) {
+			if (pos[i] > tracking[k].first) {
+				tracking[k].first = pos[i];
+				tracking[k].second = i;
+				break; //once matched, break inner k-loop, continue with i-loop
+			}
+		}
+	}
+	// Get results
+	for (int k=0; k < num_tops; k++) {
+		unique_ptr<double[]> p (seg_to_coord_arr(tracking[k].second));
+		for (size_t i=0; i < input_size; i++) {
+			tops[k][i] = p[i];
+		}
+		tops[k][input_size] = tracking[k].first;
+	}
+	return tops;
+}
+
+
+
+
 /*********************************************
  *********************************************
  *       		 Private Methods

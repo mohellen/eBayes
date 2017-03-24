@@ -94,6 +94,10 @@ public:
 
 	void impi_adapt();
 
+	std::vector<std::vector<double> > get_top_maxpos(
+			int num_tops,
+			std::string posfile);
+
 private:
 	sgpp::base::DataVector arr_to_vec(const double *& in, std::size_t size);
 

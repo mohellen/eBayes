@@ -21,12 +21,15 @@
 #include <surrogate/SGI.hpp>
 #include <mcmc/MCMC.hpp>
 #include <mcmc/MetropolisHastings.hpp>
+#include <mcmc/ParallelTempering.hpp>
 #include <analysis/ErrorAnalysis.hpp>
 
 #include <mpi.h>
 #include <iostream>
 #include <cmath>
 #include <sys/time.h>
+#include <vector>
+#include <memory>
 
 
 using namespace std;
@@ -93,7 +96,7 @@ void test_ns_mpi()
 }
 
 void test_sgi_mpi() {
-#if (1==1)
+#if (1==0)
 	int mpisize, mpirank, mpistatus;
 	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
@@ -198,8 +201,30 @@ void test_sgi_mpi() {
 #endif
 }
 
+void test_mcmc_mh() {
+#if (1==0)
+	int mpisize, mpirank, mpistatus;
+	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
 
-void test_mcmc() {
+	string inputfile = "./input/ns_obs1.dat";
+
+	// Create forward models
+	unique_ptr<ForwardModel> full (new NS(inputfile, 1, 1));
+	std::size_t input_size = full->get_input_size();
+	std::size_t output_size = full->get_output_size();
+
+	unique_ptr<MCMC> mcmc (new MetropolisHastings(full.get(), inputfile));
+
+	vector<double> i1 = {9.08556, 0.0286664, 5.41189e-05};
+	vector<vector<double> > inits;
+	inits.push_back(i1);
+
+	mcmc->run("./output/mcmc.dat", 20, inits);
+#endif
+}
+
+void test_mcmc_pt() {
 #if (1==1)
 	int mpisize, mpirank, mpistatus;
 	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
@@ -208,24 +233,20 @@ void test_mcmc() {
 	string inputfile = "./input/ns_obs1.dat";
 
 	// Create forward models
-	unique_ptr<NS> full (new NS(inputfile, 1, 1));
+	unique_ptr<ForwardModel> full (new NS(inputfile, 1, 1));
 	std::size_t input_size = full->get_input_size();
 	std::size_t output_size = full->get_output_size();
 
-	unique_ptr<MCMC> mcmc (new MetropolisHastings(full.get(), inputfile));
+	// Initial samples
+	vector<vector<double> > inits;
+	for (int i=0; i < mpisize; i++)
+		inits.push_back(vector<double> {0.394162, 0.883078, 0.11071});
 
-	unique_ptr<double[]> init_point_pos (new double[input_size + 1]);
-	init_point_pos[0] = 5.91354;
-	init_point_pos[1] = 0.605936;
-	init_point_pos[2] = 1.84159e-30;
+	unique_ptr<MCMC> mcmc (new ParallelTempering(full.get(), inputfile, 0.5));
 
-	double maxpos;
-	unique_ptr<double[]> maxpos_point (new double[input_size]);
-	mcmc->run("./output/mcmc.dat", 20, maxpos, maxpos_point.get());
-
+	mcmc->run("./output/mcmc", 20, inits);
 #endif
 }
-
 
 
 int main(int argc, char* argv[]) {
@@ -239,7 +260,8 @@ int main(int argc, char* argv[]) {
 
 	test_ns_mpi();
 	test_sgi_mpi();
-	test_mcmc();
+	test_mcmc_mh();
+	test_mcmc_pt();
 
 #if (ENABLE_IMPI==1)
 	printf("\n~~~~~~This is awesome!!~~~~~\n");

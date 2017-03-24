@@ -61,13 +61,16 @@ double* MCMC::gen_random_sample()
 }
 
 
-bool MCMC::read_last_sample_pos(
+bool MCMC::read_maxpos_sample(
 		fstream& fin,
 		double* point,
 		double& pos)
 {
 	fin.seekg(0, fin.end);
 	size_t len = fin.tellg(); // Get length of file
+
+	// NOTE: Considering the mcmc output file would be large and the MAXPOS
+	//    sample is stored in the last line, we loop from the bottom of file backwards.
 
 	// Loop backwards
 	char c;
@@ -81,18 +84,17 @@ bool MCMC::read_last_sample_pos(
 			vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 			size_t num = tokens.size();
 
-			if (num <= 0) {// skip empty line
-				continue;
-			} else {
-				for (int k=0; k < num-1; k++) {
-					point[k] = stod(tokens[k]);
+			if ((num > 0) && (tokens[0] == "MAXPOS")) { //This is the line we are looking for
+				// Read in data
+				for (int k=0; k < input_size; k++) {
+					point[k] = stod(tokens[k+1]);
 				}
 				pos = stod(tokens[num-1]); // last token is pos
 				fin.seekg(0, fin.end);
 				return true;
-			} //end if ntokens
+			}
 		}
-	}//end for
+	} //end for
 	fin.seekg(0, fin.end);
 	return false;
 }
@@ -149,6 +151,8 @@ void MCMC::one_step_single_dim(
 	}
 	return;
 }
+
+
 
 
 

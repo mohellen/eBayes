@@ -47,52 +47,98 @@ ParallelTempering::ParallelTempering(
 		inv_temps[t] = pow(2.0, double(t)/-2.0);
 }
 
+int ParallelTempering::get_num_chains()
+{
+	return this->num_chains;
+}
+
 
 void ParallelTempering::run(
-		const string& output_file,		/// Input: Each rank must have DISTINCT file name
-		int num_samples,				/// Input
-		double& maxpos,					/// Output
-		double* maxpos_point,			/// Output
-		const double* init_sample_pos)	/// Optional input: each rank must have DISTINCT init point
+		const string& output_file_prefix, 	/// Input
+		int num_samples,					/// Input
+		const vector<vector<double> >& init_sample_pos) /// Optional input
 {
-	// Initialize starting point
-	double pos, acc, dec;
+	// Initialize rank specific output file
+	string rank_output_file = output_file_prefix +
+			"_r" + std::to_string(mpi_rank) + ".dat";
+
+	// Initialize rank specific initial sample and posterior...
+	// Use the provided initial samples if there's any
+	unique_ptr<double[]> init (new double[input_size+1]);
+	int started_chains = 0;
+	int num_inits = init_sample_pos.size();
+	int num = (num_inits < num_chains) ? num_inits : num_chains;
+	for (int p=0; p < num; p++) {
+		if (mpi_rank == p) {
+			for (size_t i=0; i < input_size; i++)
+				init[i] = init_sample_pos[p][i];
+			init[input_size] = init_sample_pos[p][input_size];
+			rank_run(rank_output_file, num_samples, init.get());
+		}
+		started_chains += 1;
+	}
+	// If no samples or not enought samples supplied, 2 options:
+	// 	 (1) try to read maxpos from input file, if none then
+	//	 (2) generate a random sample
+	if (started_chains < num_chains) {
+		for (int p=started_chains; p < num_chains; p++) {
+			if (mpi_rank == p) {
+				// (1)
+				fstream fin (rank_output_file, fstream::in);
+				if (fin && read_maxpos_sample(fin, init.get(), init[input_size])) {
+					printf("Rank %d: Case (1)\n", mpi_rank);
+					rank_run(rank_output_file, num_samples, init.get());
+					fin.close();
+				} else {
+					// (2)
+					printf("Rank %d: Case (2)\n", mpi_rank);
+					unique_ptr<double[]> rand (gen_random_sample());
+					unique_ptr<double[]> initd (new double[output_size]);
+					for (std::size_t i=0; i < input_size; i++) {
+						init[i] = rand[i];
+					}
+					model->run(rand.get(), initd.get());
+					init[input_size] = ForwardModel::compute_posterior(
+							observed_data.get(), initd.get(), output_size, pos_sigma);
+					rank_run(rank_output_file, num_samples, init.get());
+				}
+			}
+			started_chains += 1;
+		}//end for p
+	}
+	return;
+}
+
+
+void ParallelTempering::rank_run(
+		const string& rank_output_file,
+		int num_samples,
+		const double* rank_sample_pos)
+{
+	double pos, maxpos, acc, dec;
 	unique_ptr<double[]> p (new double[input_size]);
 	unique_ptr<double[]> d (new double[output_size]);
+	unique_ptr<double[]> maxpos_p (new double[input_size]);
 
 	// Open file: append if exists, or create it if not
-	fstream fout (output_file, fstream::in | fstream::out | fstream::app);
+	fstream fout (rank_output_file, fstream::in | fstream::out | fstream::app);
 	if (!fout) {
-		printf("Rank %d: MCMC open output file \"%s\" failed. Abort!\n", mpi_rank, output_file.c_str());
+		printf("Rank %d: MCMC open output file \"%s\" failed. Abort!\n", mpi_rank,
+				rank_output_file.c_str());
 		exit(EXIT_FAILURE);
 	}
 
-	// Initialization prioirty order:
-	// 	 1. initial_point, if this is not available then
-	//   2. last sample ponit from output_file, if this is not avail either then
-	//   3. generate a random point
-	if (init_sample_pos) {
-		// 1.
-		for (std::size_t i=0; i < input_size; i++) {
-			p[i] = init_sample_pos[i];
-		}
-		pos = init_sample_pos[input_size];
-		write_sample_pos(fout, p.get(), pos);
-
-	} else {
-		if (!read_last_sample_pos(fout, p.get(), pos)) { //2.
-			// 3.
-			p.reset(gen_random_sample());
-			model->run(p.get(), d.get());
-			pos = ForwardModel::compute_posterior(observed_data.get(), d.get(), output_size, pos_sigma);
-			write_sample_pos(fout, p.get(), pos);
-		}
+	// Initialize starting point
+	for (std::size_t i=0; i < input_size; i++) {
+		p[i] = rank_sample_pos[i];
 	}
+	pos = rank_sample_pos[input_size];
+	write_sample_pos(fout, p.get(), pos);
 
 	// Initialize maxpos point
 	maxpos = pos;
 	for (size_t i=0; i < input_size; i++) {
-		maxpos_point[i] = p[i];
+		maxpos_p[i] = p[i];
 	}
 
 	// Random generators
@@ -170,7 +216,7 @@ void ParallelTempering::run(
 				}
 				// Exchange only if both me and nei accepted
 				if ((my[input_size+1] == 1.0) && (nei[input_size+1] == 1.0)) {
-					printf("Rank %d: swapping with rank %d.\n", mpi_rank, nei_rank);
+					printf("Rank %d: swapping with rank %d at iteration %d.\n", mpi_rank, nei_rank, it);
 					for (size_t i=0; i < input_size; i++)
 						p[i] = nei[i];
 					pos = nei[input_size];
@@ -186,16 +232,20 @@ void ParallelTempering::run(
 		if (pos > maxpos) {
 			maxpos = pos;
 			for (int i=0; i < input_size; i++)
-				maxpos_point[i] = p[i];
+				maxpos_p[i] = p[i];
 		}
 		// 4. keeping track
 #if (MCMC_OUT_PROGRESS == 1)
 		if (is_master() && ((it+1)%5 == 0)) {
 			printf("\n%d mcmc steps completed.\n", it+1);
-			printf("Current maxpos: %s  %f\n", ForwardModel::arr_to_string(p.get(), input_size).c_str(), pos);
+			printf("Current maxpos: %s  %f\n\n", ForwardModel::arr_to_string(p.get(), input_size).c_str(), pos);
 		}
 #endif
 	}
+	// Insert MAXPOS point to file
+	fout << "MAXPOS ";
+	write_sample_pos(fout, maxpos_p.get(), maxpos);
+
 	fout.close();
 	return;
 }

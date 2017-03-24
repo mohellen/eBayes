@@ -22,6 +22,7 @@
 #include <model/ForwardModel.hpp>
 #include <vector>
 #include <string>
+#include <memory>
 #include <fstream>
 #include <sstream>
 #include <iterator>
@@ -57,14 +58,12 @@ public:
 	virtual void run(
 			const std::string& output_file,
 			int num_samples,
-			double& maxpos,
-			double* maxpos_point,
-			const double* init_sample_pos = nullptr) = 0;
+			const std::vector<std::vector<double> >& init_sample_pos = {}) = 0;
 
 protected:
 	double* gen_random_sample();
 
-	bool read_last_sample_pos(
+	bool read_maxpos_sample(
 			std::fstream& fin,
 			double* point,
 			double& pos);

@@ -21,11 +21,13 @@
 
 #include <model/ForwardModel.hpp>
 #include <mcmc/MCMC.hpp>
+#include <surrogate/SGI.hpp>
 
 #include <mpi.h>
 #include <cmath>
 #include <memory>
 #include <string>
+#include <vector>
 
 
 class ParallelTempering : public MCMC
@@ -51,14 +53,20 @@ public:
 			double mixing_chain_rate,
 			double rand_walk_size_domain_percent = 0.2);
 
-	void run(const std::string& output_file,
-				int num_samples,
-				double& maxpos,
-				double* maxpos_point,
-				const double* init_sample_pos = nullptr);
+	int get_num_chains();
+
+	void run(
+			const std::string& output_file_prefix,
+			int num_samples,
+			const std::vector<std::vector<double> >& init_sample_pos = {});
 
 private:
 	bool is_master();
+
+	void rank_run(
+			const std::string& rank_output_file,
+			int num_samples,
+			const double* rank_sample_pos);
 
 };
 #endif /* MCMC_PARALLELTEMPERING_HPP_ */

@@ -41,8 +41,6 @@ public:
 	void run(
 			const std::string& output_file,
 			int num_samples,
-			double& maxpos,
-			double* maxpos_point,
-			const double* init_sample_pos = nullptr);
+			const std::vector<std::vector<double> >& init_sample_pos = {});
 };
 #endif /* MCMC_METROPOLISHASTINGS_HPP_ */
