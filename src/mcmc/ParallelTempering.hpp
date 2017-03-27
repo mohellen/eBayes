@@ -33,15 +33,7 @@
 class ParallelTempering : public MCMC
 {
 private:
-	int mpi_rank;	/// MPI rank
-	int mpi_size;	/// Size of MPI_COMM_WORLD
-#if (ENABLE_IMPI==1)
-	int mpi_status;	/// iMPI adapt status
-	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
-#endif
-
 	double mixing_rate; /// [0,1]. How often we should mix (exchange) samples
-	int num_chains;
 	std::unique_ptr<double[]> inv_temps;
 
 public:
@@ -59,14 +51,5 @@ public:
 			const std::string& output_file_prefix,
 			int num_samples,
 			const std::vector<std::vector<double> >& init_sample_pos = {});
-
-private:
-	bool is_master();
-
-	void rank_run(
-			const std::string& rank_output_file,
-			int num_samples,
-			const double* rank_sample_pos);
-
 };
 #endif /* MCMC_PARALLELTEMPERING_HPP_ */

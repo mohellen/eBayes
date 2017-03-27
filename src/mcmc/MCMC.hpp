@@ -20,6 +20,7 @@
 #define MCMC_MCMC_HPP_
 
 #include <model/ForwardModel.hpp>
+#include <mpi.h>
 #include <vector>
 #include <string>
 #include <memory>
@@ -39,6 +40,14 @@
 
 class MCMC {
 protected:
+	int mpi_rank;	/// MPI rank
+	int mpi_size;	/// Size of MPI_COMM_WORLD
+#if (ENABLE_IMPI==1)
+	int mpi_status;	/// iMPI adapt status
+	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
+#endif
+	int num_chains;
+
 	ForwardModel* model;
 	std::size_t input_size;
 	std::size_t output_size;
@@ -61,7 +70,13 @@ public:
 			const std::vector<std::vector<double> >& init_sample_pos = {}) = 0;
 
 protected:
+	bool is_master();
+
 	double* gen_random_sample();
+
+	double* gen_init_sample(
+			const std::string& rank_output_file,
+			const std::vector<std::vector<double> >& init_sample_pos);
 
 	bool read_maxpos_sample(
 			std::fstream& fin,

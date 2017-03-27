@@ -36,7 +36,6 @@ using namespace std;
 
 double true_input[] = {1.0, 0.8, 3.0, 1.5, 5.5, 0.2, 8.2, 1.0};
 
-
 void test_ns_mpi()
 {
 #if(1==0)
@@ -142,62 +141,6 @@ void test_sgi_mpi() {
 		if ((erra - erra_old < 0) && (fabs(erra - erra_old) < tol)) break;
 		erra_old = erra;
 	}
-
-
-//	double tol = 0.01;
-//	double noise, sigma, pos, err;
-//	double* od = ForwardModel::get_observed_data(inputfile, output_size, noise);
-//	sigma = ForwardModel::compute_posterior_sigma(od, output_size, noise);
-//	int count = 0;
-////	while (true) {
-////		sm->build(0.1, 2, false);
-////		err = ea->err();
-////		count += 1;
-////		if(mpirank == MASTER) {
-////			printf("\nRefinement # %d\n", count);
-////			printf("Surrogate model error: %.6f\n", err);
-////		}
-////		if (err <= tol) break;
-////	}
-//
-//	if(mpirank == MASTER) {
-//		printf("\n\n ----- NEW -----\n\n");
-//	}
-//
-//	sm.reset(new SGI(inputfile, 1, 1));
-//	system("rm -rf output/*");
-//	ea.reset(new EA(fm.get(), sm.get(), m.get()));
-//
-//	int it;
-//	for (it=1; it < 3; it++) {
-//		sm->build(0.1, 2, false);
-//		err = ea->err();
-//		if(mpirank == MASTER) {
-//			printf("\nRefinement # %d\n", it);
-//			printf("Surrogate model error: %.6f\n", err);
-//		}
-//	}
-//
-//	if(mpirank == MASTER) {
-//		printf("\n\n ----- Delete sgi -----\n\n");
-//	}
-//
-//	sm.reset(new SGI(inputfile, 1, 1));
-//	sm->duplicate("","","");
-//	ea.reset(new EA(fm.get(), sm.get(), m.get()));
-//
-//	while (true) {
-//		sm->build(0.1, 4, false);
-//		err = ea->err();
-//		if(mpirank == MASTER) {
-//			printf("\nRefinement # %d\n", it);
-//			printf("Surrogate model error: %.6f\n", err);
-//		}
-//		it += 1;
-//		if (err <= tol) break;
-//	}
-
-
 #endif
 }
 
@@ -225,7 +168,7 @@ void test_mcmc_mh() {
 }
 
 void test_mcmc_pt() {
-#if (1==1)
+#if (1==0)
 	int mpisize, mpirank, mpistatus;
 	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
@@ -248,6 +191,65 @@ void test_mcmc_pt() {
 #endif
 }
 
+void main1() {
+#if (1==1)
+	int mpisize, mpirank, mpistatus;
+	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+
+	string inputfile = "./input/ns_obs1.dat";
+
+	// Create forward models
+	unique_ptr<NS>  full (new NS(inputfile, 1, 1));	 /// full model
+	unique_ptr<SGI> ssgi (new SGI(inputfile, "./output/ssgi_", 1, 1)); /// static sgi
+	unique_ptr<SGI> asgi (new SGI(inputfile, "./output/asgi_", 1, 1)); /// adaptive sgi
+
+	// Get problem dimensions
+	std::size_t input_size = full->get_input_size();
+	std::size_t output_size = full->get_output_size();
+
+	// Initialize the true input vector
+	unique_ptr<double[]> m (new double[input_size]);
+	for (std::size_t i=0; i < input_size; i++)
+		m[i] = true_input[i];
+
+	// Error analysis objects
+	unique_ptr<ErrorAnalysis> sea (new ErrorAnalysis(full.get(), ssgi.get()));
+	sea->add_test_points(20);
+
+	unique_ptr<ErrorAnalysis> aea (new ErrorAnalysis(full.get(), asgi.get()));
+	aea->copy_test_points(sea.get());
+
+	// SSGI
+	ssgi->build(0.1, 2, false);
+	double serr = sea->compute_model_error();
+	if(mpirank == MASTER) {
+		printf("\nStatic Surrogate model error: %.6f\n", serr);
+	}
+//	unique_ptr<MCMC> smcmc (new ParallelTempering(ssgi.get(), inputfile, 0.5));
+	unique_ptr<MCMC> smcmc (new MetropolisHastings(ssgi.get(), inputfile, 0.5));
+	smcmc->run("./output/ssgi_mcmc", 20);
+
+	// ASGI
+	double aerr = 0.0, aerr_old = -1.0, tol = 0.1;
+	int count = 0;
+	while (true) {
+		asgi->build(0.1, 2, false);
+		aerr = aea->compute_model_error();
+		count += 1;
+		if(mpirank == MASTER) {
+			printf("\nRefinement # %d\n", count);
+			printf("Adaptive Surrogate model error: %.6f\n", aerr);
+		}
+		if ((aerr - aerr_old < 0) && (fabs(aerr - aerr_old) < tol)) break;
+		aerr_old = aerr;
+	}
+//	unique_ptr<MCMC> amcmc (new ParallelTempering(asgi.get(), inputfile, 0.5));
+	unique_ptr<MCMC> amcmc (new MetropolisHastings(asgi.get(), inputfile, 0.5));
+	amcmc->run("./output/asgi_mcmc", 20);
+
+#endif
+}
 
 int main(int argc, char* argv[]) {
 	int mpistatus;
@@ -262,6 +264,7 @@ int main(int argc, char* argv[]) {
 	test_sgi_mpi();
 	test_mcmc_mh();
 	test_mcmc_pt();
+	main1();
 
 #if (ENABLE_IMPI==1)
 	printf("\n~~~~~~This is awesome!!~~~~~\n");

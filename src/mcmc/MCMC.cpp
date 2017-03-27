@@ -25,6 +25,14 @@ MCMC::MCMC(
 		const string& observed_data_file,
 		double rand_walk_size_domain_percent)
 {
+	MPI_Comm_rank(MPI_COMM_WORLD, &(this->mpi_rank));
+	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpi_size));
+#if (ENABLE_IMPI==1)
+	mpi_status = -1;
+	impi_gpoffset = -1;
+#endif
+	// Determin how many chains: min(mpi_ranks, MAX_CHAINS)
+	this->num_chains = (mpi_size < MCMC_MAX_CHAINS) ? mpi_size : MCMC_MAX_CHAINS;
 	this->model = forwardmodel;
 	this->input_size = model->get_input_size();
 	this->output_size = model->get_output_size();
@@ -35,12 +43,10 @@ MCMC::MCMC(
 		model->get_input_space(i, dmin, dmax);
 		rand_walk_size[i] = (dmax-dmin) * rand_walk_size_domain_percent;
 	}
-
 	// Get observed data and noise
 	this->observed_data.reset(
 			ForwardModel::get_observed_data(observed_data_file, output_size,
 					this->observed_data_noise));
-
 	// Compute posterior sigma
 	this->pos_sigma = ForwardModel::compute_posterior_sigma(
 			this->observed_data.get(), output_size, observed_data_noise);
@@ -153,9 +159,52 @@ void MCMC::one_step_single_dim(
 }
 
 
+double* MCMC::gen_init_sample(
+		const string& rank_output_file, 	/// Input
+		const vector<vector<double> >& init_sample_pos) /// Optional input
+{
+	// Initialize rank specific initial sample and posterior...
+	// Use the provided initial samples if there's any
+	double* init = new double[input_size+1];
+	int started_chains = 0;
+	int num_inits = init_sample_pos.size();
+	int num = (num_inits < num_chains) ? num_inits : num_chains;
+	if (mpi_rank < num) {
+		for (size_t i=0; i < input_size; i++)
+			init[i] = init_sample_pos[mpi_rank][i];
+		init[input_size] = init_sample_pos[mpi_rank][input_size];
+		return init;
+	}
+	// If no samples or not enought samples supplied, 2 options:
+	// 	 (1) try to read maxpos from input file, if none then
+	//	 (2) generate a random sample
+	fstream fin (rank_output_file, fstream::in);
+	if (fin && read_maxpos_sample(fin, init, init[input_size])) { // (1)
+		fin.close();
+	} else { // (2)
+		unique_ptr<double[]> rand (gen_random_sample());
+		unique_ptr<double[]> initd (new double[output_size]);
+		for (std::size_t i=0; i < input_size; i++) {
+			init[i] = rand[i];
+		}
+		model->run(rand.get(), initd.get());
+		init[input_size] = ForwardModel::compute_posterior(
+				observed_data.get(), initd.get(), output_size, pos_sigma);
+	}
+	return init;
+}
 
 
-
+bool MCMC::is_master()
+{
+	if (mpi_rank == 0) {
+#if (ENABLE_IMPI==1)
+		if (mpi_status != MPI_ADAPT_STATUS_JOINING)
+#endif
+			return true;
+	}
+	return false;
+}
 
 
 

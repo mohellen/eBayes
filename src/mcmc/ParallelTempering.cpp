@@ -27,19 +27,7 @@ ParallelTempering::ParallelTempering(
 			double rand_walk_size_domain_percent)
 			: MCMC(forwardmodel, observed_data_file, rand_walk_size_domain_percent)
 {
-	MPI_Comm_rank(MPI_COMM_WORLD, &(this->mpi_rank));
-	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpi_size));
-#if (ENABLE_IMPI==1)
-	mpi_status = -1;
-	impi_gpoffset = -1;
-#endif
-
 	this->mixing_rate = mixing_chain_rate;
-
-	// Determin how many chains: min(mpi_ranks, MAX_CHAINS)
-	this->num_chains = (mpi_size < MCMCPT_MAX_CHAINS) ?
-			mpi_size : MCMCPT_MAX_CHAINS;
-
 	// Initialize temperatures of each chain
 	// For convenience purpose, the inverse of temperatures are stored
 	this->inv_temps.reset(new double[num_chains]);
@@ -60,61 +48,12 @@ void ParallelTempering::run(
 {
 	// Initialize rank specific output file
 	string rank_output_file = output_file_prefix +
-			"_r" + std::to_string(mpi_rank) + ".dat";
+			"_pt_r" + std::to_string(mpi_rank) + ".dat";
 
-	// Initialize rank specific initial sample and posterior...
-	// Use the provided initial samples if there's any
-	unique_ptr<double[]> init (new double[input_size+1]);
-	int started_chains = 0;
-	int num_inits = init_sample_pos.size();
-	int num = (num_inits < num_chains) ? num_inits : num_chains;
-	for (int p=0; p < num; p++) {
-		if (mpi_rank == p) {
-			for (size_t i=0; i < input_size; i++)
-				init[i] = init_sample_pos[p][i];
-			init[input_size] = init_sample_pos[p][input_size];
-			rank_run(rank_output_file, num_samples, init.get());
-		}
-		started_chains += 1;
-	}
-	// If no samples or not enought samples supplied, 2 options:
-	// 	 (1) try to read maxpos from input file, if none then
-	//	 (2) generate a random sample
-	if (started_chains < num_chains) {
-		for (int p=started_chains; p < num_chains; p++) {
-			if (mpi_rank == p) {
-				// (1)
-				fstream fin (rank_output_file, fstream::in);
-				if (fin && read_maxpos_sample(fin, init.get(), init[input_size])) {
-					printf("Rank %d: Case (1)\n", mpi_rank);
-					rank_run(rank_output_file, num_samples, init.get());
-					fin.close();
-				} else {
-					// (2)
-					printf("Rank %d: Case (2)\n", mpi_rank);
-					unique_ptr<double[]> rand (gen_random_sample());
-					unique_ptr<double[]> initd (new double[output_size]);
-					for (std::size_t i=0; i < input_size; i++) {
-						init[i] = rand[i];
-					}
-					model->run(rand.get(), initd.get());
-					init[input_size] = ForwardModel::compute_posterior(
-							observed_data.get(), initd.get(), output_size, pos_sigma);
-					rank_run(rank_output_file, num_samples, init.get());
-				}
-			}
-			started_chains += 1;
-		}//end for p
-	}
-	return;
-}
+	// Initialize rank specific initial sample & pos
+	unique_ptr<double[]> rank_sample_pos (
+			gen_init_sample(rank_output_file, init_sample_pos));
 
-
-void ParallelTempering::rank_run(
-		const string& rank_output_file,
-		int num_samples,
-		const double* rank_sample_pos)
-{
 	double pos, maxpos, acc, dec;
 	unique_ptr<double[]> p (new double[input_size]);
 	unique_ptr<double[]> d (new double[output_size]);
@@ -250,14 +189,3 @@ void ParallelTempering::rank_run(
 	return;
 }
 
-
-bool ParallelTempering::is_master()
-{
-	if (mpi_rank == 0) {
-#if (ENABLE_IMPI==1)
-		if (mpi_status != MPI_ADAPT_STATUS_JOINING)
-#endif
-			return true;
-	}
-	return false;
-}
