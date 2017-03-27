@@ -71,7 +71,7 @@ void MetropolisHastings::run(
 		}
 		// 4. keeping track
 #if (MCMC_OUT_PROGRESS == 1)
-		if (is_master() && ((it+1)%5 == 0)) {
+		if (is_master() && ((it+1)%MCMC_OUT_FREQ == 0)) {
 			printf("\n%d mcmc steps completed.\n", it+1);
 			printf("Current maxpos: %s  %f\n", ForwardModel::arr_to_string(p.get(), input_size).c_str(), pos);
 		}

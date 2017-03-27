@@ -198,6 +198,8 @@ void main1() {
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
 
 	string inputfile = "./input/ns_obs1.dat";
+//	string inputfile = "./input/ns_obs4.dat";
+	int nsamples = 50000;
 
 	// Create forward models
 	unique_ptr<NS>  full (new NS(inputfile, 1, 1));	 /// full model
@@ -226,9 +228,8 @@ void main1() {
 	if(mpirank == MASTER) {
 		printf("\nStatic Surrogate model error: %.6f\n", serr);
 	}
-//	unique_ptr<MCMC> smcmc (new ParallelTempering(ssgi.get(), inputfile, 0.5));
-	unique_ptr<MCMC> smcmc (new MetropolisHastings(ssgi.get(), inputfile, 0.5));
-	smcmc->run("./output/ssgi_mcmc", 20);
+	unique_ptr<MCMC> smcmc (new ParallelTempering(ssgi.get(), inputfile, 0.5));
+	smcmc->run("./output/ssgi_mcmc", nsamples);
 
 	// ASGI
 	double aerr = 0.0, aerr_old = -1.0, tol = 0.1;
@@ -244,9 +245,8 @@ void main1() {
 		if ((aerr - aerr_old < 0) && (fabs(aerr - aerr_old) < tol)) break;
 		aerr_old = aerr;
 	}
-//	unique_ptr<MCMC> amcmc (new ParallelTempering(asgi.get(), inputfile, 0.5));
-	unique_ptr<MCMC> amcmc (new MetropolisHastings(asgi.get(), inputfile, 0.5));
-	amcmc->run("./output/asgi_mcmc", 20);
+	unique_ptr<MCMC> amcmc (new ParallelTempering(asgi.get(), inputfile, 0.5));
+	amcmc->run("./output/asgi_mcmc", nsamples);
 
 #endif
 }
