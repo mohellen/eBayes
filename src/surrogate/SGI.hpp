@@ -83,9 +83,9 @@ public:
 	void run(const double* m, double* d);
 	
 	void build(
-			double refine_portion,
-			std::size_t init_grid_level=4,
-			bool is_masterworker=false); // MPI scheme default to naive
+			std::size_t init_level = 4,
+			double refine_portion = 0.1,
+			bool is_masterworker = false); // MPI scheme default to naive
 
 	void duplicate(
 			const std::string& gridfile,

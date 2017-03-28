@@ -97,8 +97,8 @@ void SGI::run(const double* m, double* d)
 }
 
 void SGI::build(
+		std::size_t init_level,
 		double refine_portion,
-		std::size_t init_grid_level,
 		bool is_masterworker)
 {
 	std::size_t num_points, new_num_points;
@@ -115,7 +115,7 @@ void SGI::build(
 		// 1. All: Construct grid
 //		grid.reset(Grid::createLinearBoundaryGrid(input_size).release()); // create empty grid
 		grid.reset(Grid::createModLinearGrid(input_size).release()); // create empty grid
-		grid->getGenerator().regular(init_grid_level); // populate grid points
+		grid->getGenerator().regular(init_level); // populate grid points
 		bbox.reset(create_boundingbox());
 		grid->setBoundingBox(*bbox); // set up bounding box
 		num_points = grid->getSize();
