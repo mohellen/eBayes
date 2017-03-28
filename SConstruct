@@ -22,6 +22,7 @@ libs = ['m','sgppbase','mpi','mpicxx']
 vars = Variables()
 vars.Add(BoolVariable("ENABLE_IMPI", "Enable elastic MPI (default: 0)", False))
 vars.Add("IMPI_ADAPT", "Set iMPI resource adaptation frequency (defalt: 30)", 30)
+vars.Add("EXEC", "Set executable name (default: main)", "main")
 ########################################
 
 
@@ -64,7 +65,7 @@ Available options are:
 ################ BUILD #################
 ########################################
 # Specify build name
-BuildName = 'main'
+BuildName = env.get("EXEC")
 # Save the base path
 BASEPATH = os.getcwd()
 BUILDPATH = BASEPATH + '/bin/' + BuildName + '_build'

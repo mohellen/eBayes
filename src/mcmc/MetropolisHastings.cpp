@@ -21,13 +21,15 @@
 using namespace std;
 
 void MetropolisHastings::run(
-		const string& output_file_prefix, 	/// Input
+		const string& outpath, 	/// Input
 		int num_samples,					/// Input
 		const vector<vector<double> >& init_sample_pos) /// Optional input
 {
+	if (mpi_rank >= num_chains) return;
+
 	// Initialize rank specific output file
-	string rank_output_file = output_file_prefix +
-			"_mh_r" + std::to_string(mpi_rank) + ".dat";
+	string rank_output_file = outpath +
+			"mcmcmh_r" + std::to_string(mpi_rank) + ".dat";
 
 	// Initialize rank specific initial sample & pos
 	unique_ptr<double[]> rank_sample_pos (

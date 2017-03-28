@@ -16,7 +16,7 @@ dep/sgpp-base-2.0.0/base/examples/unserializeGrid
 tags
 bin
 out
-output
+output*
 simulations
 demo
 lib

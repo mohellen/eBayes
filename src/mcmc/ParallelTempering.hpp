@@ -48,7 +48,7 @@ public:
 	int get_num_chains();
 
 	void run(
-			const std::string& output_file_prefix,
+			const std::string& outpath,
 			int num_samples,
 			const std::vector<std::vector<double> >& init_sample_pos = {});
 };

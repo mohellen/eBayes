@@ -30,6 +30,7 @@
 #include <sys/time.h>
 #include <vector>
 #include <memory>
+#include <cstdlib>
 
 
 using namespace std;
@@ -191,8 +192,64 @@ void test_mcmc_pt() {
 #endif
 }
 
-void main1() {
+void run_asgi() {
 #if (1==1)
+	int mpisize, mpirank, mpistatus;
+	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+
+//	string inputfile = "./input/ns_obs1.dat";
+	string inputfile = "./input/ns_obs4.dat";
+	string outpath = "./output/obs4_asgi2/";
+	string cmd = "mkdir -p " + outpath;
+	system(cmd.c_str());
+
+	int init_level = 2;
+	int nsamples = 50000;
+
+	// Create forward models
+	unique_ptr<NS>  full (new NS(inputfile, 1, 1));	 /// full model
+	unique_ptr<SGI> asgi (new SGI(inputfile, outpath, 1, 1)); /// adaptive sgi
+
+	// Get problem dimensions
+	std::size_t input_size = full->get_input_size();
+	std::size_t output_size = full->get_output_size();
+
+	// Initialize the true input vector
+	unique_ptr<double[]> m (new double[input_size]);
+	for (std::size_t i=0; i < input_size; i++)
+		m[i] = true_input[i];
+
+	unique_ptr<ErrorAnalysis> ea (new ErrorAnalysis(full.get(), asgi.get()));
+	ea->add_test_points(20);
+
+	// ASGI
+	// 1. build surrogate
+//	double aerr = 0.0, aerr_old = -1.0, tol = 0.1;
+//	int count = 0;
+//	while (true) {
+//		asgi->build(0.1, init_level, false);
+//		aerr = ea->compute_model_error();
+//		count += 1;
+//		if(mpirank == MASTER) {
+//			printf("\nRefinement # %d\n", count);
+//			printf("Adaptive Surrogate model error: %.6f\n", aerr);
+//		}
+//		if ((aerr - aerr_old < 0) && (fabs(aerr - aerr_old) < tol)) break;
+//		aerr_old = aerr;
+//	}
+	// 1. Or read grid
+	asgi->duplicate("","","");
+
+	// 2. run MCMC
+	auto inits = asgi->get_top_maxpos(20, outpath+"grid.mpibin");
+	unique_ptr<MCMC> amcmc (new ParallelTempering(asgi.get(), inputfile, 0.2));
+	amcmc->run(outpath, nsamples, inits);
+#endif
+}
+
+void run_ssgi() {
+#if (1==0)
 	int mpisize, mpirank, mpistatus;
 	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
@@ -251,6 +308,8 @@ void main1() {
 #endif
 }
 
+
+
 int main(int argc, char* argv[]) {
 	int mpistatus;
 
@@ -264,7 +323,8 @@ int main(int argc, char* argv[]) {
 	test_sgi_mpi();
 	test_mcmc_mh();
 	test_mcmc_pt();
-	main1();
+	run_asgi();
+	run_ssgi();
 
 #if (ENABLE_IMPI==1)
 	printf("\n~~~~~~This is awesome!!~~~~~\n");

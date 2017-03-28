@@ -65,7 +65,7 @@ public:
 			double rand_walk_size_domain_percent);
 
 	virtual void run(
-			const std::string& output_file,
+			const std::string& outpath,
 			int num_samples,
 			const std::vector<std::vector<double> >& init_sample_pos = {}) = 0;
 

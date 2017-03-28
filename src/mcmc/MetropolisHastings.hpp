@@ -39,7 +39,7 @@ public:
 			: MCMC(forwardmodel, observed_data_file, rand_walk_size_domain_percent) {}
 
 	void run(
-			const std::string& output_file_prefix,
+			const std::string& outpath,
 			int num_samples,
 			const std::vector<std::vector<double> >& init_sample_pos = {});
 };
