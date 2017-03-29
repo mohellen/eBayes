@@ -271,7 +271,8 @@ vector<vector<double> > SGI::get_top_maxpos(int num_tops, string posfile)
 	// Find the top N...
 	// Initialize the tracking book
 	vector<pair<double, size_t> > tracking;
-	for (int k=0; k < num_tops; k++) {
+	tracking.resize(num_tops);
+	for (size_t k=0; k < num_tops; k++) {
 		tracking[k].first = pos[k]; /// first is pos
 		tracking[k].second = k;     /// second is the pos's seq number
 	}
