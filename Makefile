@@ -10,6 +10,3 @@ sgpp:
 	
 clean:
 	scons -c
-	
-clear:
-	rm -rf output/*
