@@ -163,7 +163,6 @@ void ParallelTempering::run(
 					pos = nei[input_size];
 				}
 			}
-			MPI_Barrier(MPI_COMM_WORLD);
 		}
 
 		// 2. write result
