@@ -143,7 +143,7 @@ void run_asgi() {
 		}
 	}
 	// 2. run MCMC
-	auto inits = sgi->get_top_maxpos(20, outpath+"grid.mpibin");
+	auto inits = sgi->get_top_maxpos(20, outpath+"pos.mpibin");
 	unique_ptr<MCMC> mcmc (new ParallelTempering(sgi.get(), inputfile, 0.2));
 	mcmc->run(outpath, nsamples, inits);
 #endif
