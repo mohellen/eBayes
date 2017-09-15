@@ -1,4 +1,4 @@
-// iBayes - Elastic Bayesian Inference Framework with Sparse Grid
+// eBayes - Elastic Bayesian Inference Framework with iMPI
 // Copyright (C) 2015-today Ao Mo-Hellenbrand
 //
 // All copyrights remain with the respective authors.
