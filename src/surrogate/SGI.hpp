@@ -21,6 +21,7 @@
 
 #include <model/ForwardModel.hpp>
 #include <model/NS.hpp>
+#include <tools/Parallel.hpp>
 #include <sgpp_base.hpp>
 
 #include <mpi.h>
@@ -41,12 +42,12 @@
 class SGI : public ForwardModel
 {
 private:
-	int mpi_rank;	/// MPI rank
-	int mpi_size;	/// Size of MPI_COMM_WORLD
+	Parallel& par; //Pointer to external object
+
 #if defined(IMPI)
-	int mpi_status;	/// iMPI adapt status
 	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
 #endif
+
 	std::string outprefix;
 	std::unique_ptr<ForwardModel> 			  	fullmodel;
 	std::unique_ptr<sgpp::base::Grid> 		  	grid;
@@ -63,7 +64,8 @@ private:
 public:
 	~SGI(){}
 	
-	SGI(const std::string& input_file,
+	SGI(Parallel& para,
+			const std::string& input_file,
 			const std::string& output_prefix,
 			int resx,
 			int resy);
@@ -109,8 +111,6 @@ private:
 	void compute_hier_alphas(const std::string& outfile="");
 
 	bool refine_grid(double portion_to_refine);
-
-	bool is_master();
 
 	void mpiio_read_grid(
 			const std::string& outfile="");

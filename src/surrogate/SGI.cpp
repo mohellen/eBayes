@@ -21,25 +21,17 @@
 using namespace std;
 using namespace	sgpp::base;
 
-//int MPI_Init_adapt(int *argc, char ***argv, int *local_status);
-//int MPI_Probe_adapt(int *current_operation, int *local_status, MPI_Info *info);
-//int MPI_Comm_adapt_begin(MPI_Comm *intercomm, MPI_Comm *new_comm_world,
-//		int *staying_count, int *leaving_count, int *joining_count);
-//int MPI_Comm_adapt_commit(void);
-
-
 
 SGI::SGI(
+		Parallel& para,
 		const string& input_file,
 		const string& output_prefix,
 		int resx,
 		int resy)
 		: ForwardModel()
 {
-	MPI_Comm_rank(MPI_COMM_WORLD, &(this->mpi_rank));
-	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpi_size));
+	this->par = para;
 #if defined(IMPI)
-	mpi_status = -1;
 	impi_gpoffset = -1;
 #endif
 
@@ -106,11 +98,11 @@ void SGI::build(
 	bool is_init = (!this->eval) ? true : false;
 
 #if defined(IMPI)
-	if (mpi_status != MPI_ADAPT_STATUS_JOINING) {
+	if (par.mpistatus != MPI_ADAPT_STATUS_JOINING) {
 #endif
 
 	if (is_init) {
-		if (is_master())
+		if (par.is_master())
 			printf("\n...Initializing SGI model...\n");
 		// 1. All: Construct grid
 //		grid.reset(Grid::createLinearBoundaryGrid(input_size).release()); // create empty grid
@@ -119,12 +111,15 @@ void SGI::build(
 		bbox.reset(create_boundingbox());
 		grid->setBoundingBox(*bbox); // set up bounding box
 		num_points = grid->getSize();
-		if (is_master()) {
+		if (par.is_master()) {
 			printf("Grid points added: %lu\n", num_points);
 			printf("Total grid points: %lu\n", num_points);
 		}
 	} else {
-		if (is_master())
+		if (par.is_master())
+		MPI_Comm_rank(MPI_COMM_WORLD, &par.mpirank);
+		MPI_Comm_size(MPI_COMM_WORLD, &par.mpisize);
+		mpi_status = MPI_ADAPT_STATUS_STAYING;
 			printf("\n...Refining SGI model...\n");
 		// 1. All: refine grid
 		num_points = grid->getSize();
@@ -135,7 +130,7 @@ void SGI::build(
 			return;
 		}
 		new_num_points = grid->getSize();
-		if (is_master()) {
+		if (par.is_master()) {
 			printf("Grid points added: %lu\n", new_num_points-num_points);
 			printf("Total grid points: %lu\n", new_num_points);
 		}
@@ -164,7 +159,7 @@ void SGI::build(
 	eval.reset(sgpp::op_factory::createOperationEval(*grid).release());
 
 	// Master: print grogress
-	if (is_master()) {
+	if (par.is_master()) {
 		unique_ptr<double[]> m_maxpos (seg_to_coord_arr(maxpos_seq));
 		printf("Max posterior = %.6f, at %s.\n",
 				maxpos, arr_to_string(m_maxpos.get(), input_size).c_str());
@@ -214,11 +209,11 @@ void SGI::impi_adapt()
 	double tic1, toc1;
 
 	tic = MPI_Wtime();
-	MPI_Probe_adapt(&adapt_flag, &mpi_status, &info);
+	MPI_Probe_adapt(&adapt_flag, &par.mpistatus, &info);
 
 	toc = MPI_Wtime() - tic;
 	printf("Rank %d [STATUS %1d]: MPI_Probe_adapt %.6f seconds.\n",
-			mpi_rank, mpi_status, toc);
+			par.mpirank, par.mpistatus, toc);
 
 	if (adapt_flag == MPI_ADAPT_TRUE){
 		tic1 = MPI_Wtime();
@@ -228,10 +223,10 @@ void SGI::impi_adapt()
 
 		toc = MPI_Wtime() - tic;
 		printf("Rank %d [STATUS %1d]: MPI_Comm_adapt_begin %.6f seconds.\n",
-				mpi_rank, mpi_status, toc);
+				par.mpirank, par.mpistatus, toc);
 
 		//************************ ADAPT WINDOW ****************************
-		if (mpi_status == MPI_ADAPT_STATUS_JOINING) mpiio_read_grid();
+		if (par.mpistatus == MPI_ADAPT_STATUS_JOINING) mpiio_read_grid();
 
 		MPI_Bcast(&impi_gpoffset, 1, MPI_UNSIGNED_LONG, MASTER, newcomm);
 		//************************ ADAPT WINDOW ****************************
@@ -241,15 +236,13 @@ void SGI::impi_adapt()
 
 		toc = MPI_Wtime() - tic;
 		printf("Rank %d [STATUS %1d]: MPI_Comm_adapt_commit %.6f seconds.\n",
-				mpi_rank, mpi_status, toc);
+				par.mpirank, par.mpistatus, toc);
 
-		MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-		MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
-		mpi_status = MPI_ADAPT_STATUS_STAYING;
+		par.mpi_update();
 
 		toc1 = MPI_Wtime() - tic1;
 		printf("Rank %d [STATUS %1d]: TOTAL adaption %.6f seconds.\n",
-				mpi_rank, mpi_status, toc);
+				par.mpirank, par.mpistatus, toc);
 	}
 	return;
 #endif
@@ -385,9 +378,9 @@ void SGI::compute_hier_alphas(const string& outfile)
 		hier->doHierarchisation(alphas[j]);
 
 #if (SGI_OUT_TIMER==1)
-	if (is_master())
+	if (par.is_master())
 		printf("Rank %d: created alphas in %.5f seconds.\n",
-				mpi_rank, MPI_Wtime()-tic);
+				par.mpirank, MPI_Wtime()-tic);
 #endif
 	return;
 }
@@ -430,8 +423,11 @@ bool SGI::refine_grid(double portion_to_refine)
 	grid->refine(refine_idx, refine_gps);
 
 #if (SGI_OUT_TIMER==1)
-	if (is_master())
-		printf("Rank %d: refined grid in %.5f seconds.\n", mpi_rank, MPI_Wtime()-tic);
+	if (par.is_master())
+		MPI_Comm_rank(MPI_COMM_WORLD, &par.mpirank);
+		MPI_Comm_size(MPI_COMM_WORLD, &par.mpisize);
+		mpi_status = MPI_ADAPT_STATUS_STAYING;
+		printf("Rank %d: refined grid in %.5f seconds.\n", par.mpirank, MPI_Wtime()-tic);
 #endif
 	return true;
 }
@@ -439,17 +435,6 @@ bool SGI::refine_grid(double portion_to_refine)
 /***************************
  * MPI related operations
  ***************************/
-bool SGI::is_master()
-{
-	if (mpi_rank == 0) {
-#if defined(IMPI)
-		if (mpi_status != MPI_ADAPT_STATUS_JOINING)
-#endif
-			return true;
-	}
-	return false;
-}
-
 void SGI::mpiio_write_grid(const string& outfile)
 {
 	// Pack grid into Char array
@@ -475,7 +460,7 @@ void SGI::mpiio_write_grid(const string& outfile)
 		printf("MPI write grid file open failed. Operation aborted!\n");
 		exit(EXIT_FAILURE);
 	}
-	MPI_File_write_at(fh, lmin, buff.get(), load, MPI_CHAR, MPI_STATUS_IGNORE);
+	MPI_File_write_at(fh, lmin, buff.get(), load, MPI_CHAR, par.mpistatus_IGNORE);
 	MPI_File_close(&fh);
 	return;
 }
@@ -498,7 +483,7 @@ void SGI::mpiio_read_grid(const string& outfile)
 	unique_ptr<char[]> buff (new char[count]);
 
 	// Read from file
-	MPI_File_read_at(fh, 0, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE);
+	MPI_File_read_at(fh, 0, buff.get(), count, MPI_CHAR, par.mpistatus_IGNORE);
 	MPI_File_close(&fh);
 
 	// Create serialized grid string
@@ -534,7 +519,7 @@ void SGI::mpiio_partial_data(
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
 		MPI_File_read_at(fh, seq_min*output_size*sizeof(double), buff,
-				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE);
+				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, par.mpistatus_IGNORE);
 
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
@@ -544,7 +529,7 @@ void SGI::mpiio_partial_data(
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
 		MPI_File_write_at(fh, seq_min*output_size*sizeof(double), buff,
-				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE);
+				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, par.mpistatus_IGNORE);
 	}
 	MPI_File_close(&fh);
 	return;
@@ -572,7 +557,7 @@ void SGI::mpiio_partial_posterior(
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
 		MPI_File_read_at(fh, seq_min*sizeof(double), buff,
-				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE);
+				(seq_max-seq_min+1), MPI_DOUBLE, par.mpistatus_IGNORE);
 
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
@@ -582,7 +567,7 @@ void SGI::mpiio_partial_posterior(
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
 		MPI_File_write_at(fh, seq_min*sizeof(double), buff,
-				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE);
+				(seq_max-seq_min+1), MPI_DOUBLE, par.mpistatus_IGNORE);
 	}
 	MPI_File_close(&fh);
 	return;
@@ -590,13 +575,13 @@ void SGI::mpiio_partial_posterior(
 
 void SGI::mpi_find_global_update_maxpos()
 {
-	if (mpi_size <= 1) return;
+	if (par.mpisize <= 1) return;
 	struct {
 		double mymaxpos;
 		int myrank;
 	} in, out;
 	in.mymaxpos = maxpos;
-	in.myrank = mpi_rank;
+	in.myrank = par.mpirank;
 	MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MAXLOC, MPI_COMM_WORLD);
 	maxpos = out.mymaxpos;
 	MPI_Bcast(&maxpos_seq, 1, MPI_UNSIGNED_LONG, out.myrank, MPI_COMM_WORLD);
@@ -617,7 +602,7 @@ void SGI::compute_grid_points(
 	//		settings, but only the "Master-minion" scheme uses the iMPI features.
 	if (is_masterworker) {
 		// Master-worker style
-		if (is_master())
+		if (par.is_master())
 			mpimw_master_compute(gp_offset);
 		else
 			mpimw_worker_compute(gp_offset);
@@ -631,9 +616,9 @@ void SGI::compute_grid_points(
 	MPI_Barrier(MPI_COMM_WORLD);
 
 #if (SGI_OUT_TIMER==1)
-	if (is_master())
+	if (par.is_master())
 		printf("%d Ranks: computed %lu grid points (%lu to %lu) in %.5f seconds.\n",
-				mpi_size, grid->getSize()-gp_offset,
+				par.mpisize, grid->getSize()-gp_offset,
 				gp_offset, grid->getSize()-1, MPI_Wtime()-tic);
 #endif
 	return;
@@ -649,7 +634,7 @@ void SGI::mpi_compute_range(
 
 #if (SGI_OUT_RANK_PROGRESS==1)
 	printf("Rank %d: computing %lu grid points: [%lu, %lu]\n",
-			mpi_rank, (seq_max-seq_min+1), seq_min, seq_max);
+			par.mpirank, (seq_max-seq_min+1), seq_min, seq_max);
 #endif
 	// Compute data & posterior
 	DataVector gp_coord (input_size);
@@ -682,7 +667,7 @@ void SGI::mpi_compute_range(
 		}
 #if (SGI_OUT_GRID_POINTS==1)
 		printf("Rank %d: grid point %lu at %s completed, pos = %.6f.\n",
-				mpi_rank, i, vec_to_str(gp_coord).c_str(), *p);
+				par.mpirank, i, vec_to_str(gp_coord).c_str(), *p);
 #endif
 	}
 	// Write results to file
@@ -698,14 +683,14 @@ void SGI::mpina_get_local_range(
 		std::size_t& lmax)
 {
 	std::size_t num_gps = gmax - gmin + 1;
-	std::size_t trunk = num_gps / mpi_size;
-	std::size_t rest = num_gps % mpi_size;
+	std::size_t trunk = num_gps / par.mpisize;
+	std::size_t rest = num_gps % par.mpisize;
 
-	if (mpi_rank < rest) {
-		lmin = gmin + mpi_rank * (trunk + 1);
+	if (par.mpirank < rest) {
+		lmin = gmin + par.mpirank * (trunk + 1);
 		lmax = lmin + trunk;
 	} else {
-		lmin = gmin + mpi_rank * trunk + rest;
+		lmin = gmin + par.mpirank * trunk + rest;
 		lmax = lmin + trunk - 1;
 	}
 	return;
@@ -726,7 +711,7 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 	// Setup variables
 	int job_todo, job_done; // use separate buffers for send and receive
 	std::size_t seq_min, seq_max;
-	MPI_Status status;
+	par.mpistatus status;
 
 	while (true) {
 		// Receive a signal from MASTER
@@ -753,7 +738,7 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 {
 	std::size_t added_gps;
 	int num_jobs, jobid, worker, scnt=0;
-	MPI_Status status;
+	par.mpistatus status;
 	unique_ptr<int[]> jobs; // use array to have unique send buffer
 	vector<int> jobs_done;
 
@@ -780,12 +765,12 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 #endif
 
 	// Seed workers if any
-	if (mpi_size > 1)
+	if (par.mpisize > 1)
 		mpimw_seed_workers(num_jobs, scnt, jobs.get());
 
 	// As long as not all jobs are done, keep working...
 	while (jobs_done.size() < num_jobs) {
-		if (mpi_size > 1) {
+		if (par.mpisize > 1) {
 			// #1. Receive a finished job
 			MPI_Recv(&jobid, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 			worker = status.MPI_SOURCE;
@@ -822,12 +807,12 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 			// Only when there are remaining jobs, it's worth trying to adapt
 			if (scnt < num_jobs) {
 				// Prepare workers for adapt (receive done jobs, then send adapt signal)
-				if (mpi_size > 1)
+				if (par.mpisize > 1)
 					mpimw_adapt_preparation(jobs_done, jobs_per_tic);
 				// Adapt
 				impi_adapt();
 				// Seed workers again
-				if (mpi_size > 1)
+				if (par.mpisize > 1)
 					mpimw_seed_workers(num_jobs, scnt, jobs.get());
 			}
 			// reset timer
@@ -838,8 +823,8 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	} // end while
 
 	// All jobs done
-	if (mpi_size > 1) {
-		for (int mi=1; mi < mpi_size; mi++)
+	if (par.mpisize > 1) {
+		for (int mi=1; mi < par.mpisize; mi++)
 			MPI_Send(&jobid, 1, MPI_INT, mi, MPIMW_TAG_TERMINATE, MPI_COMM_WORLD);
 	}
 	return;
@@ -851,14 +836,14 @@ void SGI::mpimw_seed_workers(
 		int* jobs)
 {
 	// the smaller of (remainning jobs) or (# workers)
-	int size = int(fmin(num_jobs-scnt, mpi_size-1));
+	int size = int(fmin(num_jobs-scnt, par.mpisize-1));
 	unique_ptr<MPI_Request[]> tmp_req (new MPI_Request[size]);
 	for (int i=0; i < size; i++) {
 		MPI_Isend(&jobs[scnt], 1, MPI_INT, i+1, MPIMW_TAG_WORK,
 				MPI_COMM_WORLD, &tmp_req[i]);
 		scnt++;
 	}
-	MPI_Waitall(size, tmp_req.get(), MPI_STATUS_IGNORE);
+	MPI_Waitall(size, tmp_req.get(), par.mpistatus_IGNORE);
 	return;
 }
 
@@ -867,20 +852,20 @@ void SGI::mpimw_adapt_preparation(
 		int & jobs_per_tic)
 {
 #if defined(IMPI)
-	unique_ptr<MPI_Request[]> tmp_req (new MPI_Request[(mpi_size-1)*2]);
-	unique_ptr<int[]> tmp_rbuf (new int[mpi_size-1]);
-	unique_ptr<int[]> tmp_sbuf (new int[mpi_size-1]); // dummy send buffer
+	unique_ptr<MPI_Request[]> tmp_req (new MPI_Request[(par.mpisize-1)*2]);
+	unique_ptr<int[]> tmp_rbuf (new int[par.mpisize-1]);
+	unique_ptr<int[]> tmp_sbuf (new int[par.mpisize-1]); // dummy send buffer
 
-	for (int i=1; i < mpi_size; i++) {
+	for (int i=1; i < par.mpisize; i++) {
 		// First receive a finished job
 		MPI_Irecv(&tmp_rbuf[i-1], 1, MPI_INT, MPI_ANY_SOURCE,
 				MPI_ANY_TAG, MPI_COMM_WORLD, &tmp_req[i-1]);
 		// Then send "adapt signal", send buffer is dummy
 		MPI_Isend(&tmp_sbuf[i-1], 1, MPI_INT, i, MPIMW_TAG_ADAPT,
-				MPI_COMM_WORLD, &tmp_req[(mpi_size-1) + i-1]);
+				MPI_COMM_WORLD, &tmp_req[(par.mpisize-1) + i-1]);
 	}
-	MPI_Waitall((mpi_size-1)*2, tmp_req.get(), MPI_STATUS_IGNORE);
-	for (int i=1; i < mpi_size; i++) {
+	MPI_Waitall((par.mpisize-1)*2, tmp_req.get(), par.mpistatus_IGNORE);
+	for (int i=1; i < par.mpisize; i++) {
 		jobs_done.push_back(tmp_rbuf[i-1]);
 		jobs_per_tic++;
 	}

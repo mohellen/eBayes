@@ -16,40 +16,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef ANALYSIS_ERRORANALYSIS_HPP_
-#define ANALYSIS_ERRORANALYSIS_HPP_
+#ifndef TOOLS_PARALLEL_HPP_
+#define TOOLS_PARALLEL_HPP_
 
-#include <model/ForwardModel.hpp>
+#include<mpi.h>
 
-#include <memory>
-#include <iostream>
-#include <vector>
-#include <random>
-
-
-class ErrorAnalysis {
-private:
-	std::size_t input_size;
-	std::size_t output_size;
-	ForwardModel* fullmodel;
-	ForwardModel* surrogate;
-
-	std::vector< std::unique_ptr<double[]> > test_points;
-	std::vector< std::unique_ptr<double[]> > test_points_data;
+class Parallel {
+public:
+	int mpisize = 0;
+	int mpirank = 0;
+	int mpistatus = -1; //invalid mpi status by default
 
 public:
-	ErrorAnalysis(ForwardModel* fullmodel, ForwardModel* surrogatemodel);
+	// use default constructor
+	
+	~Parallel(){}
 
-	void update_surrogate(ForwardModel* surrogatemodel);
+	inline
+	bool is_master() {
+#if defined(IMPI)
+		return ( (mpirank == 0) &&
+				(mpistatus == MPI_ADAPT_STATUS_NEW || mpistatus == MPI_ADAPT_STATUS_STAYING) );
+#else
+		return (mpirank == 0);
+#endif
+	}
 
-	void add_test_point(const double* m = nullptr);
+	void mpi_init(int argc, char* argv[]);
 
-	void add_test_points(int M);
+	void mpi_final();
 
-	void copy_test_points(const ErrorAnalysis* that);
-
-	double compute_model_error();
-
-	double compute_model_error(const double* m);
+	void mpi_update();
 };
-#endif /* ANALYSIS_ERRORANALYSIS_HPP_ */
+#endif /* TOOLS_PARALLEL_HPP_ */

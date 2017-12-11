@@ -22,7 +22,8 @@
 #include <mcmc/MCMC.hpp>
 #include <mcmc/MetropolisHastings.hpp>
 #include <mcmc/ParallelTempering.hpp>
-#include <analysis/ErrorAnalysis.hpp>
+#include <tools/ErrorAnalysis.hpp>
+#include <tools/Parallel.hpp>
 
 #include <mpi.h>
 #include <iostream>
@@ -37,11 +38,12 @@ using namespace std;
 
 double true_input[] = {1.0, 0.8, 3.0, 1.5, 5.5, 0.2, 8.2, 1.0};
 
+Parallel par;
+
 void test_ns_mpi() {
 #if(1==0)
-	int mpisize, mpirank, mpistatus;
-	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
-	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+	MPI_Comm_size(MPI_COMM_WORLD, &(par.mpisize));
+	MPI_Comm_rank(MPI_COMM_WORLD, &(par.mpirank));
 
 	string inputfile = "./input/obstacles_in_flow.dat";
 
@@ -52,9 +54,9 @@ void test_ns_mpi() {
 	double noise;
 	double* od = ForwardModel::get_observed_data(inputfile, output_size, noise);
 
-	for (int p=0; p < mpisize; p++) {
-		if (mpirank == p) {
-			printf("\nRank %d: Observed data\n", mpirank);
+	for (int p=0; p < par.mpisize; p++) {
+		if (par.mpirank == p) {
+			printf("\nRank %d: Observed data\n", par.mpirank);
 			for (size_t j=0; j < output_size; j++)
 				printf("%.6f ", od[j]);
 			printf("\n");
@@ -74,9 +76,9 @@ void test_ns_mpi() {
 	double* d = new double[output_size];
 	fm->run(m, d);
 
-	for (int p=0; p < mpisize; p++) {
-		if (mpirank == p) {
-			printf("\nRank %d: Output data\n", mpirank);
+	for (int p=0; p < par.mpisize; p++) {
+		if (par.mpirank == p) {
+			printf("\nRank %d: Output data\n", par.mpirank);
 			for (size_t j=0; j < output_size; j++)
 				printf("%.6f ", d[j]);
 			printf("\n");
@@ -86,9 +88,9 @@ void test_ns_mpi() {
 	double sigma = ForwardModel::compute_posterior_sigma(od, output_size, noise);
 	double pos = ForwardModel::compute_posterior(od, d, output_size, sigma);
 
-	for (int p=0; p < mpisize; p++) {
-		if (mpirank == p) {
-			printf("\nRank %d: sigma = %.6f, posterior = %.6f\n", mpirank, sigma, pos);
+	for (int p=0; p < par.mpisize; p++) {
+		if (par.mpirank == p) {
+			printf("\nRank %d: sigma = %.6f, posterior = %.6f\n", par.mpirank, sigma, pos);
 		}
 	}
 #endif
@@ -96,9 +98,8 @@ void test_ns_mpi() {
 
 void run_asgi() {
 #if (1==1)
-	int mpisize, mpirank, mpistatus;
-	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
-	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+	MPI_Comm_size(MPI_COMM_WORLD, &(par.mpisize));
+	MPI_Comm_rank(MPI_COMM_WORLD, &(par.mpirank));
 
 	int init_level = 2;
 	int nsamples = 50000;
@@ -134,7 +135,7 @@ void run_asgi() {
 			sgi->build(init_level, 0.1, false);
 			err = ea->compute_model_error();
 			count += 1;
-			if(mpirank == MASTER) {
+			if(par.mpirank == MASTER) {
 				printf("\nRefinement # %d\n", count);
 				printf("Adaptive Surrogate model error: %.6f\n", err);
 			}
@@ -151,9 +152,8 @@ void run_asgi() {
 
 void run_ssgi() {
 #if (1==0)
-	int mpisize, mpirank, mpistatus;
-	MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
-	MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+	MPI_Comm_size(MPI_COMM_WORLD, &(par.mpisize));
+	MPI_Comm_rank(MPI_COMM_WORLD, &(par.mpirank));
 
 	int init_level = 2;
 	int nsamples = 50000;
@@ -196,13 +196,8 @@ void run_ssgi() {
 
 
 int main(int argc, char* argv[]) {
-	int mpistatus;
 
-#if defined(IMPI)
-	MPI_Init_adapt(&argc, &argv, &mpistatus);
-#else
-	MPI_Init(&argc, &argv);
-#endif
+	par.mpi_init(argc, argv);
 
 	test_ns_mpi();
 	run_asgi();
@@ -212,6 +207,7 @@ int main(int argc, char* argv[]) {
 	printf("\n~~~~~~This is awesome!!~~~~~\n");
 #endif
 
-	MPI_Finalize();
+	par.mpi_final();
 	return 0;
 }
+
