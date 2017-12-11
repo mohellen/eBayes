@@ -98,9 +98,6 @@ void test_ns_mpi() {
 
 void run_asgi() {
 #if (1==1)
-	MPI_Comm_size(MPI_COMM_WORLD, &(par.mpisize));
-	MPI_Comm_rank(MPI_COMM_WORLD, &(par.mpirank));
-
 	int init_level = 2;
 	int nsamples = 50000;
 	bool is_dup = true;
@@ -111,7 +108,7 @@ void run_asgi() {
 
 	// Create forward models
 	unique_ptr<NS>  full (new NS(inputfile, 1, 1));	 /// full model
-	unique_ptr<SGI> sgi (new SGI(inputfile, outpath, 1, 1)); /// adaptive sgi
+	unique_ptr<SGI> sgi (new SGI(par, inputfile, outpath, 1, 1)); /// adaptive sgi
 
 	// Get problem dimensions
 	std::size_t input_size = full->get_input_size();
