@@ -4,12 +4,12 @@ import SCons
 
 ###### Ininitialize env virables #######
 ########################################
-# Include paths: -Iinclude without '-I'
 cxx = 'mpicxx'
-cpppath = ['src', 'include', 'dep/sgpp-base-2.0.0/base/src']
 # Compile flags
-cppflags = ['-O3','-g','-std=c++11','-fmessage-length=0',
+cppflags = ['-O3','-std=c++11','-fmessage-length=0',
             '-Wno-unused-result','-Wno-deprecated','-pedantic']
+# Include paths: -Iinclude without '-I'
+cpppath = ['src', 'include', 'dep/sgpp-base-2.0.0/base/src']
 # Library look up paths: -Lpath without '-L'
 libpath = ['lib']
 # Libraries to link: -lmylib without '-l'
@@ -17,46 +17,64 @@ libs = ['m','sgppbase','mpi','mpicxx']
 ########################################
 
 
+#### Local variables ####
+#########################
+homedir = os.path.expanduser("~")
+basedir = os.getcwd()
+srcdir = basedir + "/src"
+bindir = basedir + "/bin"
+#########################
+
+
 #### Customs command line variables ####
 ########################################
 vars = Variables()
-vars.Add(BoolVariable("ENABLE_IMPI", "Enable elastic MPI (default: 0)", False))
-vars.Add("IMPI_ADAPT", "Set iMPI resource adaptation frequency (defalt: 30)", 30)
-vars.Add("EXEC", "Set executable name (default: main)", "main")
+vars.Add( BoolVariable('impi', 'Enable iMPI support', True) )
+vars.Add( PathVariable('impipath', 'Specify iMPI installation path', homedir + '/workspace/ihpcins') )
+vars.Add( BoolVariable('impinodes', 'Enable iMPI node information in output', True) )
+vars.Add( 'exe', 'Set executable name (default: main)', 'main' )
 ########################################
 
 
 ########## Setup environment ###########
 ########################################
 env = Environment(variables=vars, ENV=os.environ)
-env.Replace(CXX=cxx)
-env.Append(CPPPATH=cpppath)
-env.Append(CPPFLAGS=cppflags)
-env["ENABLE_IMPI"] = env.get("ENABLE_IMPI")
-env["IMPI_ADAPT"] = env.get("IMPI_ADAPT")
 
-if (env["ENABLE_IMPI"]):
-    libpath += ['/media/data/nfs/install/lib']
-    env.Append(CPPPATH='/media/data/nfs/install/include')
-    env.Append( CPPDEFINES=['ENABLE_IMPI=1'] )
+if env['impi']:
+	env.Append( CCFLAGS=['-DIMPI'] )
+	cpppath += [env['impipath'] + '/include']
+	libpath += [env['impipath'] + '/lib']
+	if env['impinodes']:
+		env.Append( CCFLAGS=['-DIMPI_NODES'] )
 else:
-    libpath += ['/media/data/install/mpich-3.2/lib']
-    env.Append(CPPPATH='/media/data/install/mpich-3.2/include')
-    env.Append( CPPDEFINES=['ENABLE_IMPI=0'] )
-    
-env.Append( CPPDEFINES=['IMPI_ADAPT=' + str(env["IMPI_ADAPT"])]   )
+	cpppath += ['/usr/include/mpich']
+	libpath += ['/usr/lib']
+
+env.Replace( CXX=cxx )
+env.Append( CPPPATH=cpppath )
+env.Append( LD_LIBRARY_PATH=libpath )
+env.Append( CPPFLAGS=cppflags )
 ########################################
 
 
 ############ Help Message ##############
 ########################################
 env.Help("""
-Usage: 
-To build with defalt options: scons
-To build with special options: scons <OPTION>=<VALUE>
-To clean up build: scons -c
+[Usage]
 
-Available options are:
+To build with defalt options:
+	scons
+
+To build with special options:
+	scons <OPTION>=<VALUE>
+
+To build with options specified by config file:
+	scons config=/path/to/configfile.py
+
+To clean up build:
+	scons -c
+
+[Available options]
 """+vars.GenerateHelpText(env)
 )
 ########################################
@@ -65,57 +83,55 @@ Available options are:
 ################ BUILD #################
 ########################################
 # Specify build name
-BuildName = env.get("EXEC")
+tar = str(env['exe'])
 # Save the base path
-BASEPATH = os.getcwd()
-BUILDPATH = BASEPATH + '/bin/' + BuildName + '_build'
-TARGET = BASEPATH + '/bin/' + BuildName
+target = bindir + '/' + tar
+builddir = bindir + '/' + tar + '_build'
 # Make output and build dir
-if not os.path.exists(BASEPATH + '/output'):
-    os.makedirs(BASEPATH + '/output')
-if not os.path.exists(BUILDPATH):
-    os.makedirs(BUILDPATH)
-# List of objects for the build
-OBJ = []
-# Build objects from sources file
-# find each subdir in src            
-for sdir in os.listdir('src'):
-    srcdir = BASEPATH + '/src/' + sdir
-    # confirm this is a dir (not a file), then
-    if (os.path.isdir(srcdir)):
-        # create the corresponding build path
-        blddir = BUILDPATH + '/' + sdir
-        if not os.path.exists(blddir):
-            os.makedirs(blddir)
-        # find all source files in this dir
-        srcfiles = []
-        for f in os.listdir('src/'+sdir):
-            if (f.endswith('.cpp') or f.endswith('.c') or f.endswith('.cc')):
-                # NOTE: Must prefix "build dir" to each source file in order 
-                #       to be built in the build dir
-                srcfiles += [blddir +'/'+ f]
-                # Put the object file into object list
-                OBJ += [ os.path.splitext(blddir +'/'+ f)[0]+'.o' ]
-        # compile all files
-        env.VariantDir(blddir, srcdir, duplicate=0)
-        env.Object(srcfiles)
-    # if sdir is indeed a file, check if it's a source file
-    elif (sdir.endswith('.cpp') or sdir.endswith('.c') or sdir.endswith('.cc')):
-        srcdir = BASEPATH + '/src'
-        blddir = BUILDPATH
-        srcfile = blddir +'/'+ sdir
-        OBJ += [ os.path.splitext(blddir +'/'+ sdir)[0]+'.o' ]
-        # compile the file
-        env.VariantDir(blddir, srcdir, duplicate=0)
-        env.Object(srcfile)
+if not os.path.exists(bindir):
+	os.makedirs(bindir)
+if not os.path.exists(builddir):
+	os.makedirs(builddir)
+
+# Find (recursively) all source paths
+def recursive_add_paths(thepath, pathlist):
+	for p in os.listdir(thepath):
+		# For some reason, os.path.abspath(p) return wrong results
+		absp = thepath + '/' + p
+		if (os.path.isdir(absp)):
+			pathlist += [absp]
+			recursive_add_paths(absp, pathlist)
+
+srcpaths = [srcdir]
+recursive_add_paths(srcdir, srcpaths)
+
+# Build objects from source files
+objs = []
+for p in srcpaths:
+	# create corresponding build path
+	destp = p.replace(srcdir, builddir)
+	if not os.path.exists(destp):
+		os.makedirs(destp)
+	# for each source file in p
+	for f in os.listdir(p):
+		absf = p + '/' + f
+		if (os.path.isfile(absf) and (absf.endswith('.cpp') or absf.endswith('.cc') or absf.endswith('.c'))):
+			# define corresponding target object
+			tarf = destp + '/' + f
+			tarf = [os.path.splitext(tarf)[0]+'.o']
+			objs += [tarf]
+			# compile the file
+			env.Object(tarf, absf)
+
 # Build program
-env.Program(TARGET, OBJ, LIBS=libs, LIBPATH=libpath)
+env.Program(target, objs, LIBS=libs, LIBPATH=libpath)
 ########################################
+
 
 
 ############### CLEANUP ################
 ########################################
-env.Clean("clean", [TARGET, BUILDPATH])
+env.Clean("clean", [target, builddir])
 ########################################
 
 # TODO: make phony target 'scons sgpp' 

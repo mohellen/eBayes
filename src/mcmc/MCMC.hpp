@@ -42,7 +42,7 @@ class MCMC {
 protected:
 	int mpi_rank;	/// MPI rank
 	int mpi_size;	/// Size of MPI_COMM_WORLD
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	int mpi_status;	/// iMPI adapt status
 	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
 #endif

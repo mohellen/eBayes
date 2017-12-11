@@ -198,7 +198,7 @@ void run_ssgi() {
 int main(int argc, char* argv[]) {
 	int mpistatus;
 
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	MPI_Init_adapt(&argc, &argv, &mpistatus);
 #else
 	MPI_Init(&argc, &argv);
@@ -208,7 +208,7 @@ int main(int argc, char* argv[]) {
 	run_asgi();
 	run_ssgi();
 
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	printf("\n~~~~~~This is awesome!!~~~~~\n");
 #endif
 

@@ -38,7 +38,7 @@ SGI::SGI(
 {
 	MPI_Comm_rank(MPI_COMM_WORLD, &(this->mpi_rank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpi_size));
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	mpi_status = -1;
 	impi_gpoffset = -1;
 #endif
@@ -105,7 +105,7 @@ void SGI::build(
 	// find out whether it's grid initialization or refinement
 	bool is_init = (!this->eval) ? true : false;
 
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	if (mpi_status != MPI_ADAPT_STATUS_JOINING) {
 #endif
 
@@ -142,7 +142,7 @@ void SGI::build(
 	}
 	mpiio_write_grid();
 
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	} else {
 		num_points = impi_gpoffset;
 	}
@@ -204,7 +204,7 @@ void SGI::duplicate(
 
 void SGI::impi_adapt()
 {
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	int adapt_flag;
 	MPI_Info info;
 	MPI_Comm intercomm;
@@ -442,7 +442,7 @@ bool SGI::refine_grid(double portion_to_refine)
 bool SGI::is_master()
 {
 	if (mpi_rank == 0) {
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 		if (mpi_status != MPI_ADAPT_STATUS_JOINING)
 #endif
 			return true;
@@ -742,7 +742,7 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 			job_done = job_todo;
 			MPI_Send(&job_done, 1, MPI_INT, MASTER, job_done, MPI_COMM_WORLD);
 		}
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 		if (status.MPI_TAG == MPIMW_TAG_ADAPT) impi_adapt();
 #endif
 	} // end while
@@ -757,7 +757,7 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	unique_ptr<int[]> jobs; // use array to have unique send buffer
 	vector<int> jobs_done;
 
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	double tic, toc;
 	int jobs_per_tic;
 #endif
@@ -774,7 +774,7 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	for (int i = 0; i < num_jobs; i++)
 		jobs[i] = i;
 
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	tic = MPI_Wtime();
 	jobs_per_tic = 0;
 #endif
@@ -790,7 +790,7 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 			MPI_Recv(&jobid, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 			worker = status.MPI_SOURCE;
 			jobs_done.push_back(jobid); // mark the job as done
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 			jobs_per_tic++;
 #endif
 			// #2. Send another job if any
@@ -807,13 +807,13 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 			mpimw_get_job_range(jobid, gp_offset, seq_min, seq_max);
 			mpi_compute_range(seq_min, seq_max);
 			jobs_done.push_back(jobid);
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 			jobs_per_tic++;
 #endif
 		}
 
 		// #3. Check for adaption every IMPI_ADAPT_FREQ seconds
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 		toc = MPI_Wtime()-tic;
 		if (toc >= IMPI_ADAPT_FREQ) {
 			// performance measure: # gps computed per second
@@ -866,7 +866,7 @@ void SGI::mpimw_adapt_preparation(
 		vector<int> & jobs_done,
 		int & jobs_per_tic)
 {
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	unique_ptr<MPI_Request[]> tmp_req (new MPI_Request[(mpi_size-1)*2]);
 	unique_ptr<int[]> tmp_rbuf (new int[mpi_size-1]);
 	unique_ptr<int[]> tmp_sbuf (new int[mpi_size-1]); // dummy send buffer

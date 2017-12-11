@@ -27,7 +27,7 @@ MCMC::MCMC(
 {
 	MPI_Comm_rank(MPI_COMM_WORLD, &(this->mpi_rank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpi_size));
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 	mpi_status = -1;
 	impi_gpoffset = -1;
 #endif
@@ -198,7 +198,7 @@ double* MCMC::gen_init_sample(
 bool MCMC::is_master()
 {
 	if (mpi_rank == 0) {
-#if (ENABLE_IMPI==1)
+#if defined(IMPI)
 		if (mpi_status != MPI_ADAPT_STATUS_JOINING)
 #endif
 			return true;
