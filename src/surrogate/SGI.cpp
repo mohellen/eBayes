@@ -419,9 +419,6 @@ bool SGI::refine_grid(double portion_to_refine)
 
 #if (SGI_OUT_TIMER==1)
 	if (par.is_master())
-		MPI_Comm_rank(MPI_COMM_WORLD, &par.mpirank);
-		MPI_Comm_size(MPI_COMM_WORLD, &par.mpisize);
-		par.mpistatus = MPI_ADAPT_STATUS_STAYING;
 		printf("Rank %d: refined grid in %.5f seconds.\n", par.mpirank, MPI_Wtime()-tic);
 #endif
 	return true;

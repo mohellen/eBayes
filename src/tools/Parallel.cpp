@@ -24,6 +24,8 @@ void Parallel::mpi_update()
 {
 	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpisize));
 	MPI_Comm_rank(MPI_COMM_WORLD, &(this->mpirank));
+#if defined(IMPI)
 	this->mpistatus = MPI_ADAPT_STATUS_STAYING;
+#endif
 	return;
 }

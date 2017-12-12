@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import SCons
 
@@ -9,9 +10,9 @@ cxx = 'mpicxx'
 cppflags = ['-O3','-std=c++11','-fmessage-length=0',
             '-Wno-unused-result','-Wno-deprecated','-pedantic']
 # Include paths: -Iinclude without '-I'
-cpppath = ['src', 'include', 'dep/sgpp-base-2.0.0/base/src']
+cpppath = ['src', 'dep', 'dep/sgpp-base-2.0.0/base/src']
 # Library look up paths: -Lpath without '-L'
-libpath = ['lib']
+libpath = []
 # Libraries to link: -lmylib without '-l'
 libs = ['m','sgppbase','mpi','mpicxx']
 ########################################
@@ -30,7 +31,7 @@ bindir = basedir + "/bin"
 ########################################
 vars = Variables()
 vars.Add( BoolVariable('impi', 'Enable iMPI support', True) )
-vars.Add( PathVariable('impipath', 'Specify iMPI installation path', homedir + '/workspace/ihpcins') )
+vars.Add( PathVariable('impipath', 'Specify iMPI installation path', '/usr') )
 vars.Add( BoolVariable('impinodes', 'Enable iMPI node information in output', True) )
 vars.Add( 'exe', 'Set executable name (default: main)', 'main' )
 ########################################
@@ -42,6 +43,10 @@ env = Environment(variables=vars, ENV=os.environ)
 
 if env['impi']:
 	env.Append( CCFLAGS=['-DIMPI'] )
+	# check iMPI installation
+	if not (os.path.isfile(env['impipath'] + '/bin/mpicc') and
+			os.path.isfile(env['impipath'] + '/lib/libmpi.so')):
+		sys.exit("Error: iMPI installation not found. Check impipath. Operation aborted.")
 	cpppath += [env['impipath'] + '/include']
 	libpath += [env['impipath'] + '/lib']
 	if env['impinodes']:
@@ -128,20 +133,30 @@ env.Program(target, objs, LIBS=libs, LIBPATH=libpath)
 ########################################
 
 
-
 ############### CLEANUP ################
 ########################################
 env.Clean("clean", [target, builddir])
 ########################################
 
-# TODO: make phony target 'scons sgpp' 
 
-#sgpp:
-#    mkdir -p $(BASEPATH)/lib; cd $(BASEPATH)/dep/sgpp-base-2.0.0; scons -c; scons BUILDDIR=$(BASEPATH)/lib -j4; cd $(BASEPATH)
+############### PHONY TARGETS ################
+##############################################
+def PhonyTargets(env = None, **kw):
+    if not env: env = DefaultEnvironment()
+    for target,action in kw.items():
+        env.AlwaysBuild(env.Alias(target, [], action))
 
+## [Usage]
+## Example 1: simple target, default env
+## PhonyTargets(TAGS = 'tools/mktags.sh -e')
+##
+## Example 2: multple targets
+## env = Environment(parse_flags = '-std=c89 -DFOO -lm')
+## PhonyTargets(env, CFLAGS  = '@echo $CFLAGS',
+##                   DEFINES = '@echo $CPPDEFINES',
+##                   LIBS    = '@echo $LIBS')
 
-
-
-
-
+cmd = 'cd '+basedir+'/dep/sgpp-base-2.0.0; scons -c; scons BUILDDIR='+env['impipath']+'/lib; cd '+basedir
+PhonyTargets(sgpp = cmd)
+##############################################
 

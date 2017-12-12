@@ -42,9 +42,6 @@ Parallel par;
 
 void test_ns_mpi() {
 #if(1==0)
-	MPI_Comm_size(MPI_COMM_WORLD, &(par.mpisize));
-	MPI_Comm_rank(MPI_COMM_WORLD, &(par.mpirank));
-
 	string inputfile = "./input/obstacles_in_flow.dat";
 
 	NS* fm = new NS(inputfile, 1, 1);
@@ -149,9 +146,6 @@ void run_asgi() {
 
 void run_ssgi() {
 #if (1==0)
-	MPI_Comm_size(MPI_COMM_WORLD, &(par.mpisize));
-	MPI_Comm_rank(MPI_COMM_WORLD, &(par.mpirank));
-
 	int init_level = 2;
 	int nsamples = 50000;
 	bool is_dup = false;
