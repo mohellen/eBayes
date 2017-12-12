@@ -97,7 +97,7 @@ void run_asgi() {
 #if (1==1)
 	int init_level = 2;
 	int nsamples = 50000;
-	bool is_dup = true;
+	bool is_dup = false;
 	string inputfile = "./input/ns_obs4.dat";
 	string outpath = "./output/obs4_asgi" + to_string(init_level) +"/";
 	string cmd = "mkdir -p " + outpath;
@@ -129,7 +129,7 @@ void run_asgi() {
 			sgi->build(init_level, 0.1, false);
 			err = ea->compute_model_error();
 			count += 1;
-			if(par.mpirank == MASTER) {
+			if(par.is_master()) {
 				printf("\nRefinement # %d\n", count);
 				printf("Adaptive Surrogate model error: %.6f\n", err);
 			}
