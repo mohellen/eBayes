@@ -142,7 +142,7 @@ void run_asgi() {
 	}
 	// 2. run MCMC
 	vector<vector<double> > inits = sgi->get_top_maxpos(20, "");
-	unique_ptr<MCMC> mcmc (new ParallelTempering(sgi.get(), inputfile, 0.2));
+	unique_ptr<MCMC> mcmc (new ParallelTempering(par, *sgi, inputfile, 0.2));
 	mcmc->run(outpath, nsamples, inits);
 #endif
 }

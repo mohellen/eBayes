@@ -20,6 +20,7 @@
 #define MCMC_MCMC_HPP_
 
 #include <model/ForwardModel.hpp>
+#include <tools/Parallel.hpp>
 #include <mpi.h>
 #include <vector>
 #include <string>
@@ -40,18 +41,12 @@
 
 class MCMC {
 protected:
-	int mpi_rank;	/// MPI rank
-	int mpi_size;	/// Size of MPI_COMM_WORLD
-#if defined(IMPI)
-	int mpi_status;	/// iMPI adapt status
-	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
-#endif
-	int num_chains;
+	Parallel& par;			// Reference to external object
+	ForwardModel& model;	// Reference to external object
 
-	ForwardModel* model;
+	int num_chains;
 	std::size_t input_size;
 	std::size_t output_size;
-
 	std::unique_ptr<double[]> rand_walk_size;
 	std::unique_ptr<double[]> observed_data;
 	double observed_data_noise;
@@ -60,7 +55,9 @@ protected:
 public:
 	virtual ~MCMC() {}
 
-	MCMC(ForwardModel* forwardmodel,
+	MCMC(
+			Parallel& para,
+			ForwardModel& forwardmodel,
 			const std::string& observed_data_file,
 			double rand_walk_size_domain_percent);
 
@@ -70,8 +67,6 @@ public:
 			const std::vector<std::vector<double> >& init_sample_pos = {}) = 0;
 
 protected:
-	bool is_master();
-
 	double* gen_random_sample();
 
 	double* gen_init_sample(

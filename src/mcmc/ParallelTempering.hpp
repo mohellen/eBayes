@@ -40,7 +40,8 @@ public:
 	~ParallelTempering() {}
 
 	ParallelTempering(
-			ForwardModel* forwardmodel,
+			Parallel& par,
+			ForwardModel& forwardmodel,
 			const std::string& observed_data_file,
 			double mixing_chain_rate,
 			double rand_walk_size_domain_percent = 0.2);

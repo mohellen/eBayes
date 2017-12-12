@@ -33,10 +33,11 @@ public:
 	~MetropolisHastings() {}
 
 	MetropolisHastings(
-			ForwardModel* forwardmodel,
+			Parallel& par,
+			ForwardModel& model,
 			const std::string& observed_data_file,
 			double rand_walk_size_domain_percent = 0.2)
-			: MCMC(forwardmodel, observed_data_file, rand_walk_size_domain_percent) {}
+			: MCMC(par, model, observed_data_file, rand_walk_size_domain_percent) {}
 
 	void run(
 			const std::string& outpath,

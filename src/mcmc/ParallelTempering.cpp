@@ -21,11 +21,12 @@
 using namespace std;
 
 ParallelTempering::ParallelTempering(
-			ForwardModel* forwardmodel,
+			Parallel& par,
+			ForwardModel& model,
 			const std::string& observed_data_file,
 			double mixing_chain_rate,
 			double rand_walk_size_domain_percent)
-			: MCMC(forwardmodel, observed_data_file, rand_walk_size_domain_percent)
+			: MCMC(par, model, observed_data_file, rand_walk_size_domain_percent)
 {
 	this->mixing_rate = mixing_chain_rate;
 	// Initialize temperatures of each chain
@@ -46,11 +47,11 @@ void ParallelTempering::run(
 		int num_samples,					/// Input
 		const vector<vector<double> >& init_sample_pos) /// Optional input
 {
-	if (mpi_rank >= num_chains) return;
+	if (par.mpirank >= num_chains) return;
 
 	// Initialize rank specific output file
 	string rank_output_file = outpath +
-			"mcmcpt_r" + std::to_string(mpi_rank) + ".dat";
+			"mcmcpt_r" + std::to_string(par.mpirank) + ".dat";
 
 	// Initialize rank specific initial sample & pos
 	unique_ptr<double[]> rank_sample_pos (
@@ -64,7 +65,7 @@ void ParallelTempering::run(
 	// Open file: append if exists, or create it if not
 	fstream fout (rank_output_file, fstream::in | fstream::out | fstream::app);
 	if (!fout) {
-		printf("Rank %d: MCMC open output file \"%s\" failed. Abort!\n", mpi_rank,
+		printf("Rank %d: MCMC open output file \"%s\" failed. Abort!\n", par.mpirank,
 				rank_output_file.c_str());
 		exit(EXIT_FAILURE);
 	}
@@ -94,7 +95,7 @@ void ParallelTempering::run(
 	//    r and 0, if r = last rank
 	unique_ptr<bool[]> ex_iter (new bool[num_samples]);
 	unique_ptr<int[]>  ex_rank (new int[num_samples]);
-	if (is_master()) {
+	if (par.is_master()) {
 		for (int i=0; i < num_samples; i++) {
 			if (udist_r(gen) <= mixing_rate) {
 				ex_iter[i] = true;
@@ -127,11 +128,11 @@ void ParallelTempering::run(
 		if (ex_iter[it]) {
 			// Engage only the mixing ranks
 			int rank1 = ex_rank[it];
-			int rank2 = ((rank1 + 1) < mpi_size) ? (rank1 + 1) : 0;
+			int rank2 = ((rank1 + 1) < par.mpisize) ? (rank1 + 1) : 0;
 
-			if ((mpi_rank == rank1) || (mpi_rank == rank2)) {
+			if ((par.mpirank == rank1) || (par.mpirank == rank2)) {
 				// neighbor rank
-				int nei_rank = (mpi_rank==rank1) ? rank2 : rank1;
+				int nei_rank = (par.mpirank==rank1) ? rank2 : rank1;
 
 				// Pack current state (sample) and pos into exchange buffer
 				for (size_t i=0; i < input_size; i++)
@@ -139,12 +140,12 @@ void ParallelTempering::run(
 				my[input_size] = pos;
 
 				// Compute exchange decision @ [input_size+1]
-				acc = fmin(1.0, pow(pos, inv_temps[nei_rank])/pow(pos, inv_temps[mpi_rank]));
+				acc = fmin(1.0, pow(pos, inv_temps[nei_rank])/pow(pos, inv_temps[par.mpirank]));
 				dec = (udist_r(gen) < acc) ? 1.0 : 0.0;
 				my[input_size+1] = dec;
 
 				// MPI communication
-				if (mpi_rank == rank1) {
+				if (par.mpirank == rank1) {
 					MPI_Send(my.get(),  input_size+2, MPI_DOUBLE, nei_rank,
 							10, MPI_COMM_WORLD);
 					MPI_Recv(nei.get(), input_size+2, MPI_DOUBLE, nei_rank,
@@ -157,7 +158,7 @@ void ParallelTempering::run(
 				}
 				// Exchange only if both me and nei accepted
 				if ((my[input_size+1] == 1.0) && (nei[input_size+1] == 1.0)) {
-					printf("Rank %d: swapping with rank %d at iteration %d.\n", mpi_rank, nei_rank, it);
+					printf("Rank %d: swapping with rank %d at iteration %d.\n", par.mpirank, nei_rank, it);
 					for (size_t i=0; i < input_size; i++)
 						p[i] = nei[i];
 					pos = nei[input_size];
@@ -176,7 +177,7 @@ void ParallelTempering::run(
 		}
 		// 4. keeping track
 #if (MCMC_OUT_PROGRESS == 1)
-		if (is_master() && ((it+1)%MCMC_OUT_FREQ == 0)) {
+		if (par.is_master() && ((it+1)%MCMC_OUT_FREQ == 0)) {
 			printf("\n%d mcmc steps completed.\n", it+1);
 			printf("Current maxpos: %s  %f\n\n", ForwardModel::arr_to_string(p.get(), input_size).c_str(), pos);
 		}

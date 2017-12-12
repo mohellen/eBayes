@@ -21,26 +21,21 @@
 using namespace std;
 
 MCMC::MCMC(
-		ForwardModel* forwardmodel,
+		Parallel& para,
+		ForwardModel& forwardmodel,
 		const string& observed_data_file,
 		double rand_walk_size_domain_percent)
+		: par(para), model(forwardmodel)
 {
-	MPI_Comm_rank(MPI_COMM_WORLD, &(this->mpi_rank));
-	MPI_Comm_size(MPI_COMM_WORLD, &(this->mpi_size));
-#if defined(IMPI)
-	mpi_status = -1;
-	impi_gpoffset = -1;
-#endif
-	// Determin how many chains: min(mpi_ranks, MAX_CHAINS)
-	this->num_chains = (mpi_size < MCMC_MAX_CHAINS) ? mpi_size : MCMC_MAX_CHAINS;
-	this->model = forwardmodel;
-	this->input_size = model->get_input_size();
-	this->output_size = model->get_output_size();
+	// Determin how many chains: min(ranks, MAX_CHAINS)
+	this->num_chains = (par.mpisize < MCMC_MAX_CHAINS) ? par.mpisize : MCMC_MAX_CHAINS;
+	this->input_size = model.get_input_size();
+	this->output_size = model.get_output_size();
 
 	this->rand_walk_size.reset(new double[input_size]);
 	double dmin, dmax;
 	for (size_t i=0; i < input_size; i++) {
-		model->get_input_space(i, dmin, dmax);
+		model.get_input_space(i, dmin, dmax);
 		rand_walk_size[i] = (dmax-dmin) * rand_walk_size_domain_percent;
 	}
 	// Get observed data and noise
@@ -59,7 +54,7 @@ double* MCMC::gen_random_sample()
 	mt19937 gen (chrono::system_clock::now().time_since_epoch().count());
 	double dmin, dmax;
 	for (size_t i=0; i < input_size; i++) {
-		model->get_input_space(i, dmin, dmax);
+		model.get_input_space(i, dmin, dmax);
 		uniform_real_distribution<double> udist(dmin,dmax);
 		sample[i] = udist(gen);
 	}
@@ -136,12 +131,12 @@ void MCMC::one_step_single_dim(
 
 	// 1. Draw a proposal (we only update p[dim])
 	p[dim] = ndist(gen);
-	model->get_input_space(dim, dmin, dmax);
+	model.get_input_space(dim, dmin, dmax);
 	while ((p[dim] < dmin) || (p[dim] > dmax)) /// ensure p[dim] is in range
 		p[dim] = ndist(gen);
 
 	// 2. Compute acceptance rate
-	model->run(p, d);
+	model.run(p, d);
 	pos_tmp = ForwardModel::compute_posterior(observed_data.get(), d, output_size, pos_sigma);
 	double acc = fmin(1.0, pos_tmp/pos);
 
@@ -169,10 +164,10 @@ double* MCMC::gen_init_sample(
 	int started_chains = 0;
 	int num_inits = init_sample_pos.size();
 	int num = (num_inits < num_chains) ? num_inits : num_chains;
-	if (mpi_rank < num) {
+	if (par.mpirank < num) {
 		for (size_t i=0; i < input_size; i++)
-			init[i] = init_sample_pos[mpi_rank][i];
-		init[input_size] = init_sample_pos[mpi_rank][input_size];
+			init[i] = init_sample_pos[par.mpirank][i];
+		init[input_size] = init_sample_pos[par.mpirank][input_size];
 		return init;
 	}
 	// If no samples or not enought samples supplied, 2 options:
@@ -187,31 +182,11 @@ double* MCMC::gen_init_sample(
 		for (std::size_t i=0; i < input_size; i++) {
 			init[i] = rand[i];
 		}
-		model->run(rand.get(), initd.get());
+		model.run(rand.get(), initd.get());
 		init[input_size] = ForwardModel::compute_posterior(
 				observed_data.get(), initd.get(), output_size, pos_sigma);
 	}
 	return init;
 }
-
-
-bool MCMC::is_master()
-{
-	if (mpi_rank == 0) {
-#if defined(IMPI)
-		if (mpi_status != MPI_ADAPT_STATUS_JOINING)
-#endif
-			return true;
-	}
-	return false;
-}
-
-
-
-
-
-
-
-
 
 

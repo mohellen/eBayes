@@ -42,14 +42,14 @@
 class SGI : public ForwardModel
 {
 private:
-	Parallel& par; //Pointer to external object
+	Parallel& par; //Reference to external object
 
 #if defined(IMPI)
-	std::size_t impi_gpoffset;//MPI_UNSIGNED_LONG
+	std::size_t impi_gpoffset; //MPI_UNSIGNED_LONG
 #endif
 
 	std::string outprefix;
-	std::unique_ptr<ForwardModel> 			  	fullmodel;
+	std::unique_ptr<ForwardModel> 			  	fullmodel; //Object owned by SGI, should live and die with SGI
 	std::unique_ptr<sgpp::base::Grid> 		  	grid;
 	std::unique_ptr<sgpp::base::DataVector[]> 	alphas;
 	std::unique_ptr<sgpp::base::OperationEval> 	eval;

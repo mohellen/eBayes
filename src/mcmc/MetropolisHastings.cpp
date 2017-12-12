@@ -25,11 +25,11 @@ void MetropolisHastings::run(
 		int num_samples,					/// Input
 		const vector<vector<double> >& init_sample_pos) /// Optional input
 {
-	if (mpi_rank >= num_chains) return;
+	if (par.mpirank >= num_chains) return;
 
 	// Initialize rank specific output file
 	string rank_output_file = outpath +
-			"mcmcmh_r" + std::to_string(mpi_rank) + ".dat";
+			"mcmcmh_r" + std::to_string(par.mpirank) + ".dat";
 
 	// Initialize rank specific initial sample & pos
 	unique_ptr<double[]> rank_sample_pos (
@@ -73,7 +73,7 @@ void MetropolisHastings::run(
 		}
 		// 4. keeping track
 #if (MCMC_OUT_PROGRESS == 1)
-		if (is_master() && ((it+1)%MCMC_OUT_FREQ == 0)) {
+		if (par.is_master() && ((it+1)%MCMC_OUT_FREQ == 0)) {
 			printf("\n%d mcmc steps completed.\n", it+1);
 			printf("Current maxpos: %s  %f\n", ForwardModel::arr_to_string(p.get(), input_size).c_str(), pos);
 		}
