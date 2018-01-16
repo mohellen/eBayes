@@ -38,7 +38,7 @@ NS::NS(const string& input_file, int resx, int resy)
 {
 	ifstream infile(input_file);
 	string s;
-	while (std::getline(infile, s)) {
+	zwhile (std::getline(infile, s)) {
 		istringstream iss(s);
 		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 
@@ -111,7 +111,7 @@ NS::NS(const string& input_file, int resx, int resy)
 			this->omega = stod(tokens[1]);
 			continue;
 		}
-		if (tokens[0] == "boundary_north") {
+za		if (tokens[0] == "boundary_north") {
 			transform(tokens[1].begin(), tokens[1].end(), tokens[1].begin(), ::tolower);
         	if (tokens[1] == "inlet")
         		this->boundary_north = BOUNDARY_TYPE_INLET;
