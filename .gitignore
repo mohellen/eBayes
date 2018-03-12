@@ -5,7 +5,10 @@ dep/sgpp-base-2.0.0/base/examples/dataMatrixSerializeDemo
 dep/sgpp-base-2.0.0/base/examples/datavectorSerializeDemo
 dep/sgpp-base-2.0.0/base/examples/detectPlatformConfiguration
 dep/sgpp-base-2.0.0/base/examples/unserializeGrid
-*.dblite
+dep/sgpp-base-2.0.0/site_scons/Helper.pyc
+dep/sgpp-base-2.0.0/site_scons/ModuleHelper.pyc
+dep/sgpp-base-2.0.0/site_scons/SGppConfigure.pyc
+*.blite
 *.lint
 *.o
 *.os

@@ -91,7 +91,7 @@ To clean up build:
 tar = str(env['exe'])
 # Save the base path
 target = bindir + '/' + tar
-builddir = bindir + '/' + tar + '_build'
+builddir = bindir + '/build_' + tar
 # Make output and build dir
 if not os.path.exists(bindir):
 	os.makedirs(bindir)
