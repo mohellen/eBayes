@@ -40,7 +40,8 @@ double true_input[] = {1.0, 0.8, 3.0, 1.5, 5.5, 0.2, 8.2, 1.0};
 
 Parallel par;
 
-void test_ns_mpi() {
+void test_ns_mpi()
+{
 #if(1==0)
 	string inputfile = "./input/obstacles_in_flow.dat";
 
@@ -93,13 +94,13 @@ void test_ns_mpi() {
 #endif
 }
 
-void run_asgi() {
-#if (1==1)
-	int init_level = 2;
+void run_asgi()
+{
+	int init_level = 4;
 	int nsamples = 50000;
 	bool is_dup = false;
-	string inputfile = "./input/ns_obs4.dat";
-	string outpath = "./output/obs4_asgi" + to_string(init_level) +"/";
+	string inputfile = "./input/ns_obs1.dat";
+	string outpath = "./output/obs1_asgi" + to_string(init_level) +"/";
 	string cmd = "mkdir -p " + outpath;
 	system(cmd.c_str());
 
@@ -123,13 +124,15 @@ void run_asgi() {
 	} else {
 		unique_ptr<ErrorAnalysis> ea (new ErrorAnalysis(full.get(), sgi.get()));
 		ea->add_test_points(20);
-		double err = 0.0, err_old = -1.0, tol = 0.1;
+		double err = 0.0, err_old = -1.0, tol = 0.05;
 		int count = 0;
+
 		while (true) {
 			sgi->build(init_level, 0.1, false);
 			err = ea->compute_model_error();
 			count += 1;
 			if(par.is_master()) {
+				fflush(NULL);
 				printf("\nRefinement # %d\n", count);
 				printf("Adaptive Surrogate model error: %.6f\n", err);
 			}
@@ -137,6 +140,8 @@ void run_asgi() {
 			err_old = err;
 		}
 	}
+
+#if (1==0)
 	// 2. run MCMC
 	vector<vector<double> > inits = sgi->get_top_maxpos(20, "");
 	unique_ptr<MCMC> mcmc (new ParallelTempering(par, *sgi, inputfile, 0.2));
@@ -144,7 +149,8 @@ void run_asgi() {
 #endif
 }
 
-void run_ssgi() {
+void run_ssgi()
+{
 #if (1==0)
 	int init_level = 2;
 	int nsamples = 50000;
@@ -188,6 +194,11 @@ void run_ssgi() {
 
 int main(int argc, char* argv[]) {
 
+#if defined(IMPI)
+	fflush(NULL);
+	printf("\n~~~~~~This is fantastic!!~~~~~\n");
+#endif
+
 	par.mpi_init(argc, argv);
 
 	test_ns_mpi();
@@ -195,6 +206,7 @@ int main(int argc, char* argv[]) {
 	run_ssgi();
 
 #if defined(IMPI)
+	fflush(NULL);
 	printf("\n~~~~~~This is awesome!!~~~~~\n");
 #endif
 

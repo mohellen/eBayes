@@ -62,6 +62,7 @@ void ErrorAnalysis::add_test_point(const double* m)
 
 void ErrorAnalysis::add_test_points(int M)
 {
+	fflush(NULL);
 	printf("Error Analysis adding %d points with full model.\n", M);
 	for (int k=0; k < M; k++)
 		add_test_point();

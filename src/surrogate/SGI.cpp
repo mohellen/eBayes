@@ -100,8 +100,10 @@ void SGI::build(
 #endif
 
 	if (is_init) {
-		if (par.is_master())
+		if (par.is_master()) {
+			fflush(NULL);
 			printf("\n...Initializing SGI model...\n");
+		}
 		// 1. All: Construct grid
 //		grid.reset(Grid::createLinearBoundaryGrid(input_size).release()); // create empty grid
 		grid.reset(Grid::createModLinearGrid(input_size).release()); // create empty grid
@@ -110,15 +112,19 @@ void SGI::build(
 		grid->setBoundingBox(*bbox); // set up bounding box
 		num_points = grid->getSize();
 		if (par.is_master()) {
+			fflush(NULL);
 			printf("Grid points added: %lu\n", num_points);
 			printf("Total grid points: %lu\n", num_points);
 		}
 	} else {
-		if (par.is_master())
+		if (par.is_master()) {
+			fflush(NULL);
 			printf("\n...Refining SGI model...\n");
+		}
 		// 1. All: refine grid
 		num_points = grid->getSize();
 		if (!refine_grid(refine_portion)) {
+			fflush(NULL);
 			printf("Grid not refined!!");
 			printf("Grid points added: 0\n");
 			printf("Total grid points: %lu\n", num_points);
@@ -126,6 +132,7 @@ void SGI::build(
 		}
 		new_num_points = grid->getSize();
 		if (par.is_master()) {
+			fflush(NULL);
 			printf("Grid points added: %lu\n", new_num_points-num_points);
 			printf("Total grid points: %lu\n", new_num_points);
 		}
@@ -156,6 +163,7 @@ void SGI::build(
 	// Master: print grogress
 	if (par.is_master()) {
 		unique_ptr<double[]> m_maxpos (seg_to_coord_arr(maxpos_seq));
+		fflush(NULL);
 		printf("Max posterior = %.6f, at %s.\n",
 				maxpos, arr_to_string(m_maxpos.get(), input_size).c_str());
 		if (is_init)
@@ -207,6 +215,7 @@ void SGI::impi_adapt()
 	MPI_Probe_adapt(&adapt_flag, &par.mpistatus, &info);
 
 	toc = MPI_Wtime() - tic;
+	fflush(NULL);
 	printf("Rank %d [STATUS %1d]: MPI_Probe_adapt %.6f seconds.\n",
 			par.mpirank, par.mpistatus, toc);
 
@@ -217,6 +226,7 @@ void SGI::impi_adapt()
 				&staying_count, &leaving_count, &joining_count);
 
 		toc = MPI_Wtime() - tic;
+		fflush(NULL);
 		printf("Rank %d [STATUS %1d]: MPI_Comm_adapt_begin %.6f seconds.\n",
 				par.mpirank, par.mpistatus, toc);
 
@@ -230,12 +240,14 @@ void SGI::impi_adapt()
 		MPI_Comm_adapt_commit();
 
 		toc = MPI_Wtime() - tic;
+		fflush(NULL);
 		printf("Rank %d [STATUS %1d]: MPI_Comm_adapt_commit %.6f seconds.\n",
 				par.mpirank, par.mpistatus, toc);
 
 		par.mpi_update();
 
 		toc1 = MPI_Wtime() - tic1;
+		fflush(NULL);
 		printf("Rank %d [STATUS %1d]: TOTAL adaption %.6f seconds.\n",
 				par.mpirank, par.mpistatus, toc);
 	}
@@ -373,9 +385,11 @@ void SGI::compute_hier_alphas(const string& outfile)
 		hier->doHierarchisation(alphas[j]);
 
 #if (SGI_OUT_TIMER==1)
-	if (par.is_master())
+	if (par.is_master()) {
+		fflush(NULL);
 		printf("Rank %d: created alphas in %.5f seconds.\n",
 				par.mpirank, MPI_Wtime()-tic);
+	}
 #endif
 	return;
 }
@@ -418,8 +432,10 @@ bool SGI::refine_grid(double portion_to_refine)
 	grid->refine(refine_idx, refine_gps);
 
 #if (SGI_OUT_TIMER==1)
-	if (par.is_master())
+	if (par.is_master()) {
+		fflush(NULL);
 		printf("Rank %d: refined grid in %.5f seconds.\n", par.mpirank, MPI_Wtime()-tic);
+	}
 #endif
 	return true;
 }
@@ -449,6 +465,7 @@ void SGI::mpiio_write_grid(const string& outfile)
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
 			MPI_INFO_NULL, &fh) != MPI_SUCCESS) {
+		fflush(NULL);
 		printf("MPI write grid file open failed. Operation aborted!\n");
 		exit(EXIT_FAILURE);
 	}
@@ -466,6 +483,7 @@ void SGI::mpiio_read_grid(const string& outfile)
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 			!= MPI_SUCCESS) {
+		fflush(NULL);
 		printf("MPI read grid file open failed. Operation aborted!\n");
 		exit(EXIT_FAILURE);
 	}
@@ -506,6 +524,7 @@ void SGI::mpiio_partial_data(
 	if (is_read) { // Read data from file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
+			fflush(NULL);
 			printf("MPI read data file open failed. Operation aborted!\n");
 			exit(EXIT_FAILURE);
 		}
@@ -516,6 +535,7 @@ void SGI::mpiio_partial_data(
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
+			fflush(NULL);
 			printf("MPI write data file open failed. Operation aborted!\n");
 			exit(EXIT_FAILURE);
 		}
@@ -544,6 +564,7 @@ void SGI::mpiio_partial_posterior(
 	if (is_read) { // Read data from file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
+			fflush(NULL);
 			printf("MPI read pos file open failed. Operation aborted!\n");
 			exit(EXIT_FAILURE);
 		}
@@ -554,6 +575,7 @@ void SGI::mpiio_partial_posterior(
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
+			fflush(NULL);
 			printf("MPI write pos file open failed. Operation aborted!\n");
 			exit(EXIT_FAILURE);
 		}
@@ -608,10 +630,12 @@ void SGI::compute_grid_points(
 	MPI_Barrier(MPI_COMM_WORLD);
 
 #if (SGI_OUT_TIMER==1)
-	if (par.is_master())
+	if (par.is_master()) {
+		fflush(NULL);
 		printf("%d Ranks: computed %lu grid points (%lu to %lu) in %.5f seconds.\n",
 				par.mpisize, grid->getSize()-gp_offset,
 				gp_offset, grid->getSize()-1, MPI_Wtime()-tic);
+	}
 #endif
 	return;
 }
@@ -625,6 +649,7 @@ void SGI::mpi_compute_range(
 	if (seq_max < seq_min) return;
 
 #if (SGI_OUT_RANK_PROGRESS==1)
+	fflush(NULL);
 	printf("Rank %d: computing %lu grid points: [%lu, %lu]\n",
 			par.mpirank, (seq_max-seq_min+1), seq_min, seq_max);
 #endif
@@ -658,6 +683,7 @@ void SGI::mpi_compute_range(
 			maxpos_seq = i;
 		}
 #if (SGI_OUT_GRID_POINTS==1)
+		fflush(NULL);
 		printf("Rank %d: grid point %lu at %s completed, pos = %.6f.\n",
 				par.mpirank, i, vec_to_str(gp_coord).c_str(), *p);
 #endif
@@ -794,6 +820,7 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 		toc = MPI_Wtime()-tic;
 		if (toc >= IMPI_ADAPT_FREQ) {
 			// performance measure: # gps computed per second
+			fflush(NULL);
 			printf("PERFORMANCE MEASURE: # forward simulations per second = %.6f\n",
 					double(jobs_per_tic * MPIMW_TRUNK_SIZE)/toc);
 			// Only when there are remaining jobs, it's worth trying to adapt

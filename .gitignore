@@ -8,6 +8,7 @@ dep/sgpp-base-2.0.0/base/examples/unserializeGrid
 dep/sgpp-base-2.0.0/site_scons/Helper.pyc
 dep/sgpp-base-2.0.0/site_scons/ModuleHelper.pyc
 dep/sgpp-base-2.0.0/site_scons/SGppConfigure.pyc
+*.out
 *.blite
 *.lint
 *.o
