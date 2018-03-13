@@ -28,6 +28,13 @@ void Config::add_params()
 	params[var] = p;
 }
 
+void Config::parse_file()
+{
+
+}
+
+void Config::parse_
+
 
 void Config::print_help()
 {
