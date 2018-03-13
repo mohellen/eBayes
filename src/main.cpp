@@ -96,9 +96,11 @@ void test_ns_mpi()
 
 void run_asgi()
 {
+#if (1==1)
 	int init_level = 4;
 	int nsamples = 50000;
-	bool is_dup = false;
+	bool isCreateNewGrid = false;
+	bool isMasterWorker = true;
 	string inputfile = "./input/ns_obs1.dat";
 	string outpath = "./output/obs1_asgi" + to_string(init_level) +"/";
 	string cmd = "mkdir -p " + outpath;
@@ -119,16 +121,15 @@ void run_asgi()
 
 	// ASGI
 	// 1. build surrogate: duplicate or build from scratch
-	if (is_dup) {
+	if (isCreateNewGrid) {
 		sgi->duplicate("","","");
 	} else {
 		unique_ptr<ErrorAnalysis> ea (new ErrorAnalysis(full.get(), sgi.get()));
 		ea->add_test_points(20);
 		double err = 0.0, err_old = -1.0, tol = 0.05;
 		int count = 0;
-
 		while (true) {
-			sgi->build(init_level, 0.1, false);
+			sgi->build(init_level, 0.1, isMasterWorker);
 			err = ea->compute_model_error();
 			count += 1;
 			if(par.is_master()) {
@@ -140,8 +141,6 @@ void run_asgi()
 			err_old = err;
 		}
 	}
-
-#if (1==0)
 	// 2. run MCMC
 	vector<vector<double> > inits = sgi->get_top_maxpos(20, "");
 	unique_ptr<MCMC> mcmc (new ParallelTempering(par, *sgi, inputfile, 0.2));

@@ -142,7 +142,8 @@ env.Clean("clean", [target, builddir])
 ############### PHONY TARGETS ################
 ##############################################
 def PhonyTargets(env = None, **kw):
-    if not env: env = DefaultEnvironment()
+    if not env: 
+		env = Environment(variables=vars, ENV=os.environ)
     for target,action in kw.items():
         env.AlwaysBuild(env.Alias(target, [], action))
 

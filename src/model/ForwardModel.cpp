@@ -22,8 +22,8 @@ using namespace std;
 
 
 double ForwardModel::compute_posterior_sigma(
-		const double* observed_data, 
-		std::size_t data_size, 
+		const double* observed_data,
+		std::size_t data_size,
 		double noise_in_data)
 {
 	double mean = 0.0;

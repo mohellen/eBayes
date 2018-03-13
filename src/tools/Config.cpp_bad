@@ -1,0 +1,160 @@
+#include <tools/Config.hpp>
+
+using namespace std;
+
+
+Config::Config(int argc, char** argv)
+{
+}
+
+
+void Config::parseFile(const string& input_file) 
+{
+	ifstream infile(input_file);
+	string s;
+	while (std::getline(infile, s)) {
+		istringstream iss(s);
+		// read line into a vector
+		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+		// Ignore empty line
+		if (tokens.size() <= 0) continue;
+		// Ignore comment line
+		tokens[0] = trim_white_space(tokens[0]);
+		if (tokens[0].substr(0,2) == "//") continue;
+
+		// Find parameters
+		// transform all strings into lower case
+		transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::tolower);
+		if (tokens[0] == "domain_size_x") {
+			this->domain_size_x = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "domain_size_y") {
+			this->domain_size_y = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "min_ncx") {
+			this->ncx = stoi(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "min_ncy") {
+			this->ncy = stoi(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "initial_velocity_x") {
+			this->initial_velocity_x = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "initial_velocity_y") {
+			this->initial_velocity_y = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "initial_pressure") {
+			this->initial_pressure = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "inlet_velocity_x") {
+			this->inlet_velocity_x = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "inlet_velocity_y") {
+			this->inlet_velocity_y = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "external_force_x") {
+			this->external_force_x = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "external_force_y") {
+			this->external_force_y = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "re") {
+			this->re = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "tau") {
+			this->tau = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "alpha") {
+			this->alpha = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "omega") {
+			this->omega = stod(tokens[1]);
+			continue;
+		}
+		if (tokens[0] == "boundary_north") {
+			transform(tokens[1].begin(), tokens[1].end(), tokens[1].begin(), ::tolower);
+        	if (tokens[1] == "inlet")
+        		this->boundary_north = BOUNDARY_TYPE_INLET;
+            else if (tokens[1] == "outlet")
+            	this->boundary_north = BOUNDARY_TYPE_OUTLET;
+            else if (tokens[1] == "noslip")
+            	this->boundary_north = BOUNDARY_TYPE_NOSLIP;
+            else if (tokens[1] == "freeslip")
+            	this->boundary_north = BOUNDARY_TYPE_FREESLIP;
+            continue;
+		}
+		if (tokens[0] == "boundary_south") {
+			transform(tokens[1].begin(), tokens[1].end(), tokens[1].begin(), ::tolower);
+        	if (tokens[1] == "inlet")
+        		this->boundary_south = BOUNDARY_TYPE_INLET;
+            else if (tokens[1] == "outlet")
+            	this->boundary_south = BOUNDARY_TYPE_OUTLET;
+            else if (tokens[1] == "noslip")
+            	this->boundary_south = BOUNDARY_TYPE_NOSLIP;
+            else if (tokens[1] == "freeslip")
+            	this->boundary_south = BOUNDARY_TYPE_FREESLIP;
+            continue;
+		}
+		if (tokens[0] == "boundary_east") {
+			transform(tokens[1].begin(), tokens[1].end(), tokens[1].begin(), ::tolower);
+        	if (tokens[1] == "inlet")
+        		this->boundary_east = BOUNDARY_TYPE_INLET;
+            else if (tokens[1] == "outlet")
+            	this->boundary_east = BOUNDARY_TYPE_OUTLET;
+            else if (tokens[1] == "noslip")
+            	this->boundary_east = BOUNDARY_TYPE_NOSLIP;
+            else if (tokens[1] == "freeslip")
+            	this->boundary_east = BOUNDARY_TYPE_FREESLIP;
+            continue;
+		}
+		if (tokens[0] == "boundary_west") {
+			transform(tokens[1].begin(), tokens[1].end(), tokens[1].begin(), ::tolower);
+        	if (tokens[1] == "inlet")
+        		this->boundary_west = BOUNDARY_TYPE_INLET;
+            else if (tokens[1] == "outlet")
+            	this->boundary_west = BOUNDARY_TYPE_OUTLET;
+            else if (tokens[1] == "noslip")
+            	this->boundary_west = BOUNDARY_TYPE_NOSLIP;
+            else if (tokens[1] == "freeslip")
+            	this->boundary_west = BOUNDARY_TYPE_FREESLIP;
+            continue;
+		}
+		if (tokens[0] == "obstacle") {
+			this->obs.push_back(
+					Obstacle(stod(tokens[1]), stod(tokens[2]), stod(tokens[3]), stod(tokens[4])) );
+			continue;
+		}
+		if (tokens[0] == "output_time") {
+			this->out_times.push_back( stod(tokens[1]) );
+			continue;
+		}
+		if (tokens[0] == "output_location") {
+			this->out_locs.push_back(
+					pair<double, double>(stod(tokens[1]), stod(tokens[2])) );
+			continue;
+		}
+	}//end while
+	infile.close();
+
+	this->input_size  = std::size_t(this->obs.size() * 2);
+	this->output_size = std::size_t(this->out_times.size() * this->out_locs.size());
+	this->ncx *= max(1, resx);
+	this->ncy *= max(1, resy);
+	this->dx = this->domain_size_x / double(this->ncx);
+	this->dy = this->domain_size_y / double(this->ncy);
+	return;
+}

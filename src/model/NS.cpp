@@ -92,7 +92,8 @@ NS::NS(const string& input_file, int resx, int resy)
 			continue;
 		}
 		if (tokens[0] == "external_force_y") {
-			this->external_force_y = stod(tokens[1]);
+:q
+	this->external_force_y = stod(tokens[1]);
 			continue;
 		}
 		if (tokens[0] == "re") {
@@ -435,6 +436,7 @@ void NS::sim(const string& output_prefix)
 
 void NS::print_info()
 {
+	fflush(NULL);
 	printf("------ NS Object info ------\n");
 	printf("-- Domain size x:      %6.2f\n", domain_size_x);
 	printf("-- Domain size y:      %6.2f\n", domain_size_y);
@@ -474,7 +476,8 @@ void NS::print_info()
 }
 
 void NS::print_mask(int **& M)
-{
+{	
+	fflush(NULL);
 	printf("\n");
 	for (std::size_t j=0; j<=ncy+1; j++) {
 		for (std::size_t i=0; i<=ncx+1; i++)

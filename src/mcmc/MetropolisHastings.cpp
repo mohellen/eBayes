@@ -51,6 +51,7 @@ void MetropolisHastings::run(
 	// Open file: append if exists, or create it if not
 	fstream fout (rank_output_file, fstream::in | fstream::out | fstream::app);
 	if (!fout) {
+		fflush(NULL);
 		printf("MCMC open output file \"%s\" failed. Abort!\n", rank_output_file.c_str());
 		exit(EXIT_FAILURE);
 	}
@@ -74,6 +75,7 @@ void MetropolisHastings::run(
 		// 4. keeping track
 #if (MCMC_OUT_PROGRESS == 1)
 		if (par.is_master() && ((it+1)%MCMC_OUT_FREQ == 0)) {
+			fflush(NULL);
 			printf("\n%d mcmc steps completed.\n", it+1);
 			printf("Current maxpos: %s  %f\n", ForwardModel::arr_to_string(p.get(), input_size).c_str(), pos);
 		}
