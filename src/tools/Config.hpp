@@ -8,28 +8,31 @@
 
 class Config {
 public:
-//	static Config& getInstance(int argc, char** argv)
-//	{
-//		Config cfg (argc, argv);
-//		static Config& instance = cfg;
-//		return instance;
-//	}
+	~Config() {}
+
 	Config(int argc, char** argv);
 
-	void print_help();
+	void add_params();	// Add/define all parameters
 
-	void add_params();
+	void parse_file();	// Parse from input file
 
-	std::string get_param_value(std::string);
+	void parse_args();	// Parse from command line arguments
+
+	std::string get_param(std::string);	// Retrieve parameter value
+
+	void print_help();	// Print all parameters and descriptions
 
 private:
 	struct Param {
-		std::string des;
-		std::string val;
+		std::string des; // parameter description
+		std::string val; // parameter values
 	};
+	// List of parameters: <parameter_name> (key), <description, value> (value)
 	std::unordered_map<std::string, Param> params;
 
 public:
+	// Disable other constructors
+	//(deleted functions should be made public for better error message)
 	Config() = delete;
 	Config(Config const&) = delete;
 	void operator=(Config const&) = delete;
