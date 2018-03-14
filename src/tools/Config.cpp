@@ -1,14 +1,12 @@
 #include "Config.hpp"
 
-#include <string>
-#include <unordered_map>
-#include <vector>
-#include <iostream>
 
 using namespace std;
 
 Config::Config(int argc, char** argv)
 {
+	// Parameter value take in order: commond line argument > input file > default value
+	// ">" means orderride.
 	add_params();
 	parse_file();
 	parse_args();
@@ -192,7 +190,39 @@ void Config::add_params()
 
 void Config::parse_file()
 {
+	ifstream infile(input_file);
+	string s;
+	while (std::getline(infile, s)) {
+		// Read line into string stream
+		istringstream iss(s);
+		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+		// Ignore empty line, or lines with empty value (only parameter, no value)
+		if (tokens.size() < 2) continue;
+		// Ignore comment line
+		tokens[0] = trim_white_space(tokens[0]);
+		if ((tokens[0].substr(0,2) == "//") || (tokens[0].substr(0,1) == "#")) continue;
 
+		// For a valid line:
+		// Transform all alphabetic characters to lower case
+		transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::tolower);
+		// Check if its a valid parameter, skip if not
+		if (params.find(tokens[0]) == params.end()) continue;
+	
+		// For vector type parameters
+		if (tokens.size() > 2) {
+			params[tokens[0]].val = ""
+			for (auto it=tokens.begin()+1; it != tokens.end(); ++it) {
+				params[tokens[0]].val += *it
+				params[tokens[0]].val += " "
+			}
+			continue;
+		// For single-value type parameters
+		} else {
+			params[tokens[0]].val = tokens[1];
+			continue;
+		}
+	}//end while
+	infile.close();
 }
 
 void Config::parse_args()
@@ -214,11 +244,18 @@ string Config::get_param(string var)
 	return params[var].val;
 }
 
+
 int main(int argc, char* argv[])
 {
 	Config cfg (argc, argv);
 
 	cfg.print_help();
+
+	string v = cfg.get_param("observed_data");
+	cout << "\n\n" << v << endl;
+
+	v = cfg.get_param("obstacle_list");
+	cout << "\n\n" << v << endl;
 
 	return 0;
 }

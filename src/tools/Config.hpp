@@ -1,9 +1,14 @@
-#ifndef CONFIG_HPP_
-#define CONFIG_HPP_
+#ifndef TOOLS_CONFIG_HPP_
+#define TOOLS_CONFIG_HPP_
 
-#include <string>
 #include <unordered_map>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <iterator>
+#include <algorithm>
 
 
 class Config {
@@ -23,6 +28,8 @@ public:
 	void print_help();	// Print all parameters and descriptions
 
 private:
+	std::string input_file = "./input/test.dat";
+
 	struct Param {
 		std::string des; // parameter description
 		std::string val; // parameter values
