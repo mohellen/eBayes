@@ -93,16 +93,6 @@ double* ForwardModel::get_observed_data(
 	return d;
 }
 
-string ForwardModel::trim_white_space(const string& str)
-{
-	std::string whitespace=" \t";
-	const auto strBegin = str.find_first_not_of(whitespace);
-	if (strBegin == std::string::npos) return "";
-	const auto strEnd = str.find_last_not_of(whitespace);
-	const auto strRange = strEnd - strBegin + 1;
-	return str.substr(strBegin, strRange);
-}
-
 string ForwardModel::arr_to_string(const double* m, std::size_t len)
 {
 	std::ostringstream oss;

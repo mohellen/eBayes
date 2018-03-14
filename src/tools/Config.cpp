@@ -17,28 +17,28 @@ void Config::add_params()
 	string var;
 	Param p;
 	
-	// General setting
-	var = "is_resume_job";
+	// Global setting
+	var = "global_is_resume_job";
 	p.des = "Set to create grid from grid files in specified path. (Default: no) (Options: yes|true|no|false)";
 	p.val = "no";
 	params[var] = p;
 
-	var = "resume_from_path";
-	p.des = "Path for the grid files to create grid for a resumed job. (Default: ) (Type: string)";
-	p.val = "";
+	var = "global_resume_from_path";
+	p.des = "Directory containing the grid files to create grid for a resumed job. (Default: ) (Type: string)";
+	p.val = "/my/resumed/path";
 	params[var] = p;
 
-	var = "output_path";
+	var = "global_output_path";
 	p.des = "Path for resulting grid files and other outputs. (Default: ./output) (Type: string)";
 	p.val = "./output";
 	params[var] = p;
 
-	var = "noise_in_data";
+	var = "global_noise_in_data";
 	p.des = "Assumed noise level in observed data [0.0, 1.0], 0 for no noise, 1 for 100\% noise. (Default: 0.2) (Type: double)";
 	p.val = "0.2";
 	params[var] = p;
 
-	var = "observed_data";
+	var = "global_observed_data";
 	p.des = "Observed data. (Default: <obs4_data_set>) (Note: provide vector in one line separated by space)";
 	p.val = "1.434041 1.375464 1.402000 0.234050 1.387931 1.006520 1.850871 1.545131 1.563303 0.973778 1.512808 1.387468 1.608557 0.141381 1.313631 0.990608 1.741001 1.551365 1.789867 1.170761  1.597586 1.509048 1.549320 0.135403 1.191323 1.015913 1.682937 1.592488 1.743632 1.296677 1.535493 1.341702 1.541945 0.137985 1.272473 1.041918 1.824279 1.690430 1.810520 1.358992";
 	params[var] = p;
@@ -190,30 +190,32 @@ void Config::add_params()
 
 void Config::parse_file()
 {
-	ifstream infile(input_file);
+	ifstream f(input_file);
+	if (!f) cout << tools::colorwarn << "\nWARNING: cannot open input file.\n" << tools::reset << endl;
+
 	string s;
-	while (std::getline(infile, s)) {
+	while (std::getline(f, s)) {
 		// Read line into string stream
 		istringstream iss(s);
 		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
-		// Ignore empty line, or lines with empty value (only parameter, no value)
+		// Ignore empty lines, or lines with empty value (only parameter, no value)
 		if (tokens.size() < 2) continue;
-		// Ignore comment line
-		tokens[0] = trim_white_space(tokens[0]);
+		// Ignore comment lines (start with // or #)
+		tokens[0] = tools::trim_white_space(tokens[0]);
 		if ((tokens[0].substr(0,2) == "//") || (tokens[0].substr(0,1) == "#")) continue;
 
 		// For a valid line:
-		// Transform all alphabetic characters to lower case
+		// Transform parameter name to lower case string
 		transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::tolower);
-		// Check if its a valid parameter, skip if not
+		// Ignore line if invalid parameters (key not found in params)
 		if (params.find(tokens[0]) == params.end()) continue;
 	
 		// For vector type parameters
 		if (tokens.size() > 2) {
-			params[tokens[0]].val = ""
+			params[tokens[0]].val = "";
 			for (auto it=tokens.begin()+1; it != tokens.end(); ++it) {
-				params[tokens[0]].val += *it
-				params[tokens[0]].val += " "
+				params[tokens[0]].val += *it;
+				params[tokens[0]].val += " ";
 			}
 			continue;
 		// For single-value type parameters
@@ -222,26 +224,37 @@ void Config::parse_file()
 			continue;
 		}
 	}//end while
-	infile.close();
+	f.close();
 }
 
 void Config::parse_args()
 {
 }
 
-
 //TODO: order the output (priority: low)
 void Config::print_help()
 {
 	cout << "Available config options:\n" << endl;
 	for (auto it=params.begin(); it!=params.end(); ++it) {
-		cout << "   " << it->first << "\n   \t>> " << it->second.des << "\n" << endl;
+		cout << "   " << it->first;
+		cout << "\n   \t>> Description: " << it->second.des;
+		cout << "\n   \t>> Current value: " << it->second.val << "\n" << endl;
 	}
 }
 
 string Config::get_param(string var)
 {
 	return params[var].val;
+}
+
+string tools::trim_white_space(const string& str)
+{
+	std::string whitespace=" \t";
+	const auto strBegin = str.find_first_not_of(whitespace);
+	if (strBegin == std::string::npos) return "";
+	const auto strEnd = str.find_last_not_of(whitespace);
+	const auto strRange = strEnd - strBegin + 1;
+	return str.substr(strBegin, strRange);
 }
 
 
