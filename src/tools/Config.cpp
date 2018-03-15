@@ -9,7 +9,7 @@ Config::Config(int argc, char** argv)
 	// ">" means orderride.
 	add_params();
 	parse_file();
-	parse_args();
+	parse_args(argc, argv);
 }
 
 void Config::add_params()
@@ -227,11 +227,10 @@ void Config::parse_file()
 	f.close();
 }
 
-void Config::parse_args()
+void Config::parse_args(int argc, char** argv)
 {
 }
 
-//TODO: order the output (priority: low)
 void Config::print_help()
 {
 	cout << "Available config options:\n" << endl;

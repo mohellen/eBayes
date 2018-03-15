@@ -17,7 +17,7 @@ public:
 	Config(int argc, char** argv);
 	void add_params();	// Add/define all parameters
 	void parse_file();	// Parse from input file
-	void parse_args();	// Parse from command line arguments
+	void parse_args(int argc, char** argv);	// Parse from command line arguments
 	std::string get_param(std::string);	// Retrieve parameter value
 	void print_help();	// Print all parameters and descriptions
 
