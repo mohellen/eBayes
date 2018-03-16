@@ -65,37 +65,5 @@ public:
 			double& max) = 0;
 
 	virtual void run(const double* m, double* d) = 0;
-
-	static
-	double* get_observed_data(
-			const std::string & input_file,
-			std::size_t data_size,
-			double& noise_in_data);
-
-	static
-	double compute_posterior_sigma(
-			const double* observed_data,
-			std::size_t data_size, 
-			double noise_in_data);
-
-	static
-	double compute_posterior(
-			const double* observed_data,
-			const double* d,
-			std::size_t data_size,
-			double sigma);
-			
-	static
-	double compute_l2norm(
-			const double* d1, 
-			const double* d2,
-			std::size_t data_size);
-
-	static
-	std::string trim_white_space(const std::string & str);
-
-	static
-	std::string arr_to_string(const double* m, std::size_t len);
-
 };
 #endif /* MODEL_FORWARDMODEL_HPP_ */

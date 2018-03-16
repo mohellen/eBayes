@@ -11,7 +11,8 @@
 #include <algorithm>
 
 
-class Config {
+class Config
+{
 public:
 	~Config() {}
 	Config(int argc, char** argv);
@@ -42,7 +43,8 @@ public:
 
 
 // Global helper methods that everyone can use
-namespace tools {
+namespace tools
+{
 	//Some colors for console output using std::cout
 	const std::string red("\033[0;31m"); // color for ERROR and WARNING
 	const std::string green("\033[1;32m");
@@ -51,11 +53,37 @@ namespace tools {
 	const std::string magenta("\033[0;35m");
 	const std::string cyan("\033[0;36m");
 	const std::string reset("\033[0m"); // don't forget to reset to normal after coloration
-	const std::string& colorwarn = red;
-	const std::string& colorerr = red;
+	//const std::string& colorwarn = red;
+	//const std::string& colorerr = red;
 	
 	// trim white space from a string
 	std::string trim_white_space(const std::string& str);
-};
+
+	// Convert array to string
+	std::string arr_to_string(const double* m, std::size_t len);
+
+	// Compute the l2norm of two vectors
+	double compute_l2norm(
+			const double* d1, 
+			const double* d2,
+			std::size_t data_size);
+
+	// TODO: to change or remove
+	double* get_observed_data(
+			const std::string & input_file,
+			std::size_t data_size,
+			double& noise_in_data);
+
+	double compute_posterior_sigma(
+			const double* observed_data,
+			std::size_t data_size, 
+			double noise_in_data);
+
+	double compute_posterior(
+			const double* observed_data,
+			const double* d,
+			std::size_t data_size,
+			double sigma);
+}
 
 #endif

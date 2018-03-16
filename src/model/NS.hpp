@@ -20,6 +20,7 @@
 #define MODEL_NS_HPP_
 
 #include <model/ForwardModel.hpp>
+#include <tools/Config.hpp>
 #include <Eigen/Sparse>
 #include <Eigen/Eigen>
 

@@ -53,7 +53,7 @@ void Config::add_params()
 	params[var] = p;
 
 	var = "global_noise_in_data";
-	p.des = "Assumed noise level in observed data [0.0, 1.0], 0 for no noise, 1 for 100\% noise. (Default: 0.2) (Type: double)";
+	p.des = "Assumed noise level in observed data [0.0, 1.0], 0 for no noise, 1 for 100% noise. (Default: 0.2) (Type: double)";
 	p.val = "0.2";
 	params[var] = p;
 
@@ -212,7 +212,7 @@ void Config::parse_file()
 	// Open config file
 	ifstream f(config_file);
 	if (!f) {
-		cout << tools::colorwarn << "\nWARNING: cannot open config file.\n" << tools::reset << endl;
+		cout << tools::red << "\nWARNING: cannot open config file.\n" << tools::reset << endl;
 		return;
 	}
 	// Read lines
@@ -304,6 +304,88 @@ string tools::trim_white_space(const string& str)
 	return str.substr(strBegin, strRange);
 }
 
+string tools::arr_to_string(const double* m, std::size_t len)
+{
+	std::ostringstream oss;
+	oss << "[" << std::fixed << std::setprecision(4);
+	for (std::size_t i=0; i < len-1; i++)
+		oss << m[i] << ", ";
+	oss << m[len-1] << "]";
+	return oss.str();
+}
+
+double tools::compute_l2norm(
+		const double* d1, 
+		const double* d2,
+		std::size_t data_size)
+{
+	double tmp = 0.0;
+	for (std::size_t j=0; j < data_size; j++)
+		tmp += (d1[j] - d2[j])*(d1[j] - d2[j]);
+	return sqrt(tmp);
+}
+
+double* ForwardModel::get_observed_data(
+
+double ForwardModel::compute_posterior_sigma(
+		const double* observed_data,
+		std::size_t data_size,
+		double noise_in_data)
+{
+	double mean = 0.0;
+	for (std::size_t j=0; j < data_size; j++)
+		mean += observed_data[j];
+	mean /= (double)data_size;
+	return noise_in_data * mean;
+}
+
+double ForwardModel::compute_posterior(
+		const double* observed_data, 
+		const double* d,
+		std::size_t data_size,
+		double sigma)
+{
+	double sum = 0.0;
+	for (std::size_t j=0; j < data_size; j++)
+		sum += (d[j] - observed_data[j])*(d[j] - observed_data[j]);
+	return exp(-0.5 * sum / (sigma*sigma));
+}
+
+		const std::string & input_file,
+		std::size_t data_size,
+		double& noise_in_data)
+{
+	double* d = new double[data_size];
+
+	ifstream infile(input_file);
+	string s;
+	while (std::getline(infile, s)) {
+		istringstream iss(s);
+		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+
+		// Ignore empty line
+		if (tokens.size() <= 0) continue;
+
+		// Ignore comment line
+		tokens[0] = tools::trim_white_space(tokens[0]);
+		if (tokens[0].substr(0,2) == "//") continue;
+
+		// Find parameters
+		transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::tolower);
+		if (tokens[0] == "observed_data") {
+			for (std::size_t j=0; j < data_size; j++) {
+				d[j] = stod(tokens[j+1]);
+			}
+			continue;
+		}
+		if (tokens[0] == "noise_in_data") {
+			noise_in_data = stod(tokens[1]);
+			continue;
+		}
+	}//end while
+	infile.close();
+	return d;
+}
 
 //int main(int argc, char* argv[])
 //{

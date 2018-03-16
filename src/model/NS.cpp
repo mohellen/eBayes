@@ -46,7 +46,7 @@ NS::NS(const string& input_file, int resx, int resy)
 		if (tokens.size() <= 0) continue;
 
 		// Ignore comment line
-		tokens[0] = trim_white_space(tokens[0]);
+		tokens[0] = tools::trim_white_space(tokens[0]);
 		if (tokens[0].substr(0,2) == "//") continue;
 
 		// Find parameters
@@ -92,8 +92,7 @@ NS::NS(const string& input_file, int resx, int resy)
 			continue;
 		}
 		if (tokens[0] == "external_force_y") {
-:q
-	this->external_force_y = stod(tokens[1]);
+			this->external_force_y = stod(tokens[1]);
 			continue;
 		}
 		if (tokens[0] == "re") {
