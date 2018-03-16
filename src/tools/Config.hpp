@@ -15,14 +15,10 @@ class Config {
 public:
 	~Config() {}
 	Config(int argc, char** argv);
-	void add_params();	// Add/define all parameters
-	void parse_file();	// Parse from input file
-	void parse_args(int argc, char** argv);	// Parse from command line arguments
 	std::string get_param(std::string);	// Retrieve parameter value
-	void print_help();	// Print all parameters and descriptions
 
 private:
-	std::string input_file = "./input/test.dat";
+	std::string config_file = "";
 
 	struct Param {
 		std::string des; // parameter description
@@ -30,6 +26,11 @@ private:
 	};
 	// Sorted list of parameters: <parameter_name> (key), <description, value> (value)
 	std::map<std::string, Param> params;
+
+	void add_params();	// Add/define all parameters
+	void parse_file();	// Parse from input file
+	void parse_args(int argc, char** argv);	// Parse from command line arguments
+	void print_help(int argc, char** argv);	// Print all parameters and descriptions
 
 public:
 	// Disable other constructors

@@ -22,6 +22,7 @@
 #include <mcmc/MCMC.hpp>
 #include <mcmc/MetropolisHastings.hpp>
 #include <mcmc/ParallelTempering.hpp>
+#include <tools/Config.hpp>
 #include <tools/ErrorAnalysis.hpp>
 #include <tools/Parallel.hpp>
 
@@ -191,12 +192,9 @@ void run_ssgi()
 
 
 
-int main(int argc, char* argv[]) {
-
-#if defined(IMPI)
-	fflush(NULL);
-	printf("\n~~~~~~This is fantastic!!~~~~~\n");
-#endif
+int main(int argc, char* argv[])
+{
+	Config cfg(argc, argv);
 
 	par.mpi_init(argc, argv);
 

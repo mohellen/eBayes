@@ -7,9 +7,28 @@ Config::Config(int argc, char** argv)
 {
 	// Parameter value take in order: commond line argument > input file > default value
 	// ">" means orderride.
+	
+	// Define parameters
 	add_params();
-	parse_file();
+	// Parse config file (if provided)
+	for (int i=0; i < argc; i++) {
+		string s(argv[i]);
+		if (s != "config_file") {
+		 	continue;
+		} else {
+			if (i+1 < argc) config_file = argv[i+1];
+			break;
+		}
+	}
+
+	cout << "\nConfig_file = " << config_file << endl;
+
+	if (config_file.length() > 0) parse_file();
+	// Parse command line arguments
 	parse_args(argc, argv);
+	// Print help if specified
+	print_help(argc, argv);
+	return;
 }
 
 void Config::add_params()
@@ -189,10 +208,14 @@ void Config::add_params()
 }
 
 void Config::parse_file()
-{
-	ifstream f(input_file);
-	if (!f) cout << tools::colorwarn << "\nWARNING: cannot open input file.\n" << tools::reset << endl;
-
+{	
+	// Open config file
+	ifstream f(config_file);
+	if (!f) {
+		cout << tools::colorwarn << "\nWARNING: cannot open config file.\n" << tools::reset << endl;
+		return;
+	}
+	// Read lines
 	string s;
 	while (std::getline(f, s)) {
 		// Read line into string stream
@@ -229,16 +252,41 @@ void Config::parse_file()
 
 void Config::parse_args(int argc, char** argv)
 {
+	for (int i=0; i < argc; ++i) {
+		if (params.find(argv[i]) == params.end()) continue;
+		// For a valid parameter
+		params[argv[i]].val = argv[i+1];
+		i += 1;
+	}
+	return;
 }
 
-void Config::print_help()
-{
-	cout << "Available config options:\n" << endl;
-	for (auto it=params.begin(); it!=params.end(); ++it) {
-		cout << "   " << it->first;
-		cout << "\n   \t>> Description: " << it->second.des;
-		cout << "\n   \t>> Current value: " << it->second.val << "\n" << endl;
+void Config::print_help(int argc, char** argv)
+{	
+	for (int i=argc-1; i >= 0; --i) {
+		string s(argv[i]);
+		if (s=="-h" || s=="--h" || s=="-help" || s=="--help") {
+			cout << "\n[USAGE]: (executable) <option1> <value2> <option2> <value2> ...\n";
+			cout << "\n[Example 1]: To execute with all default values...";
+			cout << "\n\t(executable)\n";
+			cout << "\n[Example 2]: To execute with specified values (command line values override confige_file values, config_file values override default values)...";
+			cout << "\n\t(executable) config_file \"./input/ns.dat\" global_is_resume yes global_observed_data \"1 2 3 4 5\"\n";
+		
+			cout << "\nAvailable config options:\n" << endl;
+			cout << "   " << "config_file";
+			cout << "\n   \t>> Description: Configuration file. (Default: ) (Type: string)";
+			cout << "\n   \t>> Current value: " << config_file << "\n" << endl;
+			for (auto it=params.begin(); it!=params.end(); ++it) {
+				cout << "   " << it->first;
+				cout << "\n   \t>> Description: " << it->second.des;
+				cout << "\n   \t>> Current value: " << it->second.val << "\n" << endl;
+			}
+			return;
+		} else {
+			continue;
+		}
 	}
+	return;
 }
 
 string Config::get_param(string var)
@@ -257,17 +305,14 @@ string tools::trim_white_space(const string& str)
 }
 
 
-int main(int argc, char* argv[])
-{
-	Config cfg (argc, argv);
-
-	cfg.print_help();
-
-	string v = cfg.get_param("observed_data");
-	cout << "\n\n" << v << endl;
-
-	v = cfg.get_param("obstacle_list");
-	cout << "\n\n" << v << endl;
-
-	return 0;
-}
+//int main(int argc, char* argv[])
+//{
+//	for (int i=0; i < argc; ++i) {
+//		cout << argv[i] << "\n";
+//	}
+//	cout << endl;
+//
+//	Config cfg (argc, argv);
+//	
+//	return 0;
+//}
