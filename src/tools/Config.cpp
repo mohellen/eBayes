@@ -7,7 +7,6 @@ Config::Config(int argc, char** argv)
 {
 	// Parameter value take in order: commond line argument > input file > default value
 	// ">" means orderride.
-	
 	// Define parameters
 	add_params();
 	// Parse config file (if provided)
@@ -20,15 +19,31 @@ Config::Config(int argc, char** argv)
 			break;
 		}
 	}
-
-	cout << "\nConfig_file = " << config_file << endl;
-
 	if (config_file.length() > 0) parse_file();
 	// Parse command line arguments
 	parse_args(argc, argv);
 	// Print help if specified
 	print_help(argc, argv);
-	return;
+
+	// Determine input size
+	if (GLOBAL_SCENARIO == NS_OBS)	{
+		istringstream iss(params["ns_obstacle_list"].val);
+		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+		// For NS_OBS, num_obs = tokens.size()/4
+		// insize = 2 * num_obs (each obstacle has 2 coordinates (x, y)).
+		insize = 2 * (tokens.size() / 4);
+	}
+	// Get observation
+	istringstream iss(params["global_observation"].val);
+	vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+	outsize = tokens.size();
+	observation.reserve(outsize);
+	for (auto it=tokens.begin(); it != tokens.end(); ++it) {
+		observation.push_back(stod(*it));
+	}
+	// Get observation noise
+	observation_noise = stod(params["global_observation_noise"].val);
+	return;	
 }
 
 void Config::add_params()
@@ -52,12 +67,12 @@ void Config::add_params()
 	p.val = "./output";
 	params[var] = p;
 
-	var = "global_noise_in_data";
+	var = "global_observation_noise";
 	p.des = "Assumed noise level in observed data [0.0, 1.0], 0 for no noise, 1 for 100% noise. (Default: 0.2) (Type: double)";
 	p.val = "0.2";
 	params[var] = p;
 
-	var = "global_observed_data";
+	var = "global_observation";
 	p.des = "Observed data. (Default: <obs4_data_set>) (Note: provide vector in one line separated by space)";
 	p.val = "1.434041 1.375464 1.402000 0.234050 1.387931 1.006520 1.850871 1.545131 1.563303 0.973778 1.512808 1.387468 1.608557 0.141381 1.313631 0.990608 1.741001 1.551365 1.789867 1.170761  1.597586 1.509048 1.549320 0.135403 1.191323 1.015913 1.682937 1.592488 1.743632 1.296677 1.535493 1.341702 1.541945 0.137985 1.272473 1.041918 1.824279 1.690430 1.810520 1.358992";
 	params[var] = p;
@@ -90,8 +105,8 @@ void Config::add_params()
 	p.val = "2000";
 	params[var] = p;
 
-	var = "mcmc_num_chains";
-	p.des = "Number of MCMC chains to be used for Parallel Tempering. (Default: 20) (Type: positive integer)";
+	var = "mcmc_max_chains";
+	p.des = "Maximum number of MCMC chains to be used for Parallel Tempering. Actual number of chains = min(num_mpi_ranks, mcmc_max_chains). (Default: 20) (Type: positive integer)";
 	p.val = "20";
 	params[var] = p;
 
@@ -325,9 +340,7 @@ double tools::compute_l2norm(
 	return sqrt(tmp);
 }
 
-double* ForwardModel::get_observed_data(
-
-double ForwardModel::compute_posterior_sigma(
+double tools::compute_posterior_sigma(
 		const double* observed_data,
 		std::size_t data_size,
 		double noise_in_data)
@@ -339,7 +352,7 @@ double ForwardModel::compute_posterior_sigma(
 	return noise_in_data * mean;
 }
 
-double ForwardModel::compute_posterior(
+double tools::compute_posterior(
 		const double* observed_data, 
 		const double* d,
 		std::size_t data_size,
@@ -351,50 +364,26 @@ double ForwardModel::compute_posterior(
 	return exp(-0.5 * sum / (sigma*sigma));
 }
 
-		const std::string & input_file,
-		std::size_t data_size,
-		double& noise_in_data)
+
+int main(int argc, char* argv[])
 {
-	double* d = new double[data_size];
+	for (int i=0; i < argc; ++i) {
+		cout << argv[i] << "\n";
+	}
+	cout << endl;
 
-	ifstream infile(input_file);
-	string s;
-	while (std::getline(infile, s)) {
-		istringstream iss(s);
-		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+	Config cfg (argc, argv);
 
-		// Ignore empty line
-		if (tokens.size() <= 0) continue;
+	std::size_t sizein = cfg.get_insize();
+	std::size_t sizeout = cfg.get_outsize();
+	vector<double> d = cfg.get_observation();
+	double n = cfg.get_observation_noise();
 
-		// Ignore comment line
-		tokens[0] = tools::trim_white_space(tokens[0]);
-		if (tokens[0].substr(0,2) == "//") continue;
-
-		// Find parameters
-		transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::tolower);
-		if (tokens[0] == "observed_data") {
-			for (std::size_t j=0; j < data_size; j++) {
-				d[j] = stod(tokens[j+1]);
-			}
-			continue;
-		}
-		if (tokens[0] == "noise_in_data") {
-			noise_in_data = stod(tokens[1]);
-			continue;
-		}
-	}//end while
-	infile.close();
-	return d;
+	cout << sizein << "\n";
+	cout << sizeout << "\n";
+	cout << n << "\n\n";
+	for (auto i: d) cout << i << "  ";
+	cout << endl;
+	
+	return 0;
 }
-
-//int main(int argc, char* argv[])
-//{
-//	for (int i=0; i < argc; ++i) {
-//		cout << argv[i] << "\n";
-//	}
-//	cout << endl;
-//
-//	Config cfg (argc, argv);
-//	
-//	return 0;
-//}
