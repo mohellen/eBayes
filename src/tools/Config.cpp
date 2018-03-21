@@ -313,20 +313,9 @@ string tools::trim_white_space(const string& str)
 	return str.substr(strBegin, strRange);
 }
 
-//string tools::arr_to_string(const double* m, std::size_t len)
-//{
-//	std::ostringstream oss;
-//	oss << "[" << std::fixed << std::setprecision(4);
-//	for (std::size_t i=0; i < len-1; i++)
-//		oss << m[i] << ", ";
-//	oss << m[len-1] << "]";
-//	return oss.str();
-//}
-//
-
 double tools::compute_l2norm(
-		std::vector<double> const& d1,
-		std::vector<double> const& d2)
+		vector<double> const& d1,
+		vector<double> const& d2)
 {
 	if (d1.size() != d2.size()) {
 		cout << red << "ERROR: vectors size mismatch. Program abort." << reset << endl;
@@ -339,7 +328,7 @@ double tools::compute_l2norm(
 }
 
 double tools::compute_posterior_sigma(
-		std::vector<double> const& observation,
+		vector<double> const& observation,
 		double observation_noise)
 {
 	if (observation.size() <= 0) {
@@ -354,8 +343,8 @@ double tools::compute_posterior_sigma(
 }
 
 double tools::compute_posterior(
-		std::vector<double> const& observation,
-		std::vector<double> const& data,
+		vector<double> const& observation,
+		vector<double> const& data,
 		double sigma)
 {
 	if (observation.size() != data.size()) {

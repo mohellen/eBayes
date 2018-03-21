@@ -98,9 +98,6 @@ namespace tools
 	// trim white space from a string
 	std::string trim_white_space(const std::string& str);
 
-//	// Convert array to string
-//	std::string arr_to_string(const double* m, std::size_t len);
-
 	// Compute the l2norm of two vectors
 	double compute_l2norm(
 			std::vector<double> const& d1,
