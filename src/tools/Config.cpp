@@ -27,22 +27,21 @@ Config::Config(int argc, char** argv)
 
 	// Determine input size
 	if (GLOBAL_SCENARIO == NS_OBS)	{
-		istringstream iss(params["ns_obstacle_list"].val);
+		istringstream iss(params.at("ns_obstacle_list").val);
 		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 		// For NS_OBS, num_obs = tokens.size()/4
 		// insize = 2 * num_obs (each obstacle has 2 coordinates (x, y)).
 		insize = 2 * (tokens.size() / 4);
 	}
 	// Get observation
-	istringstream iss(params["global_observation"].val);
+	istringstream iss(params.at("global_observation").val);
 	vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
-	outsize = tokens.size();
-	observation.reserve(outsize);
+	observation.reserve(tokens.size());
 	for (auto it=tokens.begin(); it != tokens.end(); ++it) {
 		observation.push_back(stod(*it));
 	}
 	// Get observation noise
-	observation_noise = stod(params["global_observation_noise"].val);
+	observation_noise = stod(params.at("global_observation_noise").val);
 	return;	
 }
 
@@ -304,11 +303,6 @@ void Config::print_help(int argc, char** argv)
 	return;
 }
 
-string Config::get_param(string var)
-{
-	return params[var].val;
-}
-
 string tools::trim_white_space(const string& str)
 {
 	std::string whitespace=" \t";
@@ -319,48 +313,58 @@ string tools::trim_white_space(const string& str)
 	return str.substr(strBegin, strRange);
 }
 
-string tools::arr_to_string(const double* m, std::size_t len)
-{
-	std::ostringstream oss;
-	oss << "[" << std::fixed << std::setprecision(4);
-	for (std::size_t i=0; i < len-1; i++)
-		oss << m[i] << ", ";
-	oss << m[len-1] << "]";
-	return oss.str();
-}
+//string tools::arr_to_string(const double* m, std::size_t len)
+//{
+//	std::ostringstream oss;
+//	oss << "[" << std::fixed << std::setprecision(4);
+//	for (std::size_t i=0; i < len-1; i++)
+//		oss << m[i] << ", ";
+//	oss << m[len-1] << "]";
+//	return oss.str();
+//}
+//
 
 double tools::compute_l2norm(
-		const double* d1, 
-		const double* d2,
-		std::size_t data_size)
+		std::vector<double> const& d1,
+		std::vector<double> const& d2)
 {
+	if (d1.size() != d2.size()) {
+		cout << red << "ERROR: vectors size mismatch. Program abort." << reset << endl;
+		exit(EXIT_FAILURE);
+	}
 	double tmp = 0.0;
-	for (std::size_t j=0; j < data_size; j++)
-		tmp += (d1[j] - d2[j])*(d1[j] - d2[j]);
+	for (int i=0; i < d1.size(); ++i)
+		tmp += (d1[i] - d2[i])*(d1[i] - d2[i]);
 	return sqrt(tmp);
 }
 
 double tools::compute_posterior_sigma(
-		const double* observed_data,
-		std::size_t data_size,
-		double noise_in_data)
+		std::vector<double> const& observation,
+		double observation_noise)
 {
+	if (observation.size() <= 0) {
+		cout << red << "ERROR: no observation data. Program abort." << reset << endl;
+		exit(EXIT_FAILURE);
+	}
 	double mean = 0.0;
-	for (std::size_t j=0; j < data_size; j++)
-		mean += observed_data[j];
-	mean /= (double)data_size;
-	return noise_in_data * mean;
+	for (double d: observation)
+		mean += d;
+	mean /= observation.size();
+	return observation_noise * mean;
 }
 
 double tools::compute_posterior(
-		const double* observed_data, 
-		const double* d,
-		std::size_t data_size,
+		std::vector<double> const& observation,
+		std::vector<double> const& data,
 		double sigma)
 {
+	if (observation.size() != data.size()) {
+		cout << red << "ERROR: vectors size mismatch. Program abort." << reset << endl;
+		exit(EXIT_FAILURE);
+	}
 	double sum = 0.0;
-	for (std::size_t j=0; j < data_size; j++)
-		sum += (d[j] - observed_data[j])*(d[j] - observed_data[j]);
+	for (int i=0; i < data.size(); ++i)
+		sum += (data[i] - observation[i])*(data[i] - observation[i]);
 	return exp(-0.5 * sum / (sigma*sigma));
 }
 
@@ -374,10 +378,13 @@ int main(int argc, char* argv[])
 
 	Config cfg (argc, argv);
 
-	std::size_t sizein = cfg.get_insize();
-	std::size_t sizeout = cfg.get_outsize();
-	vector<double> d = cfg.get_observation();
-	double n = cfg.get_observation_noise();
+	Config & rf = cfg;
+	Config const& crf = cfg;
+
+	std::size_t sizein = crf.get_input_size();
+	std::size_t sizeout = cfg.get_output_size();
+	vector<double> d = rf.get_observation();
+	double n = crf.get_observation_noise();
 
 	cout << sizein << "\n";
 	cout << sizeout << "\n";
@@ -385,5 +392,17 @@ int main(int argc, char* argv[])
 	for (auto i: d) cout << i << "  ";
 	cout << endl;
 	
+	vector<double> v {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+	double nosie = 0.2;
+
+	vector<double> v2 {2.0, 2.1, 3.64, 9.0, 15.0, 26.0, 7.305, 8.2};
+
+	double sigma = tools::compute_posterior_sigma(v, 0.2);
+	cout << sigma << endl;
+
+	cout << tools::compute_l2norm(v, v2) << endl;
+
+	cout << tools::compute_posterior(v, v2, sigma) << endl;
+
 	return 0;
 }

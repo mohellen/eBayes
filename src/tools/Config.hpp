@@ -38,15 +38,13 @@ public:
 	void operator=(Config const&) = delete;
 
 	// Getters
-	std::size_t get_insize() {return insize;}
-	std::size_t get_outsize() {return outsize;}
-	std::vector<double> get_observation() {return observation;}
-	double get_observation_noise() {return observation_noise;}
+	std::size_t get_input_size() const {return insize;}
+	std::size_t get_output_size() const {return observation.size();}
+	std::vector<double> get_observation() const {return observation;}
+	double get_observation_noise() const {return observation_noise;}
 
 	// Retrieve parameter value
-	std::string get_param(std::string);
-	// Retrieve observation
-	double* get_observation(std::size_t data_size, double& noise_in_data);
+	std::string get_param(std::string var) const {return params.at(var).val;}
 
 private:
 	std::string config_file = "";
@@ -60,7 +58,6 @@ private:
 
 	// Inverse problem y = f(x) dimensions: insize -> x, outsize -> y
 	std::size_t insize;
-	std::size_t outsize;
 	std::vector<double> observation;
 	double observation_noise;
 
@@ -88,26 +85,21 @@ namespace tools
 	// trim white space from a string
 	std::string trim_white_space(const std::string& str);
 
-	// Convert array to string
-	std::string arr_to_string(const double* m, std::size_t len);
+//	// Convert array to string
+//	std::string arr_to_string(const double* m, std::size_t len);
 
 	// Compute the l2norm of two vectors
 	double compute_l2norm(
-			const double* d1, 
-			const double* d2,
-			std::size_t data_size);
-
-	// TODO: to change or remove
+			std::vector<double> const& d1,
+			std::vector<double> const& d2);
 
 	double compute_posterior_sigma(
-			const double* observed_data,
-			std::size_t data_size, 
-			double noise_in_data);
+			std::vector<double> const& observation,
+			double observation_noise);
 
 	double compute_posterior(
-			const double* observed_data,
-			const double* d,
-			std::size_t data_size,
+			std::vector<double> const& observation,
+			std::vector<double> const& data,
 			double sigma);
 }
 
