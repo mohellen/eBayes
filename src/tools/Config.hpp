@@ -22,9 +22,22 @@ enum Scenario {
 //--- IMPI
 //--- IMPI_PRINT_NODES
 //--- IMPI_MASTER_RANK
+//--- NS_USE_SOR_SOLVER
 //--- SGI_OUTPUT_FREQ_IN_SEC
 //--- SGI_OUTPUT_RANK_PROGRESS
 //--- SGI_OUTPUT_GRIDPOINT_PROGRESS
+
+// old global constants
+//#define MASTER 	0
+//#define SGI_OUT_TIMER			1 //(1 or 0)
+//#define SGI_OUT_RANK_PROGRESS	1 //(1 or 0)
+//#define SGI_OUT_GRID_POINTS		0 //(1 or 0)
+//#define SGI_MPIMW_TRUNK_SIZE	10 //(integer)
+//#define MCMC_OUT_PROGRESS		1 //(1 or 0)
+//#define MCMC_OUT_FREQ			1000 //(integer)
+//#define MCMC_MAX_CHAINS 		20	//(integer)
+
+
 
 class Config
 {

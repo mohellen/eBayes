@@ -369,40 +369,36 @@ double tools::compute_posterior(
 }
 
 
-int main(int argc, char* argv[])
-{
-	for (int i=0; i < argc; ++i) {
-		cout << argv[i] << "\n";
-	}
-	cout << endl;
-
-	Config cfg (argc, argv);
-
-	Config & rf = cfg;
-	Config const& crf = cfg;
-
-	std::size_t sizein = crf.get_input_size();
-	std::size_t sizeout = cfg.get_output_size();
-	vector<double> d = rf.get_observation();
-	double n = crf.get_observation_noise();
-
-	cout << sizein << "\n";
-	cout << sizeout << "\n";
-	cout << n << "\n\n";
-	for (auto i: d) cout << i << "  ";
-	cout << endl;
-	
-	vector<double> v {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
-	double nosie = 0.2;
-
-	vector<double> v2 {2.0, 2.1, 3.64, 9.0, 15.0, 26.0, 7.305, 8.2};
-
-	double sigma = tools::compute_posterior_sigma(v, 0.2);
-	cout << sigma << endl;
-
-	cout << tools::compute_l2norm(v, v2) << endl;
-
-	cout << tools::compute_posterior(v, v2, sigma) << endl;
-
-	return 0;
-}
+//int main(int argc, char* argv[])
+//{
+//	for (int i=0; i < argc; ++i) {
+//		cout << argv[i] << "\n";
+//	}
+//	cout << endl;
+//
+//	Config cfg (argc, argv);
+//
+//	Config & rf = cfg;
+//	Config const& crf = cfg;
+//
+//	std::size_t sizein = crf.get_input_size();
+//	std::size_t sizeout = cfg.get_output_size();
+//	vector<double> d = rf.get_observation();
+//	double n = crf.get_observation_noise();
+//
+//	cout << sizein << "\n";
+//	cout << sizeout << "\n";
+//	cout << n << "\n\n";
+//	for (auto i: d) cout << i << "  ";
+//	cout << endl;
+//	
+//	vector<double> v {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+//	double nosie = 0.2;
+//	vector<double> v2 {2.0, 2.1, 3.64, 9.0, 15.0, 26.0, 7.305, 8.2};
+//	double sigma = tools::compute_posterior_sigma(v, 0.2);
+//	cout << sigma << endl;
+//	cout << tools::compute_l2norm(v, v2) << endl;
+//	cout << tools::compute_posterior(v, v2, sigma) << endl;
+//
+//	return 0;
+//}

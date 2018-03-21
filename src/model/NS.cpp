@@ -23,7 +23,7 @@ using namespace Eigen;
 
 
 /************************************
- *  Public Methods
+ *  Public Interface
  ************************************/
 
 NS::~NS()
@@ -33,191 +33,97 @@ NS::~NS()
 	this->out_locs.clear();
 }
 
-NS::NS(const string& input_file, int resx, int resy)
-		: ForwardModel()
+NS::NS(Config const& c, int resx, int resy)
+		: ForwardModel(c)
 {
-	ifstream infile(input_file);
-	string s;
-	while (std::getline(infile, s)) {
-		istringstream iss(s);
-		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+	this->domain_size_x = stod(cfg.get_param("ns_domain_size_x"));
+	this->domain_size_y = stod(cfg.get_param("ns_domain_size_y"));
+	this->initial_velocity_x = stod(cfg.get_param("ns_initial_velocity_x"));
+	this->initial_velocity_y = stod(cfg.get_param("ns_initial_velocity_y"));
+	this->initial_pressure = stod(cfg.get_param("ns_initial_pressure"));
+	this->inlet_velocity_x = stod(cfg.get_param("ns_inlet_velocity_x"));
+	this->inlet_velocity_y = stod(cfg.get_param("ns_inlet_velocity_y"));
+	this->external_force_x = stod(cfg.get_param("ns_external_force_x"));
+	this->external_force_y = stod(cfg.get_param("ns_external_force_y"));
+	this->re = stod(cfg.get_param("ns_re"));
+	this->tau = stod(cfg.get_param("ns_tau"));
+	this->alpha = stod(cfg.get_param("ns_alpha"));
+	this->omega = stod(cfg.get_param("ns_omega"));
 
-		// Ignore empty line
-		if (tokens.size() <= 0) continue;
-
-		// Ignore comment line
-		tokens[0] = tools::trim_white_space(tokens[0]);
-		if (tokens[0].substr(0,2) == "//") continue;
-
-		// Find parameters
-		transform(tokens[0].begin(), tokens[0].end(), tokens[0].begin(), ::tolower);
-		if (tokens[0] == "domain_size_x") {
-			this->domain_size_x = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "domain_size_y") {
-			this->domain_size_y = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "min_ncx") {
-			this->ncx = stoi(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "min_ncy") {
-			this->ncy = stoi(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "initial_velocity_x") {
-			this->initial_velocity_x = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "initial_velocity_y") {
-			this->initial_velocity_y = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "initial_pressure") {
-			this->initial_pressure = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "inlet_velocity_x") {
-			this->inlet_velocity_x = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "inlet_velocity_y") {
-			this->inlet_velocity_y = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "external_force_x") {
-			this->external_force_x = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "external_force_y") {
-			this->external_force_y = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "re") {
-			this->re = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "tau") {
-			this->tau = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "alpha") {
-			this->alpha = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "omega") {
-			this->omega = stod(tokens[1]);
-			continue;
-		}
-		if (tokens[0] == "boundary_north") {
-			transform(tokens[1].begin(), tokens[1].end(), tokens[1].begin(), ::tolower);
-        	if (tokens[1] == "inlet")
-        		this->boundary_north = BOUNDARY_TYPE_INLET;
-            else if (tokens[1] == "outlet")
-            	this->boundary_north = BOUNDARY_TYPE_OUTLET;
-            else if (tokens[1] == "noslip")
-            	this->boundary_north = BOUNDARY_TYPE_NOSLIP;
-            else if (tokens[1] == "freeslip")
-            	this->boundary_north = BOUNDARY_TYPE_FREESLIP;
-            continue;
-		}
-		if (tokens[0] == "boundary_south") {
-			transform(tokens[1].begin(), tokens[1].end(), tokens[1].begin(), ::tolower);
-        	if (tokens[1] == "inlet")
-        		this->boundary_south = BOUNDARY_TYPE_INLET;
-            else if (tokens[1] == "outlet")
-            	this->boundary_south = BOUNDARY_TYPE_OUTLET;
-            else if (tokens[1] == "noslip")
-            	this->boundary_south = BOUNDARY_TYPE_NOSLIP;
-            else if (tokens[1] == "freeslip")
-            	this->boundary_south = BOUNDARY_TYPE_FREESLIP;
-            continue;
-		}
-		if (tokens[0] == "boundary_east") {
-			transform(tokens[1].begin(), tokens[1].end(), tokens[1].begin(), ::tolower);
-        	if (tokens[1] == "inlet")
-        		this->boundary_east = BOUNDARY_TYPE_INLET;
-            else if (tokens[1] == "outlet")
-            	this->boundary_east = BOUNDARY_TYPE_OUTLET;
-            else if (tokens[1] == "noslip")
-            	this->boundary_east = BOUNDARY_TYPE_NOSLIP;
-            else if (tokens[1] == "freeslip")
-            	this->boundary_east = BOUNDARY_TYPE_FREESLIP;
-            continue;
-		}
-		if (tokens[0] == "boundary_west") {
-			transform(tokens[1].begin(), tokens[1].end(), tokens[1].begin(), ::tolower);
-        	if (tokens[1] == "inlet")
-        		this->boundary_west = BOUNDARY_TYPE_INLET;
-            else if (tokens[1] == "outlet")
-            	this->boundary_west = BOUNDARY_TYPE_OUTLET;
-            else if (tokens[1] == "noslip")
-            	this->boundary_west = BOUNDARY_TYPE_NOSLIP;
-            else if (tokens[1] == "freeslip")
-            	this->boundary_west = BOUNDARY_TYPE_FREESLIP;
-            continue;
-		}
-		if (tokens[0] == "obstacle") {
-			this->obs.push_back(
-					Obstacle(stod(tokens[1]), stod(tokens[2]), stod(tokens[3]), stod(tokens[4])) );
-			continue;
-		}
-		if (tokens[0] == "output_time") {
-			this->out_times.push_back( stod(tokens[1]) );
-			continue;
-		}
-		if (tokens[0] == "output_location") {
-			this->out_locs.push_back(
-					pair<double, double>(stod(tokens[1]), stod(tokens[2])) );
-			continue;
-		}
-	}//end while
-	infile.close();
-
-	this->input_size  = std::size_t(this->obs.size() * 2);
-	this->output_size = std::size_t(this->out_times.size() * this->out_locs.size());
-	this->ncx *= max(1, resx);
-	this->ncy *= max(1, resy);
+	this->ncx = std::size_t(stoul(cfg.get_param("ns_min_ncx"))) * resx;
+	this->ncy = std::size_t(stoul(cfg.get_param("ns_min_ncy"))) * resy;
 	this->dx = this->domain_size_x / double(this->ncx);
 	this->dy = this->domain_size_y / double(this->ncy);
+
+	// Boundary north
+	string type = cfg.get_param("ns_boundary_north");
+	if (type == "inlet") this->boundary_north = BOUNDARY_TYPE_INLET;
+	else if (type == "outlet") this->boundary_north = BOUNDARY_TYPE_OUTLET;
+	else if (type == "noslip") this->boundary_north = BOUNDARY_TYPE_NOSLIP;
+	else if (type == "freeslip") this->boundary_north = BOUNDARY_TYPE_FREESLIP;
+	// Boundary south
+	type = cfg.get_param("ns_boundary_south");
+	if (type == "inlet") this->boundary_south = BOUNDARY_TYPE_INLET;
+	else if (type == "outlet") this->boundary_south = BOUNDARY_TYPE_OUTLET;
+	else if (type == "noslip") this->boundary_south = BOUNDARY_TYPE_NOSLIP;
+	else if (type == "freeslip") this->boundary_south = BOUNDARY_TYPE_FREESLIP;
+	// Boundary east
+	type = cfg.get_param("ns_boundary_east");
+	if (type == "inlet") this->boundary_east = BOUNDARY_TYPE_INLET;
+	else if (type == "outlet") this->boundary_east = BOUNDARY_TYPE_OUTLET;
+	else if (type == "noslip") this->boundary_east = BOUNDARY_TYPE_NOSLIP;
+	else if (type == "freeslip") this->boundary_east = BOUNDARY_TYPE_FREESLIP;
+	// Boundary west
+	type = cfg.get_param("ns_boundary_west");
+	if (type == "inlet") this->boundary_west = BOUNDARY_TYPE_INLET;
+	else if (type == "outlet") this->boundary_west = BOUNDARY_TYPE_OUTLET;
+	else if (type == "noslip") this->boundary_west = BOUNDARY_TYPE_NOSLIP;
+	else if (type == "freeslip") this->boundary_west = BOUNDARY_TYPE_FREESLIP;
+
+	{// Initialize obstacle list
+		istringstream iss(cfg.get_param("ns_obstacle_list"));
+		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+		this->obs.reserve(tokens.size()/4);
+		for (auto it=tokens.begin(); it != tokens.end(); it+=4) {
+			this->obs.push_back(
+					Obstacle(stod(*it), stod(*(it+1)), stod(*(it+2)), stod(*(it+3))) );
+		}
+	}
+	{// Initialize output time list
+		istringstream iss(cfg.get_param("ns_output_time_list"));
+		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+		this->out_times.reserve(tokens.size());
+		for (auto it=tokens.begin(); it != tokens.end(); ++it) {
+			this->out_times.push_back( stod(*it) );
+		}
+	}
+	{// Initialize output location list
+		istringstream iss(cfg.get_param("ns_output_location_list"));
+		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+		this->out_locs.reserve(tokens.size()/2);
+		for (auto it=tokens.begin(); it != tokens.end(); it+=2) {
+			this->out_locs.push_back( pair<double,double> {stod(*it), stod(*(it+1))} );
+		}
+	}
 	return;
 }
 
-std::size_t NS::get_input_size()
+pair<double,double> NS::get_input_space(int dim) const
 {
-	return input_size;
-}
-
-std::size_t NS::get_output_size()
-{
-	return output_size;
-}
-
-void NS::get_input_space(
-		int dim,
-		double& min,
-		double& max)
-{
-	min = 0.0;
+	// return pair of <lower bound, upper bound> of the given dimension
+	pair<double,double> s {0.0, 0.0};
 	if (dim%2 == 0)
-		max = domain_size_x - obs[int(dim/2)].sizex;
+		s.second = domain_size_x - obs[int(dim/2)].sizex;
 	else
-		max = domain_size_y - obs[int(dim/2)].sizey;
-	return;
+		s.second = domain_size_y - obs[int(dim/2)].sizey;
+	return s;
 }
 
-void NS::get_resolution(
-		std::size_t& nx,
-		std::size_t& ny)
+vector<double> NS::run(
+		std::vector<double> const& m,
+		bool write_vtk)
 {
-	nx = ncx;
-	ny = ncy;
-}
-
-void NS::run(const double* m, double* d)
-{
+	vector<double> d (cfg.get_output_size());
 	double t = 0.0;
 	double dt = 0.0;
 	double t_end = out_times.back();
@@ -225,6 +131,14 @@ void NS::run(const double* m, double* d)
 
 	double u,v,ve;
 	std::size_t i,j,k;
+
+	// For VTK output only
+	double vtk_freq = 0.05;
+	int vtk_cnt = 0;
+	string vtk_outfile = cfg.get_param("global_output_path") + "/vtk";
+	string cmd = "rm -rf " + vtk_outfile + "; mkdir -p " + vtk_outfile;
+	if (write_vtk) system(cmd.c_str());
+	vtk_outfile += "/ns_sim";
 
 	/**********************************************************
 	 * 2D Arrays: Row-major storage, including boundary cells
@@ -252,7 +166,7 @@ void NS::run(const double* m, double* d)
 	// Create geometry mask
 	int** M = create_geometry_mask(m);
 
-#if (NS_USE_DIRECT_SOLVER == 1)
+#ifndef NS_USE_SOR_SOLVER // Use direct solver
 	// System matrix for the pressure equation: A*p = rhs
 	SparseMatrix<double> A = create_system_matrix();
 	double** RHS = alloc_matrix<double>(ncy+2, ncx+2, true);
@@ -271,10 +185,10 @@ void NS::run(const double* m, double* d)
 		update_domain_fg(M, U, V, F, G);
 
 		// 3. Solve for pressure P: A*p = rhs
-#if (NS_USE_DIRECT_SOLVER == 1)
+#ifndef NS_USE_SOR_SOLVER // Use direct solver
 		compute_rhs(dt, F, G, P, RHS);
 		solve_for_p_direct(A, RHS, P);
-#else
+#else // Use SOR solver
 		solve_for_p_sor(dt, F, G, P);
 #endif
 		update_boundaries_p(P);
@@ -308,112 +222,9 @@ void NS::run(const double* m, double* d)
 			}
 			t_out_idx ++;
 		}
-	}//end while
 
-	free_matrix<int>(M);
-	free_matrix<double>(U);
-	free_matrix<double>(V);
-	free_matrix<double>(P);
-	free_matrix<double>(F);
-	free_matrix<double>(G);
-#if (NS_USE_DIRECT_SOLVER == 1)
-	free_matrix<double>(RHS);
-	A.resize(0,0);
-#endif
-	return;
-}//end fun()
-
-void NS::sim(const string& output_prefix)
-{
-	double t = 0.0;
-	double dt = 0.0;
-	double t_end = out_times.back();
-	int t_out_idx = 0;
-
-	double u,v,ve;
-	std::size_t i,j,k;
-
-	double vtk_freq = 0.05;
-	int vtk_cnt = 0;
-	std::string vtk_outfile =
-			(output_prefix == "") ? "output/ns_sim" : output_prefix;
-
-	/**********************************************************
-	 * 2D Arrays: Row-major storage, including boundary cells
-	 * 	 dim_0 along y-direction (rows,    j, ncy)
-	 * 	 dim_1 along x-direction (columns, i, ncx)
-	 *
-	 * 	 Inner domain: m[j][i], i=1..ncx, j=1..ncy
-	 * 	 Boundaries: LEFT   m[j][0],
-	 * 	             RIGHT  m[j][ncx+1],
-	 * 	             TOP    m[ncy+1][i],
-	 * 	             BOTTOM m[0][i]
-	 **********************************************************/
-	// allocate computation arrays
-	double** U = alloc_matrix<double>(ncy+2, ncx+2, true); /// velocity in x-direction
-	double** V = alloc_matrix<double>(ncy+2, ncx+2, true); /// velocity in y-direction
-	double** P = alloc_matrix<double>(ncy+2, ncx+2, true); /// pressure
-	double** F = alloc_matrix<double>(ncy+2, ncx+2, true); /// temporary array: F value
-	double** G = alloc_matrix<double>(ncy+2, ncx+2, true); /// temporary array: G value
-	// initialize arrays
-	init_matrix<double>(U, ncy+2, ncx+2, true, initial_velocity_x);
-	init_matrix<double>(V, ncy+2, ncx+2, true, initial_velocity_y);
-	init_matrix<double>(P, ncy+2, ncx+2, true, initial_pressure);
-	init_matrix<double>(F, ncy+2, ncx+2, true, 0.0);
-	init_matrix<double>(G, ncy+2, ncx+2, true, 0.0);
-	// create geometry mask  with input from file
-	double* m = new double[input_size];
-	for (k=0; k < obs.size(); k++) {
-		m[k*2 + 0] = obs[k].locx;
-		m[k*2 + 1] = obs[k].locy;
-	}
-	int** M = create_geometry_mask(m);
-//	print_mask(M); // DEBUG only
-
-#if (NS_USE_DIRECT_SOLVER == 1)
-	// System matrix for the pressure equation: A*p = rhs
-	SparseMatrix<double> A = create_system_matrix();
-	double** RHS = alloc_matrix<double>(ncy+2, ncx+2, true);
-#endif
-
-	update_boundaries_uv(U, V);
-	update_domain_uv(M, U, V);
-
-	// Initial VTK output
-	write_vtk_file(vtk_outfile.c_str(), vtk_cnt, M, U, V, P);
-	vtk_cnt ++;
-
-	while(t < t_end)
-	{
-		// 1. Compute time step
-		compute_dt(U, V, dt);
-
-		// 2. Compute F,G
-		compute_fg(dt, U, V, F, G);
-		update_boundaries_fg(U, V, F, G);
-		update_domain_fg(M, U, V, F, G);
-
-		// 3. Solve the pressure P: A*p = rhs
-#if (NS_USE_DIRECT_SOLVER == 1)
-		compute_rhs(dt, F, G, P, RHS);
-		solve_for_p_direct(A, RHS, P);
-#else
-		solve_for_p_sor(dt, F, G, P);
-#endif
-		update_boundaries_p(P);
-		update_domain_p(M, P);
-
-		// 4. Compute velocity U,V
-		compute_uv(dt, F, G, P, U, V);
-		update_boundaries_uv(U, V);
-		update_domain_uv(M, U, V);
-
-		// 5. Update simulation time
-		t += dt;
-		cout << "Simulation completed at t = " << t << ", dt = " << dt << endl;
-
-		// 6. Write VTK output data (if enabled) */
-		if (floor(t/vtk_freq) >= vtk_cnt) {
+		// 7. Write VTK output data (if enabled) */
+		if ((write_vtk) && (floor(t/vtk_freq) >= vtk_cnt)) {
 			cout << "Writing VTK output at t = " << t << endl;
 			write_vtk_file(vtk_outfile.c_str(), vtk_cnt, M, U, V, P);
 			vtk_cnt ++;
@@ -426,14 +237,14 @@ void NS::sim(const string& output_prefix)
 	free_matrix<double>(P);
 	free_matrix<double>(F);
 	free_matrix<double>(G);
-#if (NS_USE_DIRECT_SOLVER == 1)
+#ifndef NS_USE_SOR_SOLVER // Use direct solver
 	free_matrix<double>(RHS);
 	A.resize(0,0);
 #endif
-	return;
-}
+	return d;
+}//end fun()
 
-void NS::print_info()
+void NS::print_info() const
 {
 	fflush(NULL);
 	printf("------ NS Object info ------\n");
@@ -456,8 +267,6 @@ void NS::print_info()
 	printf("-- Boundary east type:  %d\n", boundary_east);
 	printf("-- Boundary west type:  %d\n", boundary_west);
 	printf("-- \n");
-	printf("-- Input size:  %lu\n", input_size);
-	printf("-- Output size: %lu\n", output_size);
 	printf("-- Ncx:         %lu\n", ncx);
 	printf("-- Ncy:         %lu\n", ncy);
 	printf("-- Dx:        %.2f\n", dx);
@@ -474,7 +283,7 @@ void NS::print_info()
 	printf("----------------------------\n");
 }
 
-void NS::print_mask(int **& M)
+void NS::print_mask(int **& M) const
 {	
 	fflush(NULL);
 	printf("\n");
@@ -490,8 +299,8 @@ void NS::print_mask(int **& M)
 /*****************************************
  * Internal core functions
  *****************************************/
-
-int** NS::create_geometry_mask(const double* m) /// Input parameter vector: locations of obstacles [obs0_x, obs0_y, obs1_x, obs1_y, ...]
+/// Input parameter vector: locations of obstacles [obs0_x, obs0_y, obs1_x, obs1_y, ...]
+int** NS::create_geometry_mask(vector<double> const& m)
 {
 	std::size_t i,j,k; // looping indices
 	std::size_t jl, jh, il, ih; // low & high index of columns

@@ -28,7 +28,6 @@
 #include <cmath>
 #include <utility>
 #include <memory>
-#include <fstream>
 #include <sstream>
 #include <iostream>
 #include <iterator>
@@ -40,6 +39,20 @@
 
 class NS : public ForwardModel
 {
+public:
+	~NS();
+	NS(Config const& c, int resx=1, int resy=1);
+
+	std::pair<double,double> get_input_space(int dim) const;
+
+	std::vector<double> run(
+			std::vector<double> const& m,
+			bool write_vtk=false); // By default no VTK output
+
+	/* Debug only */
+	void print_info() const;
+	void print_mask(int **& M) const;
+
 private:
 	struct Obstacle {
 		double locx;
@@ -70,27 +83,27 @@ private:
     static const int BOUNDARY_TYPE_FREESLIP = -40;
 
     //Simulation variables (will be overridden by input file, if provided)
-    double domain_size_x = 10.0;	/// Domain size in x-direction
-    double domain_size_y = 2.0;	  	/// Domain size in y-direction
-    double initial_velocity_x = 1.0;	/// Initial velocity in x-direction
-    double initial_velocity_y = 0.0;	/// Initial velocity in y-direction
-    double initial_pressure = 0.0;		/// Initial pressure
-    double inlet_velocity_x = 1.0;	/// Inlet velocity in x-direction
-    double inlet_velocity_y = 0.0;	/// Inlet velocity in y-direction
-    double external_force_x = 0.0;	/// External force in x-direction
-    double external_force_y = 0.0;	/// External force in y-direction
-    double re = 100.0;	/// Reynolds number
-    double tau = 0.5;	/// Safety factor for time step size computation
-    double alpha = 0.9;	/// Upwind differecing factor
-    double omega = 1.0;	/// Pressure related
-    int boundary_north = BOUNDARY_TYPE_NOSLIP;	/// North boundary type
-    int boundary_south = BOUNDARY_TYPE_NOSLIP;	/// South boundary type
-    int boundary_east = BOUNDARY_TYPE_INLET;	/// East boundary type
-    int boundary_west = BOUNDARY_TYPE_OUTLET;	/// West boundary type
+    double domain_size_x;	/// Domain size in x-direction
+    double domain_size_y;	  	/// Domain size in y-direction
+    double initial_velocity_x;	/// Initial velocity in x-direction
+    double initial_velocity_y;	/// Initial velocity in y-direction
+    double initial_pressure;	/// Initial pressure
+    double inlet_velocity_x;	/// Inlet velocity in x-direction
+    double inlet_velocity_y;	/// Inlet velocity in y-direction
+    double external_force_x;	/// External force in x-direction
+    double external_force_y;	/// External force in y-direction
+    double re;		/// Reynolds number
+    double tau;		/// Safety factor for time step size computation
+    double alpha;	/// Upwind differecing factor
+    double omega;	/// Pressure related
+    int boundary_north;	/// North boundary type
+    int boundary_south;	/// South boundary type
+    int boundary_east;	/// East boundary type
+    int boundary_west;	/// West boundary type
 
     //Simulation domain resolution
-	std::size_t ncx = 100;	/// Number of grid cells in x-direction
-	std::size_t ncy = 20;	/// Number of grid cells in y-direction
+	std::size_t ncx;	/// Number of grid cells in x-direction
+	std::size_t ncy;	/// Number of grid cells in y-direction
 	double dx;			/// Grid cell size in x-direction
 	double dy;			/// Grid cell size in y-direction
 
@@ -98,33 +111,6 @@ private:
     std::vector<Obstacle> obs;		/// List of obstacles inside domain
     std::vector<double> out_times;	/// List of output sampling time instances
     std::vector< std::pair<double, double> > out_locs;	/// List of output sampling locations
-
-    std::string outprefix; /// vtk output prefix
-
-public:
-	/* DEFINE destructor (no ;)*/
-	~NS();
-
-	/* Declare constructor */
-	NS(const std::string& input_file, int resx=1, int resy=1);
-
-	/* Run simulation with VTK output */
-	void sim(const std::string& output_file = "");
-
-	/* Declare member functions */
-	void run(const double* m, double* d);
-
-	std::size_t get_input_size();
-
-	std::size_t get_output_size();
-
-	void get_input_space(int dim, double& min, double& max);
-
-	void get_resolution(std::size_t& nx, std::size_t& ny);
-
-	/* Debug only */
-	void print_info();
-	void print_mask(int **& M);
 
 private:
 
@@ -135,14 +121,14 @@ private:
 	/**
 	 * Create a mask array to distinguish fluid and different types of obstacle cells
 	 */
+	int** create_geometry_mask(std::vector<double> const& m);
 
-	int** create_geometry_mask(const double* m);
 	/**
 	 * Create system matrix A
 	 * A is N-by-N (no boundary cells)
 	 */
-
 	Eigen::SparseMatrix<double> create_system_matrix();
+
 	/**
 	 * Compute the right hand side of the pressure equation
 	 */

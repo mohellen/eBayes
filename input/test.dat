@@ -17,10 +17,10 @@ global_resume_from_path
 # Grid files and all other output files will be created in this specified location
 global_output_path		/my/customed/path
 # Assumed noise level in observed data
-global_noise_in_data	0.35
+global_observation_noise	0.35
 # Observed data (Note: must in one line!)
 # Observed data for 1 obstacle
-global_observed_data	1.550702 1.381798 1.169803 1.284388 1.212167 0.937018 1.208724 1.232352 1.200904 1.122890 1.485995 1.400837 1.450246 1.272755 1.335284 0.893536 1.216029 1.345854 1.356359 1.350194 1.575831 1.355027 1.447311 1.317794 1.345888 0.844182 1.316034 1.246116 1.341811 1.214408 1.603132 1.338208 1.353566 1.207331 1.384773 0.871862 1.263172 1.183300 1.317644 1.296239
+global_observation		1.550702 1.381798 1.169803 1.284388 1.212167 0.937018 1.208724 1.232352 1.200904 1.122890 1.485995 1.400837 1.450246 1.272755 1.335284 0.893536 1.216029 1.345854 1.356359 1.350194 1.575831 1.355027 1.447311 1.317794 1.345888 0.844182 1.316034 1.246116 1.341811 1.214408 1.603132 1.338208 1.353566 1.207331 1.384773 0.871862 1.263172 1.183300 1.317644 1.296239
 # Observed data for 2 obstacles
 #observed_data	1.439478 1.427827 1.677685 1.137933 1.087015 0.941399 1.685526 1.436638 1.121427 1.270909 1.509609 1.405698 1.553082 1.371944 1.306100 1.065633 1.766364 1.148386 1.349967 1.350273 1.448787 1.455805 1.615799 1.619908 1.255048 0.932650 1.617136 1.087480 1.287901 1.398660 1.622786 1.518387 1.651682 1.579377 1.259158 1.050172 1.730922 1.016449 1.348416 1.333852
 #Observed data for 3 obstacles
@@ -49,8 +49,9 @@ sgi_jobsize	20
 mcmc_is_progress		no
 # Output frequency (MCMC steps): print progress every N MCMC steps
 mcmc_progress_freq_step	1000
-# Number of MCMC chains to be used (for ParallelTempering)
-mcmc_num_chains			20
+# Maximum number of MCMC chains to be used (for ParallelTempering).
+# Acutal number of chains = min(num_mpi_ranks, mcmc_max_chains).
+mcmc_max_chains			20
 
 #------------------
 # Model NS setting

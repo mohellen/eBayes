@@ -19,6 +19,7 @@
 #ifndef MODEL_FORWARDMODEL_HPP_
 #define MODEL_FORWARDMODEL_HPP_
 
+#include <tools/Config.hpp>
 #include <cstddef>
 #include <cmath>
 #include <string>
@@ -29,41 +30,22 @@
 #include <iterator>
 #include <algorithm>
 
-#define MASTER 	0
-
-#define SGI_OUT_TIMER			1 //(1 or 0)
-#define SGI_OUT_RANK_PROGRESS	1 //(1 or 0)
-#define SGI_OUT_GRID_POINTS		0 //(1 or 0)
-#define SGI_MPIMW_TRUNK_SIZE	10 //(integer)
-#define MCMC_OUT_PROGRESS		1 //(1 or 0)
-#define MCMC_OUT_FREQ			1000 //(integer)
-#define MCMC_MAX_CHAINS 		20	//(integer)
-
 
 class ForwardModel
 {
 protected:
-	std::size_t input_size = 0;
-	std::size_t output_size = 0;
+	Config const& cfg; //const referenct to config object
 
 public:
 	// Define virtual destructor
 	virtual ~ForwardModel() {}
 
-	ForwardModel() {}
+	ForwardModel(Config const& c) : cfg(c) {}
 
-	ForwardModel(std::size_t lin, std::size_t lout)
-			: input_size(lin), output_size(lout) {}
+	virtual std::pair<double,double> get_input_space(int dim) const = 0;
 
-	virtual std::size_t get_input_size() = 0;
-
-	virtual std::size_t get_output_size() = 0;
-
-	virtual void get_input_space(
-			int dim,
-			double& min,
-			double& max) = 0;
-
-	virtual void run(const double* m, double* d) = 0;
+	virtual std::vector<double> run(
+			std::vector<double> const& m,
+			bool write_vtk=false) = 0; // By default no VTK output
 };
 #endif /* MODEL_FORWARDMODEL_HPP_ */
