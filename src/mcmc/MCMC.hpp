@@ -21,6 +21,8 @@
 
 #include <model/ForwardModel.hpp>
 #include <tools/Parallel.hpp>
+#include <tools/Config.hpp>
+
 #include <mpi.h>
 #include <vector>
 #include <string>
@@ -41,52 +43,35 @@
 
 class MCMC {
 protected:
-	Parallel& par;			// Reference to external object
-	ForwardModel& model;	// Reference to external object
-
-	int num_chains;
-	std::size_t input_size;
-	std::size_t output_size;
-	std::unique_ptr<double[]> rand_walk_size;
-	std::unique_ptr<double[]> observed_data;
-	double observed_data_noise;
-	double pos_sigma;
+	Config const& cfg;		// Const reference to config object
+	Parallel & par;			// Reference to parallel object
+	ForwardModel & model;	// Reference to foward model object
+	// Number of parallel MCMC chains = min(mpisize, max_chains).
+	// Only ranks with (mpirank < num_chains) participate in MCMC computation, others idle
+	std::size_t num_chains;
 
 public:
 	virtual ~MCMC() {}
 
-	MCMC(
-			Parallel& para,
-			ForwardModel& forwardmodel,
-			const std::string& observed_data_file,
-			double rand_walk_size_domain_percent);
+	MCMC(	
+			Config const& c,
+			Parallel & p,
+			ForwardModel & m);
 
-	virtual void run(
-			const std::string& outpath,
-			int num_samples,
-			const std::vector<std::vector<double> >& init_sample_pos = {}) = 0;
+	virtual void run(std::size_t num_samples) = 0;
 
 protected:
-	double* gen_random_sample();
-
-	double* gen_init_sample(
-			const std::string& rank_output_file,
-			const std::vector<std::vector<double> >& init_sample_pos);
-
-	bool read_maxpos_sample(
-			std::fstream& fin,
-			double* point,
-			double& pos);
-
-	void write_sample_pos(
-			std::fstream& fout,
-			const double* point,
-			double pos);
-
 	void one_step_single_dim(
-			int dim,
-			double& pos,
-			double* p,
-			double* d);
+			std::size_t dim,
+			std::vector<double> & samplepos);
+
+	std::vector<double> read_max_samplepos(std::fstream& fin);
+
+	void write_samplepos(
+			std::fstream& fout,
+			std::vector<double> const& samplepos);
+
+	std::vector<double> initialize_samplepos(
+			std::vector<double> const& init_samplepos = std::vector<double>()); // optional argument
 };
 #endif /* MCMC_MCMC_HPP_ */

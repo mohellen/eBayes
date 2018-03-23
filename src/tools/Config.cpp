@@ -1,4 +1,4 @@
-#include "Config.hpp"
+#include <tools/Config.hpp>
 
 
 using namespace std;
@@ -68,16 +68,6 @@ void Config::add_params()
 	Param p;
 	
 	// Global setting
-	var = "global_is_resume_job";
-	p.des = "Set to create grid from grid files in specified path. (Default: no) (Options: yes|true|no|false)";
-	p.val = "no";
-	params[var] = p;
-
-	var = "global_resume_from_path";
-	p.des = "Directory containing the grid files to create grid for a resumed job. (Default: ) (Type: string)";
-	p.val = "/my/resumed/path";
-	params[var] = p;
-
 	var = "global_output_path";
 	p.des = "Path for resulting grid files and other outputs. (Default: ./output) (Type: string)";
 	p.val = "./output";
@@ -100,6 +90,16 @@ void Config::add_params()
 	params[var] = p;
 
 	// Surrogate SGI setting
+	var = "sgi_is_from_files";
+	p.des = "Set to bulid SGI surrogate model from SGI output files (from previous job), instead of creating from scratch. (Default: no) (Options: yes|true|no|false)";
+	p.val = "no";
+	params[var] = p;
+
+	var = "sgi_from_path";
+	p.des = "Directory containing the SGI output files (from previous job) to create SGI model. (Default: ) (Type: string)";
+	p.val = "";
+	params[var] = p;
+
 	var = "sgi_is_masterworker";
 	p.des = "SGI construction style, enable to use Master-Worker (iMPI or MPI), disable to use SIMD (MPI only). (Default: yes) (Options: yes|true|no|false)";
 	p.val = "yes";

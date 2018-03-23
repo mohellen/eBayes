@@ -22,14 +22,14 @@
 #include<mpi.h>
 
 class Parallel {
+// These members are public because they are updated directly by mpi functions in other classes
 public:
-	int mpisize = 0;
+	int mpisize = 1;	// minimum size is 1, no matter what
 	int mpirank = 0;
 	int mpistatus = -1; //invalid mpi status by default
 
 public:
 	// use default constructor
-	
 	~Parallel(){}
 
 	inline

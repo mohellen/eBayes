@@ -9,11 +9,6 @@
 #------------------
 # General setting
 #------------------
-# In a resumed job, grid will be loaded from files in the output path
-# Only in a new job, grid will be created from scratch
-global_is_resume_job	yes
-# Directory containing the grid files to create grid for a resumed job.
-global_resume_from_path		
 # Grid files and all other output files will be created in this specified location
 global_output_path		./output
 # Assumed noise level in observed data
@@ -37,6 +32,11 @@ impi_adapt_freq_sec	60
 #------------------------
 # Surrogate SGI setting
 #------------------------
+# In a resumed job, grid will be loaded from files in the output path
+# Only in a new job, grid will be created from scratch
+sgi_is_from_files			no
+# Directory containing the grid files to create grid for a resumed job.
+sgi_from_path		
 # SGI construction using Master-worker (for iMPI and MPI) or SIMD (for MPI only) style
 sgi_is_masterworker			yes
 # For SGI construction master-worker style, job size (# of grid points to compute in each job)
