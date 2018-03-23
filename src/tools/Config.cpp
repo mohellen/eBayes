@@ -40,9 +40,26 @@ Config::Config(int argc, char** argv)
 	for (auto it=tokens.begin(); it != tokens.end(); ++it) {
 		observation.push_back(stod(*it));
 	}
-	// Get observation noise
-	observation_noise = stod(params.at("global_observation_noise").val);
-	return;	
+	// Compute observation sigma := noise * mean(observation)
+	double noise = stod(params.at("global_observation_noise").val);
+	double mean = 0.0;
+	for (double d: observation)
+		mean += d;
+	mean /= observation.size();
+	observation_sigma = noise * mean;
+	return;
+}
+
+double Config::compute_posterior(std::vector<double> const& data) const
+{
+	if (observation.size() != data.size()) {
+		cout << tools::red << "ERROR: vectors size mismatch. Program abort." << tools::reset << endl;
+		exit(EXIT_FAILURE);
+	}
+	double sum = 0.0;
+	for (int i=0; i < data.size(); ++i)
+		sum += (data[i] - observation[i])*(data[i] - observation[i]);
+	return exp(-0.5 * sum / (observation_sigma*observation_sigma));
 }
 
 void Config::add_params()
@@ -94,6 +111,11 @@ void Config::add_params()
 	params[var] = p;
 
 	// MCMC setting
+	var = "mcmc_randwalk_step";
+	p.des = "MCMC use a random walk step = X * domain size (X in [0.0, 1.0]). (Default: 0.2) (Type: double)";
+	p.val = "0.2";
+	params[var] = p;
+
 	var = "mcmc_is_progress";
 	p.des = "Enable to output MCMC progress. (Default: no) (Options: yes|true|no|false)";
 	p.val = "no";
@@ -325,36 +347,6 @@ double tools::compute_l2norm(
 	for (int i=0; i < d1.size(); ++i)
 		tmp += (d1[i] - d2[i])*(d1[i] - d2[i]);
 	return sqrt(tmp);
-}
-
-double tools::compute_posterior_sigma(
-		vector<double> const& observation,
-		double observation_noise)
-{
-	if (observation.size() <= 0) {
-		cout << red << "ERROR: no observation data. Program abort." << reset << endl;
-		exit(EXIT_FAILURE);
-	}
-	double mean = 0.0;
-	for (double d: observation)
-		mean += d;
-	mean /= observation.size();
-	return observation_noise * mean;
-}
-
-double tools::compute_posterior(
-		vector<double> const& observation,
-		vector<double> const& data,
-		double sigma)
-{
-	if (observation.size() != data.size()) {
-		cout << red << "ERROR: vectors size mismatch. Program abort." << reset << endl;
-		exit(EXIT_FAILURE);
-	}
-	double sum = 0.0;
-	for (int i=0; i < data.size(); ++i)
-		sum += (data[i] - observation[i])*(data[i] - observation[i]);
-	return exp(-0.5 * sum / (sigma*sigma));
 }
 
 

@@ -45,6 +45,8 @@ sgi_jobsize	20
 #------------------
 # MCMC setting
 #------------------
+# MCMC use a random walk step = N * domain size (N in [0.0, 1.0]).
+mcmc_randwalk_step		0.389
 # Enable printing progress 
 mcmc_is_progress		no
 # Output frequency (MCMC steps): print progress every N MCMC steps

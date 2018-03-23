@@ -54,13 +54,14 @@ public:
 	std::size_t get_input_size() const {return insize;}
 	std::size_t get_output_size() const {return observation.size();}
 	std::vector<double> get_observation() const {return observation;}
-	double get_observation_noise() const {return observation_noise;}
-
+	//double get_observation_sigma() const {return observation_sigma;} // this is no longer needed
 	// Retrieve parameter value
 	std::string get_param(std::string var) const {return params.at(var).val;}
+	// Compute the posteria for a given simulation data
+	double compute_posterior(std::vector<double> const& data) const;
 
 private:
-	std::string config_file = "";
+	std::string config_file = ""; // Config_file is optional
 
 	// Sorted list of parameters: <parameter_name> (key), <description, value> (value)
 	struct Param {
@@ -72,7 +73,7 @@ private:
 	// Inverse problem y = f(x) dimensions: insize -> x, outsize -> y
 	std::size_t insize;
 	std::vector<double> observation;
-	double observation_noise;
+	double observation_sigma; // sigma := noise * mean(observation)
 
 	void add_params();	// Add/define all parameters
 	void parse_file();	// Parse from input file
@@ -102,15 +103,6 @@ namespace tools
 	double compute_l2norm(
 			std::vector<double> const& d1,
 			std::vector<double> const& d2);
-
-	double compute_posterior_sigma(
-			std::vector<double> const& observation,
-			double observation_noise);
-
-	double compute_posterior(
-			std::vector<double> const& observation,
-			std::vector<double> const& data,
-			double sigma);
 }
 
 #endif
