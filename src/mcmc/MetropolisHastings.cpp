@@ -20,71 +20,55 @@
 
 using namespace std;
 
+
 void MetropolisHastings::run(
-		const string& outpath, 	/// Input
-		int num_samples,					/// Input
-		const vector<vector<double> >& init_sample_pos) /// Optional input
+			std::size_t num_samples,
+			std::vector<double> const& init_samplepos)
 {
+	// Each MCMC chain is pinned to a MPI process
+	// Ranks with (mpirank > num_chains) do NOT participate in MCMC computation
 	if (par.mpirank >= num_chains) return;
 
-	// Initialize rank specific output file
-	string rank_output_file = outpath +
-			"mcmcmh_r" + std::to_string(par.mpirank) + ".dat";
-
-	// Initialize rank specific initial sample & pos
-	unique_ptr<double[]> rank_sample_pos (
-			gen_init_sample(rank_output_file, init_sample_pos));
-
 	// Initialize starting point & maxpos point
-	double pos, maxpos;
-	unique_ptr<double[]> p (new double[input_size]);
-	unique_ptr<double[]> d (new double[output_size]);
-	unique_ptr<double[]> maxpos_p (new double[input_size]);
+	std::size_t input_size = cfg.get_input_size();
+	vector<double> samplepos = initialize_samplepos(init_samplepos);
+	vector<double> max_samplepos = samplepos;
 
-	for (size_t i=0; i < input_size; i++) {
-		p[i] = rank_sample_pos[i];
-		maxpos_p[i] = rank_sample_pos[i];
-	}
-	pos = rank_sample_pos[input_size];
-	maxpos = rank_sample_pos[input_size];
-
+	// Initialize rank specific output file
+	string rank_output_file = cfg.get_param("global_output_path") +
+			"mcmcmh_r" + std::to_string(par.mpirank) + "samplepos.txt";
 	// Open file: append if exists, or create it if not
 	fstream fout (rank_output_file, fstream::in | fstream::out | fstream::app);
 	if (!fout) {
-		fflush(NULL);
-		printf("MCMC open output file \"%s\" failed. Abort!\n", rank_output_file.c_str());
+		cout << tools::red << "ERROR: MCMC open output file \"%s\" failed. Program abort.\n"
+				<< tools::reset << endl;
 		exit(EXIT_FAILURE);
 	}
 	// Run the MCMC chain
 	int dim = 0;
-	for (int it=0; it < num_samples; it++) {
-
+	for (int it=0; it < num_samples; ++it) {
 		// 1. Perform 1 MCMC step
 		dim = it%input_size;
-		one_step_single_dim(dim, pos, p.get(), d.get());
+		one_step_single_dim(dim, samplepos);
 
 		// 2. write result
-		write_sample_pos(fout, p.get(), pos);
+		write_samplepos(fout, samplepos);
 
 		// 3. Get max posterior and the corresponding sample point
-		if (pos > maxpos) {
-			maxpos = pos;
-			for (int i=0; i < input_size; i++)
-				maxpos_p[i] = p[i];
+		if (samplepos.back() > max_samplepos.back()) {
+			max_samplepos = samplepos;
 		}
 		// 4. keeping track
 #if (MCMC_OUT_PROGRESS == 1)
-		if (par.is_master() && ((it+1)%MCMC_OUT_FREQ == 0)) {
-			fflush(NULL);
-			printf("\n%d mcmc steps completed.\n", it+1);
-			printf("Current maxpos: %s  %f\n", ForwardModel::arr_to_string(p.get(), input_size).c_str(), pos);
+		if (par.is_master() && ((it+1) % stoi(cfg.get_param("mcmc_progress_freq_step")) == 0)) {
+			cout << it+1 <<	" mcmc steps completed.\n";
+			cout << "Current max. posterior: " << tools::samplepos_to_string(max_samplepos) << endl;
 		}
 #endif
 	}
 	// Insert MAXPOS point to file
 	fout << "MAXPOS ";
-	write_sample_pos(fout, maxpos_p.get(), maxpos);
-
+	write_samplepos(fout, max_samplepos);
 	fout.close();
 	return;
 }

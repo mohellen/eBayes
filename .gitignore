@@ -21,4 +21,6 @@ tags
 bin
 out
 output
-lib
+debug/*
+!debug/Makefile
+!debug/debug.cpp

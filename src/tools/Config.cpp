@@ -349,6 +349,15 @@ double tools::compute_l2norm(
 	return sqrt(tmp);
 }
 
+string tools::samplepos_to_string(vector<double> const& v)
+{
+	std::ostringstream oss;
+	oss << "sample = [" << std::fixed << std::setprecision(6);
+	for (int i=0; i < v.size()-2; ++i)
+		oss << v[i] << ", ";
+	oss << v[v.size()-2] << "], posterior = " << v.back();
+	return oss.str();
+}
 
 //int main(int argc, char* argv[])
 //{

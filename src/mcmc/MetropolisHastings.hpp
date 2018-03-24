@@ -19,9 +19,13 @@
 #ifndef MCMC_METROPOLISHASTINGS_HPP_
 #define MCMC_METROPOLISHASTINGS_HPP_
 
-#include <model/ForwardModel.hpp>
 #include <mcmc/MCMC.hpp>
+#include <tools/Config.hpp>
+#include <tools/Parallel.hpp>
+#include <model/ForwardModel.hpp>
+
 #include <string>
+#include <vector>
 #include <memory>
 #include <random>
 #include <chrono>
@@ -33,15 +37,12 @@ public:
 	~MetropolisHastings() {}
 
 	MetropolisHastings(
-			Parallel& par,
-			ForwardModel& model,
-			const std::string& observed_data_file,
-			double rand_walk_size_domain_percent = 0.2)
-			: MCMC(par, model, observed_data_file, rand_walk_size_domain_percent) {}
+			Config const& c,
+			Parallel & p,
+			ForwardModel & m) : MCMC(c, p, m) {}
 
 	void run(
-			const std::string& outpath,
-			int num_samples,
-			const std::vector<std::vector<double> >& init_sample_pos = {});
+			std::size_t num_samples,
+			std::vector<double> const& init_samplepos = std::vector<double>()); // optional init vector
 };
 #endif /* MCMC_METROPOLISHASTINGS_HPP_ */

@@ -97,7 +97,10 @@ namespace tools
 	//const std::string& colorerr = red;
 	
 	// trim white space from a string
-	std::string trim_white_space(const std::string& str);
+	std::string trim_white_space(std::string const& str);
+
+	// for easy printing samplepos vector
+	std::string samplepos_to_string(std::vector<double> const& v);
 
 	// Compute the l2norm of two vectors
 	double compute_l2norm(

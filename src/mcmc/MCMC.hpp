@@ -58,7 +58,9 @@ public:
 			Parallel & p,
 			ForwardModel & m);
 
-	virtual void run(std::size_t num_samples) = 0;
+	virtual void run(
+			std::size_t num_samples,
+			std::vector<double> const& init_samplepos = std::vector<double>()) = 0;
 
 protected:
 	void one_step_single_dim(
