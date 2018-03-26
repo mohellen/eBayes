@@ -10,6 +10,7 @@
 #include <iterator>
 #include <algorithm>
 #include <iomanip> //for std::setprecision
+#include <cstdlib> //for system()
 
 // Global enum type, so that everybody knows what are the available scenarios
 enum Scenario {

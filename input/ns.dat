@@ -45,6 +45,8 @@ sgi_masterworker_jobsize	10
 #------------------
 # MCMC setting
 #------------------
+# Number of samples to draw with the MCMC solver
+mcmc_num_samples		20000
 # MCMC use a random walk step = N * domain size (N in [0.0, 1.0]).
 mcmc_randwalk_step		0.1
 # Enable printing progress 

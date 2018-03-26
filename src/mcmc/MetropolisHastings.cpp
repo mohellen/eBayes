@@ -36,14 +36,17 @@ void MetropolisHastings::run(
 
 	// Initialize rank specific output file
 	string rank_output_file = cfg.get_param("global_output_path") +
-			"mcmcmh_r" + std::to_string(par.mpirank) + "samplepos.txt";
-	// Open file: append if exists, or create it if not
-	fstream fout (rank_output_file, fstream::in | fstream::out | fstream::app);
+			"/mcmcmh_r" + std::to_string(par.mpirank) + "_samplepos.txt";
+	// Open file:
+	//fstream fout (rank_output_file, fstream::out | fstream::app); // Append if file exists
+	fstream fout (rank_output_file, fstream::out | ios::trunc); // Overwrite if file exists
 	if (!fout) {
 		cout << tools::red << "ERROR: MCMC open output file \"%s\" failed. Program abort.\n"
 				<< tools::reset << endl;
 		exit(EXIT_FAILURE);
 	}
+	// Write initial MCMC sample
+	write_samplepos(fout, samplepos);
 	// Run the MCMC chain
 	int dim = 0;
 	for (int it=0; it < num_samples; ++it) {

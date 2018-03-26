@@ -123,6 +123,12 @@ vector<double> NS::run(
 		std::vector<double> const& m,
 		bool write_vtk)
 {
+	// Check input parameter validity
+	if (m.size() != cfg.get_input_size()) {
+		cout << tools::red << "ERROR: input parameter size mismatch. Program abort." << tools::reset << endl;
+		exit(EXIT_FAILURE);
+	}
+
 	vector<double> d (cfg.get_output_size());
 	double t = 0.0;
 	double dt = 0.0;

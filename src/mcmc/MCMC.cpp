@@ -119,6 +119,7 @@ void MCMC::write_samplepos(
 	return;
 }
 
+
 vector<double> MCMC::initialize_samplepos(
 		vector<double> const& init_samplepos)
 {	
@@ -127,9 +128,9 @@ vector<double> MCMC::initialize_samplepos(
 	vector<double> samplepos (input_size + 1);
 
 	// Use the init_samplepos if provided
-	if (init_samplepos.size() == input_size + 1) {
+	if (init_samplepos.size() == samplepos.size()) {
 		samplepos = init_samplepos;
-	// Or generate a random one (posterior is 0.0)
+	// Or generate a random one
 	} else {
 		mt19937 gen (chrono::system_clock::now().time_since_epoch().count());
 		for (size_t i=0; i < input_size; i++) {
@@ -137,6 +138,9 @@ vector<double> MCMC::initialize_samplepos(
 			uniform_real_distribution<double> udist(range.first, range.second);
 			samplepos[i] = udist(gen);
 		}
+		samplepos.pop_back(); // To make it exact input_size for now
+		vector<double> d = model.run(samplepos);
+		samplepos.push_back( cfg.compute_posterior(d) ); // put posterior to end
 	}
 	return samplepos;
 }

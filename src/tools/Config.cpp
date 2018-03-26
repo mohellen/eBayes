@@ -47,6 +47,10 @@ Config::Config(int argc, char** argv)
 		mean += d;
 	mean /= observation.size();
 	observation_sigma = noise * mean;
+
+	// Make output dir if not exists
+	string cmd = "mkdir -p " + get_param("global_output_path");
+	system(cmd.c_str());
 	return;
 }
 
@@ -111,6 +115,11 @@ void Config::add_params()
 	params[var] = p;
 
 	// MCMC setting
+	var = "mcmc_num_samples";
+	p.des = "Number of samples to draw using the MCMC solver. (Default: 20000) (Type: positive integer)";
+	p.val = "20000";
+	params[var] = p;
+
 	var = "mcmc_randwalk_step";
 	p.des = "MCMC use a random walk step = X * domain size (X in [0.0, 1.0]). (Default: 0.2) (Type: double)";
 	p.val = "0.2";
