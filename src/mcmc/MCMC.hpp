@@ -69,11 +69,15 @@ protected:
 
 	std::vector<double> read_max_samplepos(std::fstream& fin);
 
+	std::fstream open_output_file();
+
 	void write_samplepos(
 			std::fstream& fout,
 			std::vector<double> const& samplepos);
 
 	std::vector<double> initialize_samplepos(
 			std::vector<double> const& init_samplepos = std::vector<double>()); // optional argument
+
+	void print_progress(int iter, std::vector<double> const& max_samplepos);
 };
 #endif /* MCMC_MCMC_HPP_ */

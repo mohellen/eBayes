@@ -108,6 +108,22 @@ vector<double> MCMC::read_max_samplepos(fstream& fin)
 	return samplepos; 
 }
 
+fstream MCMC::open_output_file()
+{
+	// Initialize rank specific output file
+	string rank_output_file = cfg.get_param("global_output_path") +
+			"/mcmcmh_r" + std::to_string(par.mpirank) + "_samplepos.txt";
+	// Open file:
+	//fstream fout (rank_output_file, fstream::out | fstream::app); // Append if file exists
+	fstream fout (rank_output_file, fstream::out | ios::trunc); // Overwrite if file exists
+	if (!fout) {
+		cout << tools::red << "ERROR: MCMC open output file " << rank_output_file
+				<< " failed. Program abort.\n" << tools::reset << endl;
+		exit(EXIT_FAILURE);
+	}
+	return fout;
+}
+
 void MCMC::write_samplepos(
 		fstream& fout,
 		vector<double> const& samplepos)
@@ -118,7 +134,6 @@ void MCMC::write_samplepos(
 	fout << samplepos.back() << endl;
 	return;
 }
-
 
 vector<double> MCMC::initialize_samplepos(
 		vector<double> const& init_samplepos)
@@ -145,4 +160,12 @@ vector<double> MCMC::initialize_samplepos(
 	return samplepos;
 }
 
-
+void MCMC::print_progress(int iter, vector<double> const& max_samplepos)
+{
+	if ((iter+1) % stoi(cfg.get_param("mcmc_progress_freq_step")) == 0) {
+		cout << tools::green << "MCMC: Rank " << par.mpirank
+			<< " completed " << iter+1 << " steps. Current max.: "
+			<< tools::samplepos_to_string(max_samplepos) << tools::reset << endl;
+	}
+	return;
+}

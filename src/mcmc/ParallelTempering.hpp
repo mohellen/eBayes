@@ -19,9 +19,10 @@
 #ifndef MCMC_PARALLELTEMPERING_HPP_
 #define MCMC_PARALLELTEMPERING_HPP_
 
-#include <model/ForwardModel.hpp>
 #include <mcmc/MCMC.hpp>
-#include <surrogate/SGI.hpp>
+#include <tools/Config.hpp>
+#include <tools/Parallel.hpp>
+#include <model/ForwardModel.hpp>
 
 #include <mpi.h>
 #include <cmath>
@@ -40,17 +41,12 @@ public:
 	~ParallelTempering() {}
 
 	ParallelTempering(
-			Parallel& par,
-			ForwardModel& forwardmodel,
-			const std::string& observed_data_file,
-			double mixing_chain_rate,
-			double rand_walk_size_domain_percent = 0.2);
-
-	int get_num_chains();
+			Config const& c,
+			Parallel & p,
+			ForwardModel & m) : MCMC(c, p, m) {}
 
 	void run(
-			const std::string& outpath,
-			int num_samples,
-			const std::vector<std::vector<double> >& init_sample_pos = {});
+			std::size_t num_samples,
+			std::vector<double> const& init_samplepos = std::vector<double>()); // optional init vector
 };
 #endif /* MCMC_PARALLELTEMPERING_HPP_ */

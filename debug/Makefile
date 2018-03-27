@@ -8,6 +8,7 @@ CFLAGS+=-Wno-deprecated
 CFLAGS+=-I../src -I../dep -I../dep/sgpp-base-2.0.0/base/src -I$(IMPIPATH)/include
 CFLAGS+=-DGLOBAL_SCENARIO=1
 CFLAGS+=-DMCMC_OUT_PROGRESS=1
+CFLAGS+=-DMPI_MASTER=0
 
 LDFLAGS+=-L$(IMPIPATH)/lib -lmpi
 
@@ -21,6 +22,7 @@ DEP+=$(SRCDIR)/model/ForwardModel.hpp
 DEP+=$(SRCDIR)/model/NS.hpp
 DEP+=$(SRCDIR)/mcmc/MCMC.hpp
 DEP+=$(SRCDIR)/mcmc/MetropolisHastings.hpp
+DEP+=$(SRCDIR)/mcmc/ParallelTempering.hpp
 
 OBJ=$(BUILDDIR)/debug.o
 OBJ+=$(BUILDDIR)/Config.o
@@ -28,6 +30,7 @@ OBJ+=$(BUILDDIR)/Parallel.o
 OBJ+=$(BUILDDIR)/NS.o
 OBJ+=$(BUILDDIR)/MCMC.o
 OBJ+=$(BUILDDIR)/MetropolisHastings.o
+OBJ+=$(BUILDDIR)/ParallelTempering.o
 
 
 all: $(TARGET) 
@@ -51,6 +54,9 @@ $(BUILDDIR)/MCMC.o: $(SRCDIR)/mcmc/MCMC.cpp $(DEP)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(BUILDDIR)/MetropolisHastings.o: $(SRCDIR)/mcmc/MetropolisHastings.cpp $(DEP)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(BUILDDIR)/ParallelTempering.o: $(SRCDIR)/mcmc/ParallelTempering.cpp $(DEP)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 

@@ -56,6 +56,8 @@ mcmc_progress_freq_step	1000
 # Number of MCMC chains to be used (for ParallelTempering)
 # Acutal number of chains = min(num_mpi_ranks, mcmc_max_chains).
 mcmc_max_chains			20
+# For Parallel Tempering only: how often (percentage) to mix chains
+mcmc_chain_mixing_rate	0.2
 
 #------------------
 # Model NS setting

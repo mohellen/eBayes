@@ -140,6 +140,11 @@ void Config::add_params()
 	p.val = "20";
 	params[var] = p;
 
+	var = "mcmc_chain_mixing_rate";
+	p.des = "For Parallel Tempering only: how frequent (percentage in [0.0, 1.0]) to mix chains. (Default: 0.2) (Type: double)";
+	p.val = "0.2";
+	params[var] = p;
+
 	// Model NS setting
 	var = "ns_domain_size_x";
 	p.des = "Domain size in meters x-direction. (Default: 10.0) (Type: double)";

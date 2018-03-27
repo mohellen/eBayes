@@ -29,24 +29,16 @@ void MetropolisHastings::run(
 	// Ranks with (mpirank > num_chains) do NOT participate in MCMC computation
 	if (par.mpirank >= num_chains) return;
 
+	// Output file
+	fstream fout = open_output_file();
+	
 	// Initialize starting point & maxpos point
 	std::size_t input_size = cfg.get_input_size();
 	vector<double> samplepos = initialize_samplepos(init_samplepos);
 	vector<double> max_samplepos = samplepos;
-
-	// Initialize rank specific output file
-	string rank_output_file = cfg.get_param("global_output_path") +
-			"/mcmcmh_r" + std::to_string(par.mpirank) + "_samplepos.txt";
-	// Open file:
-	//fstream fout (rank_output_file, fstream::out | fstream::app); // Append if file exists
-	fstream fout (rank_output_file, fstream::out | ios::trunc); // Overwrite if file exists
-	if (!fout) {
-		cout << tools::red << "ERROR: MCMC open output file \"%s\" failed. Program abort.\n"
-				<< tools::reset << endl;
-		exit(EXIT_FAILURE);
-	}
 	// Write initial MCMC sample
 	write_samplepos(fout, samplepos);
+
 	// Run the MCMC chain
 	int dim = 0;
 	for (int it=0; it < num_samples; ++it) {
@@ -63,10 +55,7 @@ void MetropolisHastings::run(
 		}
 		// 4. keeping track
 #if (MCMC_OUT_PROGRESS == 1)
-		if (par.is_master() && ((it+1) % stoi(cfg.get_param("mcmc_progress_freq_step")) == 0)) {
-			cout << it+1 <<	" mcmc steps completed.\n";
-			cout << "Current max. posterior: " << tools::samplepos_to_string(max_samplepos) << endl;
-		}
+		print_progress(it, max_samplepos);
 #endif
 	}
 	// Insert MAXPOS point to file
