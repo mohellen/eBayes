@@ -20,8 +20,9 @@
 #define SURROGATE_SGI_HPP_
 
 #include <model/ForwardModel.hpp>
-#include <model/NS.hpp>
 #include <tools/Parallel.hpp>
+#include <tools/Config.hpp>
+#include <model/NS.hpp>
 #include <sgpp_base.hpp>
 
 #include <mpi.h>
@@ -42,22 +43,29 @@
 class SGI : public ForwardModel
 {
 private:
-	Parallel& par; //Reference to external object
+	Config const& cfg;			// Const reference to config object
+	Parallel & par;				// Reference to parallel object
+	ForwardModel & fullmodel;	// Reference to a FULL forward model
 
 #if defined(IMPI)
 	std::size_t impi_gpoffset; //MPI_UNSIGNED_LONG
 #endif
 
-	std::string outprefix;
-	std::unique_ptr<ForwardModel> 			  	fullmodel; //Object owned by SGI, should live and die with SGI
-	std::unique_ptr<sgpp::base::Grid> 		  	grid;
-	std::unique_ptr<sgpp::base::DataVector[]> 	alphas;
-	std::unique_ptr<sgpp::base::OperationEval> 	eval;
-	std::unique_ptr<sgpp::base::BoundingBox>	bbox;
+//	std::string outprefix;
+//	std::unique_ptr<ForwardModel> 			  	fullmodel; //Object owned by SGI, should live and die with SGI
+//	std::unique_ptr<sgpp::base::Grid> 		  	grid;
+//	std::unique_ptr<sgpp::base::DataVector[]> 	alphas;
+//	std::unique_ptr<sgpp::base::OperationEval> 	eval;
+//	std::unique_ptr<sgpp::base::BoundingBox>	bbox;
+//	f ~= sum_i ( alpha_i * phi_i (x) )
+	sgpp::base::Grid 		  				grid;	// Sparse grid, containing grid points (input parameters)
+	std::vector<sgpp::base::DataVector> 	alphas;	// Vector of alphas (vector.size() = output_size, each alpha.size() = num_grid_points)
+	sgpp::base::OperationEval 	eval;
+	sgpp::base::BoundingBox		bbox;
 	
-	std::unique_ptr<double[]> odata;
-	double noise;
-	double sigma;
+//	std::unique_ptr<double[]> odata;
+//	double noise;
+//	double sigma;
 	double maxpos;
 	std::size_t maxpos_seq;
 	
@@ -70,16 +78,19 @@ public:
 			int resx,
 			int resy);
 
-	std::size_t get_input_size();
+//	std::size_t get_input_size();
 
-	std::size_t get_output_size();
+//	std::size_t get_output_size();
 
-	void get_input_space(
-			int dim,
-			double& min,
-			double& max);
+//	void get_input_space(
+//			int dim,
+//			double& min,
+//			double& max);
 
-	void run(const double* m, double* d);
+//	void run(const double* m, double* d);
+	std::vector<double> run(
+			std::vector<double> const& m,
+			bool write_vtk=false);
 	
 	void build(
 			std::size_t init_level = 4,
