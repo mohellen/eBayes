@@ -47,22 +47,20 @@ private:
 	Parallel & par;				// Reference to parallel object
 	ForwardModel & fullmodel;	// Reference to a FULL forward model
 
+	// Abstract type cannot be instanciated, must use pointer
+	std::unique_ptr<sgpp::base::Grid> 		  	grid; // Sparse grid, containing grid points (input parameters)
+	std::unique_ptr<sgpp::base::DataVector[]> 	alphas; // Vector of alphas (vector.size() = output_size, each alpha.size() = num_grid_points), f ~= sum_i ( alpha_i * phi_i (x) )
+	std::unique_ptr<sgpp::base::OperationEval> 	eval;
+	std::unique_ptr<sgpp::base::BoundingBox>	bbox;
+
 #if defined(IMPI)
 	std::size_t impi_gpoffset; //MPI_UNSIGNED_LONG
 #endif
 
+	std::vector<std::vector> top_maxpos;
+
 //	std::string outprefix;
 //	std::unique_ptr<ForwardModel> 			  	fullmodel; //Object owned by SGI, should live and die with SGI
-//	std::unique_ptr<sgpp::base::Grid> 		  	grid;
-//	std::unique_ptr<sgpp::base::DataVector[]> 	alphas;
-//	std::unique_ptr<sgpp::base::OperationEval> 	eval;
-//	std::unique_ptr<sgpp::base::BoundingBox>	bbox;
-//	f ~= sum_i ( alpha_i * phi_i (x) )
-	sgpp::base::Grid 		  				grid;	// Sparse grid, containing grid points (input parameters)
-	std::vector<sgpp::base::DataVector> 	alphas;	// Vector of alphas (vector.size() = output_size, each alpha.size() = num_grid_points)
-	sgpp::base::OperationEval 	eval;
-	sgpp::base::BoundingBox		bbox;
-	
 //	std::unique_ptr<double[]> odata;
 //	double noise;
 //	double sigma;

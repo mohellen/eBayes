@@ -43,9 +43,7 @@ Parallel par;
 
 void test_ns_mpi()
 {
-#if(1==0)
-	string inputfile = "./input/obstacles_in_flow.dat";
-
+#if(1==1)
 	NS* fm = new NS(inputfile, 1, 1);
 	std::size_t input_size = fm->get_input_size();
 	std::size_t output_size = fm->get_output_size();
@@ -97,7 +95,7 @@ void test_ns_mpi()
 
 void run_asgi()
 {
-#if (1==1)
+#if (1==0)
 	int init_level = 4;
 	int nsamples = 50000;
 	bool isCreateNewGrid = false;

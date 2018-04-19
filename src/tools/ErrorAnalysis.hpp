@@ -19,7 +19,7 @@
 #ifndef TOOLS_ERRORANALYSIS_HPP_
 #define TOOLS_ERRORANALYSIS_HPP_
 
-#include <model/ForwardModel.hpp>
+#include <tools/Config.hpp>
 
 #include <memory>
 #include <iostream>

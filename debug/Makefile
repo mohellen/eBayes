@@ -23,6 +23,7 @@ DEP+=$(SRCDIR)/model/NS.hpp
 DEP+=$(SRCDIR)/mcmc/MCMC.hpp
 DEP+=$(SRCDIR)/mcmc/MetropolisHastings.hpp
 DEP+=$(SRCDIR)/mcmc/ParallelTempering.hpp
+DEP+=$(SRCDIR)/surrogate/SGI.hpp
 
 OBJ=$(BUILDDIR)/debug.o
 OBJ+=$(BUILDDIR)/Config.o
@@ -31,6 +32,7 @@ OBJ+=$(BUILDDIR)/NS.o
 OBJ+=$(BUILDDIR)/MCMC.o
 OBJ+=$(BUILDDIR)/MetropolisHastings.o
 OBJ+=$(BUILDDIR)/ParallelTempering.o
+OBJ+=$(BUILDDIR)/SGI.o
 
 
 all: $(TARGET) 
@@ -57,6 +59,9 @@ $(BUILDDIR)/MetropolisHastings.o: $(SRCDIR)/mcmc/MetropolisHastings.cpp $(DEP)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(BUILDDIR)/ParallelTempering.o: $(SRCDIR)/mcmc/ParallelTempering.cpp $(DEP)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(BUILDDIR)/SGI.o: $(SRCDIR)/surrogate/SGI.cpp $(DEP)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 

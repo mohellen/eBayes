@@ -4,6 +4,7 @@
 #include <mcmc/MCMC.hpp>
 #include <mcmc/MetropolisHastings.hpp>
 #include <mcmc/ParallelTempering.hpp>
+#include <surrogate/SGI.hpp>
 
 #include <iostream>
 #include <vector>
