@@ -36,52 +36,52 @@ NS::~NS()
 NS::NS(Config const& c, int resx, int resy)
 		: ForwardModel(c)
 {
-	this->domain_size_x = stod(cfg.get_param("ns_domain_size_x"));
-	this->domain_size_y = stod(cfg.get_param("ns_domain_size_y"));
-	this->initial_velocity_x = stod(cfg.get_param("ns_initial_velocity_x"));
-	this->initial_velocity_y = stod(cfg.get_param("ns_initial_velocity_y"));
-	this->initial_pressure = stod(cfg.get_param("ns_initial_pressure"));
-	this->inlet_velocity_x = stod(cfg.get_param("ns_inlet_velocity_x"));
-	this->inlet_velocity_y = stod(cfg.get_param("ns_inlet_velocity_y"));
-	this->external_force_x = stod(cfg.get_param("ns_external_force_x"));
-	this->external_force_y = stod(cfg.get_param("ns_external_force_y"));
-	this->re = stod(cfg.get_param("ns_re"));
-	this->tau = stod(cfg.get_param("ns_tau"));
-	this->alpha = stod(cfg.get_param("ns_alpha"));
-	this->omega = stod(cfg.get_param("ns_omega"));
+	this->domain_size_x = cfg.get_param_double("ns_domain_size_x");
+	this->domain_size_y = cfg.get_param_double("ns_domain_size_y");
+	this->initial_velocity_x = cfg.get_param_double("ns_initial_velocity_x");
+	this->initial_velocity_y = cfg.get_param_double("ns_initial_velocity_y");
+	this->initial_pressure = cfg.get_param_double("ns_initial_pressure");
+	this->inlet_velocity_x = cfg.get_param_double("ns_inlet_velocity_x");
+	this->inlet_velocity_y = cfg.get_param_double("ns_inlet_velocity_y");
+	this->external_force_x = cfg.get_param_double("ns_external_force_x");
+	this->external_force_y = cfg.get_param_double("ns_external_force_y");
+	this->re = cfg.get_param_double("ns_re");
+	this->tau = cfg.get_param_double("ns_tau");
+	this->alpha = cfg.get_param_double("ns_alpha");
+	this->omega = cfg.get_param_double("ns_omega");
 
-	this->ncx = std::size_t(stoul(cfg.get_param("ns_min_ncx"))) * resx;
-	this->ncy = std::size_t(stoul(cfg.get_param("ns_min_ncy"))) * resy;
+	this->ncx = cfg.get_param_sizet("ns_min_ncx") * resx;
+	this->ncy = cfg.get_param_sizet("ns_min_ncy") * resy;
 	this->dx = this->domain_size_x / double(this->ncx);
 	this->dy = this->domain_size_y / double(this->ncy);
 
 	// Boundary north
-	string type = cfg.get_param("ns_boundary_north");
+	string type = cfg.get_param_string("ns_boundary_north");
 	if (type == "inlet") this->boundary_north = BOUNDARY_TYPE_INLET;
 	else if (type == "outlet") this->boundary_north = BOUNDARY_TYPE_OUTLET;
 	else if (type == "noslip") this->boundary_north = BOUNDARY_TYPE_NOSLIP;
 	else if (type == "freeslip") this->boundary_north = BOUNDARY_TYPE_FREESLIP;
 	// Boundary south
-	type = cfg.get_param("ns_boundary_south");
+	type = cfg.get_param_string("ns_boundary_south");
 	if (type == "inlet") this->boundary_south = BOUNDARY_TYPE_INLET;
 	else if (type == "outlet") this->boundary_south = BOUNDARY_TYPE_OUTLET;
 	else if (type == "noslip") this->boundary_south = BOUNDARY_TYPE_NOSLIP;
 	else if (type == "freeslip") this->boundary_south = BOUNDARY_TYPE_FREESLIP;
 	// Boundary east
-	type = cfg.get_param("ns_boundary_east");
+	type = cfg.get_param_string("ns_boundary_east");
 	if (type == "inlet") this->boundary_east = BOUNDARY_TYPE_INLET;
 	else if (type == "outlet") this->boundary_east = BOUNDARY_TYPE_OUTLET;
 	else if (type == "noslip") this->boundary_east = BOUNDARY_TYPE_NOSLIP;
 	else if (type == "freeslip") this->boundary_east = BOUNDARY_TYPE_FREESLIP;
 	// Boundary west
-	type = cfg.get_param("ns_boundary_west");
+	type = cfg.get_param_string("ns_boundary_west");
 	if (type == "inlet") this->boundary_west = BOUNDARY_TYPE_INLET;
 	else if (type == "outlet") this->boundary_west = BOUNDARY_TYPE_OUTLET;
 	else if (type == "noslip") this->boundary_west = BOUNDARY_TYPE_NOSLIP;
 	else if (type == "freeslip") this->boundary_west = BOUNDARY_TYPE_FREESLIP;
 
 	{// Initialize obstacle list
-		istringstream iss(cfg.get_param("ns_obstacle_list"));
+		istringstream iss(cfg.get_param_string("ns_obstacle_list"));
 		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 		this->obs.reserve(tokens.size()/4);
 		for (auto it=tokens.begin(); it != tokens.end(); it+=4) {
@@ -90,7 +90,7 @@ NS::NS(Config const& c, int resx, int resy)
 		}
 	}
 	{// Initialize output time list
-		istringstream iss(cfg.get_param("ns_output_time_list"));
+		istringstream iss(cfg.get_param_string("ns_output_time_list"));
 		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 		this->out_times.reserve(tokens.size());
 		for (auto it=tokens.begin(); it != tokens.end(); ++it) {
@@ -98,7 +98,7 @@ NS::NS(Config const& c, int resx, int resy)
 		}
 	}
 	{// Initialize output location list
-		istringstream iss(cfg.get_param("ns_output_location_list"));
+		istringstream iss(cfg.get_param_string("ns_output_location_list"));
 		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 		this->out_locs.reserve(tokens.size()/2);
 		for (auto it=tokens.begin(); it != tokens.end(); it+=2) {
@@ -120,6 +120,12 @@ pair<double,double> NS::get_input_space(int dim) const
 }
 
 vector<double> NS::run(
+		std::vector<double> const& m)
+{
+	return sim(m, false);
+}
+
+vector<double> NS::sim(
 		std::vector<double> const& m,
 		bool write_vtk)
 {
@@ -141,7 +147,7 @@ vector<double> NS::run(
 	// For VTK output only
 	double vtk_freq = 0.05;
 	int vtk_cnt = 0;
-	string vtk_outfile = cfg.get_param("global_output_path") + "/vtk";
+	string vtk_outfile = cfg.get_param_string("global_output_path") + "/vtk";
 	string cmd = "rm -rf " + vtk_outfile + "; mkdir -p " + vtk_outfile;
 	if (write_vtk) system(cmd.c_str());
 	vtk_outfile += "/ns_sim";
@@ -248,7 +254,7 @@ vector<double> NS::run(
 	A.resize(0,0);
 #endif
 	return d;
-}//end fun()
+}//end sim()
 
 void NS::print_info() const
 {

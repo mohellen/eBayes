@@ -45,7 +45,6 @@ public:
 	virtual std::pair<double,double> get_input_space(int dim) const = 0;
 
 	virtual std::vector<double> run(
-			std::vector<double> const& m,
-			bool write_vtk=false) = 0; // By default no VTK output
+			std::vector<double> const& m) = 0;
 };
 #endif /* MODEL_FORWARDMODEL_HPP_ */

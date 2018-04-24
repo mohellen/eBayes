@@ -54,7 +54,7 @@ void MetropolisHastings::run(
 			max_samplepos = samplepos;
 		}
 		// 4. keeping track
-#if (MCMC_OUT_PROGRESS == 1)
+#if (MCMC_PRINT_PROGRESS == 1)
 		print_progress(it, max_samplepos);
 #endif
 	}

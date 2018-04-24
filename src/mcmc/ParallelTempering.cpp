@@ -57,7 +57,7 @@ void ParallelTempering::run(
 	//    The swapping chains are always c and c+1 (if c is the last chain, then c+1 is chain 0)
 	vector< pair<int,int> > exchange_iter_chain (num_samples);
 	if (par.is_master()) {
-		double mixing_rate = stod(cfg.get_param("mcmc_chain_mixing_rate"));
+		double mixing_rate = cfg.get_param_double("mcmc_chain_mixing_rate");
 		for (int i=0; i < num_samples; i++) {
 			if (udist_r(gen) <= mixing_rate) {
 				exchange_iter_chain[i].first = 1;
@@ -134,7 +134,7 @@ void ParallelTempering::run(
 			max_samplepos = samplepos;
 		}
 		// 4. keeping track
-#if (MCMC_OUT_PROGRESS == 1)
+#if (MCMC_PRINT_PROGRESS == 1)
 		print_progress(it, max_samplepos);
 #endif
 	}

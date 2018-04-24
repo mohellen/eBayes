@@ -37,6 +37,10 @@ impi_adapt_freq_sec	60
 sgi_is_from_files			no
 # Directory containing the grid files to create grid for a resumed job.
 sgi_from_path		
+# Grid construction initial level (before any grid refinement)
+sgi_init_level				4
+# Grid refinment portion (how many % grid points should be refined, double in [0,1])
+sgi_refine_portion			0.1
 # SGI construction using Master-worker (for iMPI and MPI) or SIMD (for MPI only) style
 sgi_is_masterworker			yes
 # For SGI construction master-worker style, job size (# of grid points to compute in each job)

@@ -27,73 +27,32 @@
 
 #include <mpi.h>
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
+#include <map>
 #include <sstream>
-#include <iomanip>
+//#include <iomanip>
 
 // Local constants
 #define MPIMW_TAG_TERMINATE 10
 #define MPIMW_TAG_WORK		20
 #define MPIMW_TAG_ADAPT		30
-#define MPIMW_TRUNK_SIZE	5
-#define IMPI_ADAPT_FREQ		60	// Adapt frequency in seconds
 
 
 class SGI : public ForwardModel
 {
-private:
-	Config const& cfg;			// Const reference to config object
-	Parallel & par;				// Reference to parallel object
-	ForwardModel & fullmodel;	// Reference to a FULL forward model
-
-	// Abstract type cannot be instanciated, must use pointer
-	std::unique_ptr<sgpp::base::Grid> 		  	grid; // Sparse grid, containing grid points (input parameters)
-	std::unique_ptr<sgpp::base::DataVector[]> 	alphas; // Vector of alphas (vector.size() = output_size, each alpha.size() = num_grid_points), f ~= sum_i ( alpha_i * phi_i (x) )
-	std::unique_ptr<sgpp::base::OperationEval> 	eval;
-	std::unique_ptr<sgpp::base::BoundingBox>	bbox;
-
-#if defined(IMPI)
-	std::size_t impi_gpoffset; //MPI_UNSIGNED_LONG
-#endif
-
-	std::vector<std::vector> top_maxpos;
-
-//	std::string outprefix;
-//	std::unique_ptr<ForwardModel> 			  	fullmodel; //Object owned by SGI, should live and die with SGI
-//	std::unique_ptr<double[]> odata;
-//	double noise;
-//	double sigma;
-	double maxpos;
-	std::size_t maxpos_seq;
-	
 public:
 	~SGI(){}
 	
-	SGI(Parallel& para,
-			const std::string& input_file,
-			const std::string& output_prefix,
-			int resx,
-			int resy);
+	SGI(
+		Config const& c,
+		Parallel & p,
+		ForwardModel & m);
 
-//	std::size_t get_input_size();
-
-//	std::size_t get_output_size();
-
-//	void get_input_space(
-//			int dim,
-//			double& min,
-//			double& max);
-
-//	void run(const double* m, double* d);
 	std::vector<double> run(
-			std::vector<double> const& m,
-			bool write_vtk=false);
+			std::vector<double> const& m);
 	
-	void build(
-			std::size_t init_level = 4,
-			double refine_portion = 0.1,
-			bool is_masterworker = false); // MPI scheme default to naive
+	void build();
 
 	void duplicate(
 			const std::string& gridfile,
@@ -102,24 +61,47 @@ public:
 
 	void impi_adapt();
 
-	std::vector<std::vector<double> > get_top_maxpos(
-			int num_tops,
-			std::string posfile);
+	std::multimap<double,std::size_t> get_top_maxpos() {return maxpos_list;}
 
 private:
-	sgpp::base::DataVector arr_to_vec(const double *& in, std::size_t size);
+	Config const& cfg;			// Const reference to config object
+	Parallel & par;				// Reference to parallel object
+	ForwardModel & fullmodel;	// Reference to a FULL forward model
 
-	double* vec_to_arr(sgpp::base::DataVector& in);
+	// Internal sparse grid objects
+	// f(x) ~= sum_i ( alpha_i * phi_i (x) )
+	std::vector<sgpp::base::DataVector> 		alphas; // list of alphas. vector.size() = output_size, each alpha.size() = num_grid_points)
+	// Abstract type cannot be instanciated, must use pointers
+	std::unique_ptr<sgpp::base::Grid> 			grid; // Sparse grid, containing grid points (input parameters)
+	std::unique_ptr<sgpp::base::OperationEval> 	eval;
+	std::unique_ptr<sgpp::base::BoundingBox>	bbox;
 
-	double* seg_to_coord_arr(std::size_t seq);
+	// sorted list of top maxpos grid points (pos + gp_seq), in ascending order (LAST one is the MAX)
+	// multimap because the key value (posterior) is not unique
+	std::multimap<double, std::size_t> maxpos_list;
 
-	std::string vec_to_str(sgpp::base::DataVector& v);
+#if defined(IMPI)
+	std::size_t impi_gpoffset; //MPI_SIZE_T
+#endif
+
+private:
+	std::vector<double> get_gp_coord(std::size_t seq);
 
 	sgpp::base::BoundingBox* create_boundingbox();
 
 	void compute_hier_alphas(const std::string& outfile="");
 
+	void compute_grid_points(
+			std::size_t gp_offset,
+			bool is_masterworker);
+
+	void compute_gp_range(
+			const std::size_t& seq_min,
+			const std::size_t& seq_max);
+
 	bool refine_grid(double portion_to_refine);
+
+	void mpi_find_global_maxpos();
 
 	void mpiio_read_grid(
 			const std::string& outfile="");
@@ -140,16 +122,6 @@ private:
 			std::size_t seq_max,
 			double* buff,
 			const std::string& outfile="");
-
-	void mpi_find_global_update_maxpos();
-
-	void compute_grid_points(
-			std::size_t gp_offset,
-			bool is_masterworker);
-
-	void mpi_compute_range(
-			const std::size_t& seq_min,
-			const std::size_t& seq_max);
 
 	void mpina_get_local_range(
 			const std::size_t& gmin,

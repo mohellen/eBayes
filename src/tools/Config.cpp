@@ -5,7 +5,7 @@ using namespace std;
 
 Config::Config(int argc, char** argv)
 {
-	// Parameter value take in order: commond line argument > input file > default value
+	// Parameter value take in order: command line argument > input file > default value
 	// ">" means orderride.
 	// Define parameters
 	add_params();
@@ -49,7 +49,7 @@ Config::Config(int argc, char** argv)
 	observation_sigma = noise * mean;
 
 	// Make output dir if not exists
-	string cmd = "mkdir -p " + get_param("global_output_path");
+	string cmd = "mkdir -p " + get_param_string("global_output_path");
 	system(cmd.c_str());
 	return;
 }
@@ -89,7 +89,7 @@ void Config::add_params()
 
 	// iMPI setting
 	var = "impi_adapt_freq_sec";
-	p.des = "iMPI adapt frequency in seconds: call probe_adapt every N seconds. (Default: 60) (Type: positive integer)";
+	p.des = "iMPI adapt frequency in seconds: call probe_adapt every N seconds. (Default: 60) (Type: size_t)";
 	p.val = "60";
 	params[var] = p;
 
@@ -104,24 +104,34 @@ void Config::add_params()
 	p.val = "";
 	params[var] = p;
 
+	var = "sgi_init_level";
+	p.des = "Grid construction initial level (before any grid refinement). (Default: 4) (Type: size_t)";
+	p.val = "4";
+	params[var] = p;
+
+	var = "sgi_refine_portion";
+	p.des = "Grid refinment portion (how many % grid points should be refined). (Default: 0.1) (Type: double in [0.0, 1.0])";
+	p.val = "0.1";
+	params[var] = p;
+
 	var = "sgi_is_masterworker";
 	p.des = "SGI construction style, enable to use Master-Worker (iMPI or MPI), disable to use SIMD (MPI only). (Default: yes) (Options: yes|true|no|false)";
 	p.val = "yes";
 	params[var] = p;
 
 	var = "sgi_masterworker_jobsize";
-	p.des = "For SGI construction Master-Worker style: # of grid points to compute in a job. (Default: 10) (Type: positive integer)";
+	p.des = "For SGI construction Master-Worker style: # of grid points to compute in a job. (Default: 10) (Type: size_t)";
 	p.val = "10";
 	params[var] = p;
 
 	// MCMC setting
 	var = "mcmc_num_samples";
-	p.des = "Number of samples to draw using the MCMC solver. (Default: 20000) (Type: positive integer)";
+	p.des = "Number of samples to draw using the MCMC solver. (Default: 20000) (Type: size_t)";
 	p.val = "20000";
 	params[var] = p;
 
 	var = "mcmc_randwalk_step";
-	p.des = "MCMC use a random walk step = X * domain size (X in [0.0, 1.0]). (Default: 0.2) (Type: double)";
+	p.des = "MCMC use a random walk step = X * domain size (X in [0.0, 1.0]). (Default: 0.2) (Type: double in [0.0, 1.0])";
 	p.val = "0.2";
 	params[var] = p;
 
@@ -131,17 +141,17 @@ void Config::add_params()
 	params[var] = p;
 
 	var = "mcmc_progress_freq_step";
-	p.des = "MCMC Progress output frequency: print progress every N MCMC steps. (Default: 2000) (Type: positive integer)";
+	p.des = "MCMC Progress output frequency: print progress every N MCMC steps. (Default: 2000) (Type: size_t)";
 	p.val = "2000";
 	params[var] = p;
 
 	var = "mcmc_max_chains";
-	p.des = "Maximum number of MCMC chains to be used for Parallel Tempering. Actual number of chains = min(num_mpi_ranks, mcmc_max_chains). (Default: 20) (Type: positive integer)";
+	p.des = "Maximum number of MCMC chains to be used for Parallel Tempering. Actual number of chains = min(num_mpi_ranks, mcmc_max_chains). (Default: 20) (Type: size_t)";
 	p.val = "20";
 	params[var] = p;
 
 	var = "mcmc_chain_mixing_rate";
-	p.des = "For Parallel Tempering only: how frequent (percentage in [0.0, 1.0]) to mix chains. (Default: 0.2) (Type: double)";
+	p.des = "For Parallel Tempering only: how frequent (percentage in [0.0, 1.0]) to mix chains. (Default: 0.2) (Type: double in [0.0, 1.0])";
 	p.val = "0.2";
 	params[var] = p;
 
@@ -157,12 +167,12 @@ void Config::add_params()
 	params[var] = p;
 
 	var = "ns_min_ncx";
-	p.des = "Miminum number of cells in x-direction. (Default: 100) (Type: positive integer)";
+	p.des = "Miminum number of cells in x-direction. (Default: 100) (Type: size_t)";
 	p.val = "100";
 	params[var] = p;
 
 	var = "ns_min_ncy";
-	p.des = "Miminum number of cells in y-direction. (Default: 20) (Type: positive integer)";
+	p.des = "Miminum number of cells in y-direction. (Default: 20) (Type: size_t)";
 	p.val = "20";
 	params[var] = p;
 
@@ -222,22 +232,22 @@ void Config::add_params()
 	params[var] = p;
 
 	var = "ns_boundary_north";
-	p.des = "North boundary type. (Default: noslip) (Options: inlet|outlet|noslip|freeslip)";
+	p.des = "North boundary type. (Default: noslip) (Type: string. Options: inlet|outlet|noslip|freeslip)";
 	p.val = "noslip";
 	params[var] = p;
 
 	var = "ns_boundary_south";
-	p.des = "South boundary type. (Default: noslip) (Options: inlet|outlet|noslip|freeslip)";
+	p.des = "South boundary type. (Default: noslip) (Type: string. Options: inlet|outlet|noslip|freeslip)";
 	p.val = "noslip";
 	params[var] = p;
 
 	var = "ns_boundary_east";
-	p.des = "East boundary type. (Default: outlet) (Options: inlet|outlet|noslip|freeslip)";
+	p.des = "East boundary type. (Default: outlet) (Type: string. Options: inlet|outlet|noslip|freeslip)";
 	p.val = "outlet";
 	params[var] = p;
 
 	var = "ns_boundary_west";
-	p.des = "West boundary type. (Default: inlet) (Options: inlet|outlet|noslip|freeslip)";
+	p.des = "West boundary type. (Default: inlet) (Type: string. Options: inlet|outlet|noslip|freeslip)";
 	p.val = "inlet";
 	params[var] = p;
 
@@ -363,46 +373,23 @@ double tools::compute_l2norm(
 	return sqrt(tmp);
 }
 
-string tools::samplepos_to_string(vector<double> const& v)
+string tools::sample_to_string(vector<double> const& v)
 {
 	std::ostringstream oss;
-	oss << "sample = [" << std::fixed << std::setprecision(6);
-	for (int i=0; i < v.size()-2; ++i)
+	oss << "[" << std::fixed << std::setprecision(6);
+	for (int i=0; i < v.size()-1; ++i)
 		oss << v[i] << ", ";
-	oss << v[v.size()-2] << "], posterior = " << v.back();
+	oss << v[v.size()-1] << "]";
 	return oss.str();
 }
 
-//int main(int argc, char* argv[])
-//{
-//	for (int i=0; i < argc; ++i) {
-//		cout << argv[i] << "\n";
-//	}
-//	cout << endl;
-//
-//	Config cfg (argc, argv);
-//
-//	Config & rf = cfg;
-//	Config const& crf = cfg;
-//
-//	std::size_t sizein = crf.get_input_size();
-//	std::size_t sizeout = cfg.get_output_size();
-//	vector<double> d = rf.get_observation();
-//	double n = crf.get_observation_noise();
-//
-//	cout << sizein << "\n";
-//	cout << sizeout << "\n";
-//	cout << n << "\n\n";
-//	for (auto i: d) cout << i << "  ";
-//	cout << endl;
-//	
-//	vector<double> v {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
-//	double nosie = 0.2;
-//	vector<double> v2 {2.0, 2.1, 3.64, 9.0, 15.0, 26.0, 7.305, 8.2};
-//	double sigma = tools::compute_posterior_sigma(v, 0.2);
-//	cout << sigma << endl;
-//	cout << tools::compute_l2norm(v, v2) << endl;
-//	cout << tools::compute_posterior(v, v2, sigma) << endl;
-//
-//	return 0;
-//}
+string tools::samplepos_to_string(vector<double> const& v)
+{
+	std::ostringstream oss;
+	oss << "[" << std::fixed << std::setprecision(6);
+	for (int i=0; i < v.size()-2; ++i)
+		oss << v[i] << ", ";
+	oss << v[v.size()-2] << "], (" << v.back() << ")";
+	return oss.str();
+}
+

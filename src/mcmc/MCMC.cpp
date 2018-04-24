@@ -27,8 +27,8 @@ MCMC::MCMC(
 		ForwardModel & m)
 		: cfg(c), par(p), model(m)
 {
-	num_chains = (par.mpisize < stoi(cfg.get_param("mcmc_max_chains"))) ?
-			par.mpisize : stoi(cfg.get_param("mcmc_max_chains"));
+	num_chains = (size_t(par.mpisize) < cfg.get_param_sizet("mcmc_max_chains")) ?
+			par.mpisize : cfg.get_param_sizet("mcmc_max_chains");
 }
 
 void MCMC::one_step_single_dim(
@@ -43,7 +43,7 @@ void MCMC::one_step_single_dim(
 
 	// Compute random walk step = domain size * N  (N in [0.0, 0.1])
 	pair<double,double> range = model.get_input_space(dim);
-	double randwalk_size = (range.second - range.first) * stod(cfg.get_param("mcmc_randwalk_step"));
+	double randwalk_size = (range.second - range.first) * cfg.get_param_double("mcmc_randwalk_step");
 
 	// Initialize random generators
 	mt19937 gen(chrono::system_clock::now().time_since_epoch().count());
@@ -111,7 +111,7 @@ vector<double> MCMC::read_max_samplepos(fstream& fin)
 fstream MCMC::open_output_file()
 {
 	// Initialize rank specific output file
-	string rank_output_file = cfg.get_param("global_output_path") +
+	string rank_output_file = cfg.get_param_string("global_output_path") +
 			"/mcmcmh_r" + std::to_string(par.mpirank) + "_samplepos.txt";
 	// Open file:
 	//fstream fout (rank_output_file, fstream::out | fstream::app); // Append if file exists
@@ -162,7 +162,7 @@ vector<double> MCMC::initialize_samplepos(
 
 void MCMC::print_progress(int iter, vector<double> const& max_samplepos)
 {
-	if ((iter+1) % stoi(cfg.get_param("mcmc_progress_freq_step")) == 0) {
+	if ((iter+1) % stoi(cfg.get_param_string("mcmc_progress_freq_step")) == 0) {
 		cout << tools::green << "MCMC: Rank " << par.mpirank
 			<< " completed " << iter+1 << " steps. Current max.: "
 			<< tools::samplepos_to_string(max_samplepos) << tools::reset << endl;

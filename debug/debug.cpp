@@ -33,7 +33,7 @@ int main(int argc, char** argv)
 	//std::cout << std::endl;
 
 	// Test MCMC
-	size_t num_samples = size_t(stoul(cfg.get_param("mcmc_num_samples")));
+	size_t num_samples = cfg.get_param_sizet("mcmc_num_samples");
 	cout << "num_samples = " << num_samples << endl;
 
 	mcmc->run(3, m);

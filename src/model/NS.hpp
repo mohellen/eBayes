@@ -45,9 +45,12 @@ public:
 
 	std::pair<double,double> get_input_space(int dim) const;
 
-	std::vector<double> run(
+	std::vector<double> sim(
 			std::vector<double> const& m,
-			bool write_vtk=false); // By default no VTK output
+			bool write_vtk);
+
+	std::vector<double> run(
+			std::vector<double> const& m);
 
 	/* Debug only */
 	void print_info() const;
