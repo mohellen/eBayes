@@ -18,17 +18,16 @@ int main(int argc, char** argv)
 	Parallel par;
 	par.mpi_init(argc, argv);
 	
-	cout << tools::yellow << "Rank " << par.mpirank << ": status " << par.mpistatus << tools::reset << endl;
+	cout << tools::yellow << "Rank " << par.rank << ": status " << par.status << tools::reset << endl;
 
 	// Forward model
+	std::size_t resx = cfg.get_param_sizet("ns_resx");
+	std::size_t resy = cfg.get_param_sizet("ns_resy");
 	NS ns (cfg);
 
 	// Surrogate model
 	SGI sgi (cfg, par, ns);
 	sgi.build();
-	auto tops = sgi.get_top_maxpos();
-
-	cout << "Rank " << par.mpirank << ": has " << tops.size() << " top maxpos points..." << endl;
 
 	// Test full model
 	//ns.print_info();
@@ -42,7 +41,7 @@ int main(int argc, char** argv)
 
 	// MCMC
 	MCMC* mcmc = new ParallelTempering(cfg, par, sgi);
-	mcmc->run(3, sgi.get_top_maxpos_point() );
+	mcmc->run(3, sgi.get_nth_maxpos(par.rank) );
 
 	par.mpi_final();
 	return 0;

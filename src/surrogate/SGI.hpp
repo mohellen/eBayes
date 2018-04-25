@@ -83,7 +83,7 @@ private:
 	std::multimap<double, std::size_t> maxpos_list;
 
 #if (IMPI==1)
-	std::size_t impi_gpoffset; //MPI_SIZE_T
+	std::size_t impi_gpoffset = 0; //MPI_SIZE_T
 #endif
 
 private:
@@ -102,8 +102,6 @@ private:
 			const std::size_t& seq_max);
 
 	bool refine_grid(double portion_to_refine);
-
-	void mpi_find_global_maxpos();
 
 	void mpiio_read_grid(
 			const std::string& outfile="");
@@ -131,128 +129,21 @@ private:
 			std::size_t& lmin,
 			std::size_t& lmax);
 
-	void mpimw_get_job_range(
-			const std::size_t& jobid,
-			const std::size_t& seq_offset,
-			std::size_t& seq_min,
-			std::size_t& seq_max);
-
-	void mpimw_worker_compute(std::size_t gp_offset);
+	void mpina_find_global_maxpos();
 
 	void mpimw_master_compute(std::size_t gp_offset);
 
-	void mpimw_seed_workers(
-			const int& num_jobs,
-			int& scnt,
-			int* jobs);
+	void mpimw_worker_compute(std::size_t gp_offset);
 
-	void mpimw_adapt_preparation(
-			std::vector<int> & jobs_done,
-			int & jobs_per_tic);
+	void mpimw_exchange_maxpos(int worker_rank);
 
-};
-#endif /* SURROGATE_SGI_HPP_ */
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-???
-	
-
-	std::pair<double,double> get_input_space(int dim) const {return fullmodel.get_input_space(dim);}
-
-private:
-	//Config const& cfg;			// ForwardModel contains cfg
-	Parallel & par;				// Reference to parallel object
-	ForwardModel & fullmodel;	// Reference to a FULL forward model
-
-	// Internal sparse grid objects
-	// f(x) ~= sum_i ( alpha_i * phi_i (x) )
-	std::vector<sgpp::base::DataVector> 		alphas; // list of alphas. vector.size() = output_size, each alpha.size() = num_grid_points)
-	// Abstract type cannot be instanciated, must use pointers
-	std::unique_ptr<sgpp::base::Grid> 			grid; // Sparse grid, containing grid points (input parameters)
-	std::unique_ptr<sgpp::base::OperationEval> 	eval;
-	std::unique_ptr<sgpp::base::BoundingBox>	bbox;
-
-	// sorted list of top maxpos grid points (pos + gp_seq), in ascending order (LAST one is the MAX)
-	// multimap because the key value (posterior) is not unique
-	std::multimap<double, std::size_t> maxpos_list;
-
-#if (IMPI==1)
-	std::size_t impi_gpoffset; //MPI_SIZE_T
-#endif
-
-private:
-	std::vector<double> get_gp_coord(std::size_t seq);
-
-	sgpp::base::BoundingBox* create_boundingbox();
-
-	void compute_hier_alphas(const std::string& outfile="");
-
-	void compute_grid_points(
-			std::size_t gp_offset,
-			bool is_masterworker);
-
-	void compute_gp_range(
-			const std::size_t& seq_min,
-			const std::size_t& seq_max);
-
-	bool refine_grid(double portion_to_refine);
-
-	void mpi_find_global_maxpos();
-
-	void mpiio_read_grid(
-			const std::string& outfile="");
-
-	void mpiio_write_grid(
-			const std::string& outfile="");
-
-	void mpiio_readwrite_data(
-			bool is_read,
-			std::size_t seq_min,
-			std::size_t seq_max,
-			double* buff,
-			const std::string& outfile="");
-
-	void mpiio_readwrite_posterior(
-			bool is_read,
-			std::size_t seq_min,
-			std::size_t seq_max,
-			double* buff,
-			const std::string& outfile="");
-
-	void mpina_get_local_range(
-			const std::size_t& gmin,
-			const std::size_t& gmax,
-			std::size_t& lmin,
-			std::size_t& lmax);
+	void mpimw_sync_maxpos();	
 
 	void mpimw_get_job_range(
 			const std::size_t& jobid,
 			const std::size_t& seq_offset,
 			std::size_t& seq_min,
 			std::size_t& seq_max);
-
-	void mpimw_worker_compute(std::size_t gp_offset);
-
-	void mpimw_master_compute(std::size_t gp_offset);
 
 	void mpimw_seed_workers(
 			const int& num_jobs,

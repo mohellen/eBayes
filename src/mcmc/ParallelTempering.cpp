@@ -34,7 +34,7 @@ void ParallelTempering::run(
 
 	// Each MCMC chain is pinned to a MPI process
 	// Ranks with (mpirank > num_chains) do NOT participate in MCMC computation
-	if (par.mpirank >= num_chains) return;
+	if (par.rank >= num_chains) return;
 
 	// Output file
 	fstream fout = open_output_file();
@@ -95,17 +95,17 @@ void ParallelTempering::run(
 			int c1 = exchange_iter_chain[it].second;
 			int c2 = ((c1 + 1) < num_chains) ? (c1 + 1) : 0;
 
-			if ((par.mpirank == c1) || (par.mpirank == c2)) {
+			if ((par.rank == c1) || (par.rank == c2)) {
 				// neighbor rank
-				int nei_chain = (par.mpirank==c1) ? c2 : c1;
+				int nei_chain = (par.rank==c1) ? c2 : c1;
 
 				// Compute exchange decision, append it to samplepos
 				double acc = fmin(1.0,
-						pow(samplepos.back(), inv_temps[nei_chain]) / pow(samplepos.back(), inv_temps[par.mpirank]));
+						pow(samplepos.back(), inv_temps[nei_chain]) / pow(samplepos.back(), inv_temps[par.rank]));
 				samplepos.push_back( (udist_r(gen) < acc) ? 1.0 : 0.0 ); // samplepos is temporary input_size+2 length
 
 				// MPI communication
-				if (par.mpirank == c1) {
+				if (par.rank == c1) {
 					MPI_Send(&samplepos[0], input_size+2, MPI_DOUBLE, nei_chain,
 							10, MPI_COMM_WORLD);
 					MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
@@ -119,7 +119,7 @@ void ParallelTempering::run(
 				// Exchange only if both me and nei accepted
 				if ((samplepos.back() > 0.5) && (rbuf.back() > 0.5)) {
 					samplepos = rbuf;
-					cout << tools::green << "MCMC: rank " << par.mpirank << " swapped with rank "
+					cout << tools::green << "MCMC: rank " << par.rank << " swapped with rank "
 							<< nei_chain << " at iteration " << it << "." << tools::reset << endl;
 				}
 				samplepos.pop_back(); //remove the exchange decision, samplepos go back to input_size+1 length

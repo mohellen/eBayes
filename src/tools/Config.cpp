@@ -176,6 +176,16 @@ void Config::add_params()
 	p.val = "20";
 	params[var] = p;
 
+	var = "ns_resx";
+	p.des = "Resolution multiplier. Actual resolution ncx = ns_resx * ns_min_ncx. (Default: 1) (Type: size_t)";
+	p.val = "1";
+	params[var] = p;
+
+	var = "ns_resy";
+	p.des = "Resolution multiplier. Actual resolution ncy = ns_resy * ns_min_ncy. (Default: 1) (Type: size_t)";
+	p.val = "1";
+	params[var] = p;
+
 	var = "ns_initial_velocity_x";
 	p.des = "Initial fluid velocity in x-direction. (Default: 1.0) (Type: double)";
 	p.val = "1.0";

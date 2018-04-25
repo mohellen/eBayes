@@ -42,9 +42,11 @@
 class Parallel {
 // These members are public because they are updated directly by mpi functions in other classes
 public:
-	int mpisize = 1;	// minimum size is 1, no matter what
-	int mpirank = 0;
-	int mpistatus = -1; //invalid mpi status by default
+	int size = 1;	// minimum size is 1, no matter what
+	int rank = 0;
+	int status = -1; //invalid mpi status by default
+
+	MPI_Datatype MPI_POSSEQ;
 
 public:
 	// use default constructor
@@ -53,10 +55,9 @@ public:
 	inline
 	bool is_master() {
 #if (IMPI==1)
-		return ( (mpirank == 0) &&
-				(mpistatus == MPI_ADAPT_STATUS_NEW || mpistatus == MPI_ADAPT_STATUS_STAYING) );
+		return ( (rank == MPI_MASTER) && (status == MPI_ADAPT_STATUS_NEW || status == MPI_ADAPT_STATUS_STAYING) );
 #else
-		return (mpirank == 0);
+		return (rank == MPI_MASTER);
 #endif
 	}
 
@@ -65,5 +66,8 @@ public:
 	void mpi_final();
 
 	void mpi_update();
+
+private:
+	MPI_Datatype create_MPI_POSSEQ();
 };
 #endif /* TOOLS_PARALLEL_HPP_ */

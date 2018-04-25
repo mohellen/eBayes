@@ -71,7 +71,10 @@ ns_domain_size_x	10.0
 ns_domain_size_y	2.0
 # Minimum number of cells in each direction
 ns_min_ncx	100
-ns_min_ncy	20
+ns_min_ncy	2
+# Resolution multiplier. Actual resolution ncx = ns_min_ncx * ns_resx
+ns_resx		1
+ns_resy		1
 # Initial fluid velocity and pressure
 ns_initial_velocity_x	1.0
 ns_initial_velocity_y	0.0

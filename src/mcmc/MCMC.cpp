@@ -27,8 +27,8 @@ MCMC::MCMC(
 		ForwardModel & m)
 		: cfg(c), par(p), model(m)
 {
-	num_chains = (size_t(par.mpisize) < cfg.get_param_sizet("mcmc_max_chains")) ?
-			par.mpisize : cfg.get_param_sizet("mcmc_max_chains");
+	num_chains = (size_t(par.size) < cfg.get_param_sizet("mcmc_max_chains")) ?
+			par.size : cfg.get_param_sizet("mcmc_max_chains");
 }
 
 void MCMC::one_step_single_dim(
@@ -112,7 +112,7 @@ fstream MCMC::open_output_file()
 {
 	// Initialize rank specific output file
 	string rank_output_file = cfg.get_param_string("global_output_path") +
-			"/mcmcmh_r" + std::to_string(par.mpirank) + "_samplepos.txt";
+			"/mcmcmh_r" + std::to_string(par.rank) + "_samplepos.txt";
 	// Open file:
 	//fstream fout (rank_output_file, fstream::out | fstream::app); // Append if file exists
 	fstream fout (rank_output_file, fstream::out | ios::trunc); // Overwrite if file exists
@@ -163,7 +163,7 @@ vector<double> MCMC::initialize_samplepos(
 void MCMC::print_progress(int iter, vector<double> const& max_samplepos)
 {
 	if ((iter+1) % stoi(cfg.get_param_string("mcmc_progress_freq_step")) == 0) {
-		cout << tools::green << "MCMC: Rank " << par.mpirank
+		cout << tools::green << "MCMC: Rank " << par.rank
 			<< " completed " << iter+1 << " steps. Current max.: "
 			<< tools::samplepos_to_string(max_samplepos) << tools::reset << endl;
 	}

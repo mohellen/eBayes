@@ -33,7 +33,7 @@ NS::~NS()
 	this->out_locs.clear();
 }
 
-NS::NS(Config const& c, int resx, int resy)
+NS::NS(Config const& c)
 		: ForwardModel(c)
 {
 	this->domain_size_x = cfg.get_param_double("ns_domain_size_x");
@@ -50,8 +50,12 @@ NS::NS(Config const& c, int resx, int resy)
 	this->alpha = cfg.get_param_double("ns_alpha");
 	this->omega = cfg.get_param_double("ns_omega");
 
-	this->ncx = cfg.get_param_sizet("ns_min_ncx") * resx;
-	this->ncy = cfg.get_param_sizet("ns_min_ncy") * resy;
+	std::size_t rx = cfg.get_param_sizet("ns_resx");
+	std::size_t ry = cfg.get_param_sizet("ns_resy");
+	if (rx < 1) rx = 1;
+	if (ry < 1) ry = 1;
+	this->ncx = cfg.get_param_sizet("ns_min_ncx") * rx;
+	this->ncy = cfg.get_param_sizet("ns_min_ncy") * ry;
 	this->dx = this->domain_size_x / double(this->ncx);
 	this->dy = this->domain_size_y / double(this->ncy);
 

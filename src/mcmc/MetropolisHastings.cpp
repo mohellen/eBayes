@@ -27,7 +27,7 @@ void MetropolisHastings::run(
 {
 	// Each MCMC chain is pinned to a MPI process
 	// Ranks with (mpirank > num_chains) do NOT participate in MCMC computation
-	if (par.mpirank >= num_chains) return;
+	if (par.rank >= num_chains) return;
 
 	// Output file
 	fstream fout = open_output_file();

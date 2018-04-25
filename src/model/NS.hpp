@@ -41,7 +41,7 @@ class NS : public ForwardModel
 {
 public:
 	~NS();
-	NS(Config const& c, int resx=1, int resy=1);
+	NS(Config const& c);
 
 	std::pair<double,double> get_input_space(int dim) const;
 
