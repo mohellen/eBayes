@@ -39,7 +39,7 @@ public:
 	double get_param_double(std::string var) const {return stod(params.at(var).val);}
 	std::size_t get_param_sizet(std::string var) const {return std::size_t(stoul(params.at(var).val));}
 	bool get_param_bool(std::string var) const {
-		return (params.at(var).val == "yes" || params.at(var).val == "true") ? true : false;}
+		return (params.at(var).val == "yes") ? true : false; }
 	
 	// Compute the posteria for a given simulation data
 	double compute_posterior(std::vector<double> const& data) const;

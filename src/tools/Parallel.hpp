@@ -52,7 +52,7 @@ public:
 
 	inline
 	bool is_master() {
-#if defined(IMPI)
+#if (IMPI==1)
 		return ( (mpirank == 0) &&
 				(mpistatus == MPI_ADAPT_STATUS_NEW || mpistatus == MPI_ADAPT_STATUS_STAYING) );
 #else
@@ -60,7 +60,7 @@ public:
 #endif
 	}
 
-	void mpi_init(int argc, char* argv[]);
+	void mpi_init(int argc, char** argv);
 
 	void mpi_final();
 

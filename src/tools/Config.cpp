@@ -95,7 +95,7 @@ void Config::add_params()
 
 	// Surrogate SGI setting
 	var = "sgi_is_from_files";
-	p.des = "Set to bulid SGI surrogate model from SGI output files (from previous job), instead of creating from scratch. (Default: no) (Options: yes|true|no|false)";
+	p.des = "Set to bulid SGI surrogate model from SGI output files (from previous job), instead of creating from scratch. (Default: no) (Options: yes|no)";
 	p.val = "no";
 	params[var] = p;
 
@@ -115,7 +115,7 @@ void Config::add_params()
 	params[var] = p;
 
 	var = "sgi_is_masterworker";
-	p.des = "SGI construction style, enable to use Master-Worker (iMPI or MPI), disable to use SIMD (MPI only). (Default: yes) (Options: yes|true|no|false)";
+	p.des = "SGI construction style, enable to use Master-Worker (iMPI or MPI), disable to use SIMD (MPI only). (Default: yes) (Options: yes|no)";
 	p.val = "yes";
 	params[var] = p;
 
@@ -136,7 +136,7 @@ void Config::add_params()
 	params[var] = p;
 
 	var = "mcmc_is_progress";
-	p.des = "Enable to output MCMC progress. (Default: no) (Options: yes|true|no|false)";
+	p.des = "Enable to output MCMC progress. (Default: no) (Options: yes|no)";
 	p.val = "no";
 	params[var] = p;
 

@@ -8,17 +8,20 @@ CFLAGS+=-Wno-deprecated
 CFLAGS+=-I../src -I../dep -I../dep/sgpp-base-2.0.0/base/src -I$(IMPIPATH)/include
 
 CFLAGS+=-DGLOBAL_SCENARIO=1
+CFLAGS+=-DIMPI=1
 CFLAGS+=-DMPI_MASTER=0
 CFLAGS+=-DMCMC_PRINT_PROGRESS=1
 CFLAGS+=-DSGI_PRINT_TIMER=1
 CFLAGS+=-DSGI_PRINT_RANKPROGRESS=1
 CFLAGS+=-DSGI_PRINT_GRIDPOINTS=1
 
+
 LDFLAGS+=-L$(IMPIPATH)/lib -lmpi -lsgppbase
 
 SRCDIR=../src
 BUILDDIR=build_debug
-TARGET=debug
+OUTDIR=output
+TARGET=test
 
 DEP=$(SRCDIR)/tools/Config.hpp
 DEP=$(SRCDIR)/tools/Parallel.hpp
@@ -72,7 +75,7 @@ $(BUILDDIR)/SGI.o: $(SRCDIR)/surrogate/SGI.cpp $(DEP)
 .PHONY: clean
 
 clean:
-	rm -rf $(BUILDDIR) $(TARGET)
+	rm -rf $(BUILDDIR)/* $(TARGET) $(OUTDIR)/*
 
 dir:
-	rm -rf $(BUILDDIR); mkdir -p $(BUILDDIR)
+	mkdir -p $(BUILDDIR); mkdir -p $(OUTDIR)
