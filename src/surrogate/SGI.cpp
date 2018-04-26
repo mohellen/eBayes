@@ -28,7 +28,7 @@ SGI::SGI(
 		ForwardModel & m)
 		: ForwardModel(c), par(p), fullmodel(m)
 {
-	alphas.clear();
+	alphas.resize(cfg.get_output_size());
 	grid = nullptr;
 	eval = nullptr;
 	bbox = nullptr;
@@ -281,26 +281,21 @@ void SGI::compute_hier_alphas(const string& outfile)
 	double tic = MPI_Wtime();
 #endif
 	std::size_t output_size = cfg.get_output_size();
-
-	// read raw data
 	std::size_t num_gps = grid->getSize();
+	// read raw data
 	unique_ptr<double[]> data (new double[output_size * num_gps]);
 	mpiio_readwrite_data(true, 0, num_gps-1, data.get(), outfile);
-
 	// re-allocate alphas
 	for (std::size_t j=0; j < output_size; j++)
 		alphas[j].resize(num_gps);
-
 	// unpack raw data
 	for (std::size_t i=0; i < num_gps; i++)
 		for (std::size_t j=0; j < output_size; j++)
 			alphas[j].set(i, data[i*output_size+j]);
-
 	// hierarchize alphas
 	auto hier = sgpp::op_factory::createOperationHierarchisation(*grid);
 	for (std::size_t j=0; j<output_size; j++)
 		hier->doHierarchisation(alphas[j]);
-
 #if (SGI_PRINT_TIMER==1)
 	if (par.is_master()) {
 		fflush(NULL);

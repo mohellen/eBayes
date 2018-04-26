@@ -75,7 +75,10 @@ $(BUILDDIR)/SGI.o: $(SRCDIR)/surrogate/SGI.cpp $(DEP)
 .PHONY: clean
 
 clean:
-	rm -rf $(BUILDDIR)/* $(TARGET) $(OUTDIR)/*
+	rm -rf $(BUILDDIR)/* $(TARGET) $(OUTDIR)/* console.out
+
+clear:
+	rm $(OUTDIR)/* console.out
 
 dir:
 	mkdir -p $(BUILDDIR); mkdir -p $(OUTDIR)
