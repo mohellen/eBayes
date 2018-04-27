@@ -9,7 +9,6 @@ CFLAGS+=-I../src -I../dep -I../dep/sgpp-base-2.0.0/base/src -I$(IMPIPATH)/includ
 
 CFLAGS+=-DGLOBAL_SCENARIO=1
 CFLAGS+=-DIMPI=1
-CFLAGS+=-DMPI_MASTER=0
 CFLAGS+=-DMCMC_PRINT_PROGRESS=1
 CFLAGS+=-DSGI_PRINT_TIMER=1
 CFLAGS+=-DSGI_PRINT_RANKPROGRESS=1
@@ -25,6 +24,7 @@ TARGET=test
 
 DEP=$(SRCDIR)/tools/Config.hpp
 DEP=$(SRCDIR)/tools/Parallel.hpp
+DEP+=$(SRCDIR)/tools/ErrorAnalysis.hpp
 DEP+=$(SRCDIR)/model/ForwardModel.hpp
 DEP+=$(SRCDIR)/model/NS.hpp
 DEP+=$(SRCDIR)/mcmc/MCMC.hpp
@@ -35,6 +35,7 @@ DEP+=$(SRCDIR)/surrogate/SGI.hpp
 OBJ=$(BUILDDIR)/debug.o
 OBJ+=$(BUILDDIR)/Config.o
 OBJ+=$(BUILDDIR)/Parallel.o
+OBJ+=$(BUILDDIR)/ErrorAnalysis.o
 OBJ+=$(BUILDDIR)/NS.o
 OBJ+=$(BUILDDIR)/MCMC.o
 OBJ+=$(BUILDDIR)/MetropolisHastings.o
@@ -54,6 +55,9 @@ $(BUILDDIR)/Config.o: $(SRCDIR)/tools/Config.cpp $(DEP)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(BUILDDIR)/Parallel.o: $(SRCDIR)/tools/Parallel.cpp $(DEP)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(BUILDDIR)/ErrorAnalysis.o: $(SRCDIR)/tools/ErrorAnalysis.cpp $(DEP)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(BUILDDIR)/NS.o: $(SRCDIR)/model/NS.cpp $(DEP)
@@ -78,7 +82,7 @@ clean:
 	rm -rf $(BUILDDIR)/* $(TARGET) $(OUTDIR)/* console.out
 
 clear:
-	rm $(OUTDIR)/* console.out
+	rm -rf $(OUTDIR)/* console.out
 
 dir:
 	mkdir -p $(BUILDDIR); mkdir -p $(OUTDIR)

@@ -68,7 +68,7 @@ void ParallelTempering::run(
 			}
 		}
 	}
-	MPI_Bcast(&exchange_iter_chain[0], num_samples, MPI_2INT, MPI_MASTER, MPI_COMM_WORLD);
+	MPI_Bcast(&exchange_iter_chain[0], num_samples, MPI_2INT, par.master, MPI_COMM_WORLD);
 	// Exchagne buffer: {sample, posterior, decision}
 	//      [0,input_size-1] sample
 	//		[input_size  ]   posterior

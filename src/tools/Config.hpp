@@ -77,8 +77,6 @@ namespace tools
 	const std::string magenta("\033[0;35m");
 	const std::string cyan("\033[0;36m");
 	const std::string reset("\033[0m"); // don't forget to reset to normal after coloration
-	//const std::string& colorwarn = red;
-	//const std::string& colorerr = red;
 	
 	// trim white space from a string
 	std::string trim_white_space(std::string const& str);
@@ -87,10 +85,10 @@ namespace tools
 	std::string sample_to_string(std::vector<double> const& v);
 	std::string samplepos_to_string(std::vector<double> const& v);
 
-	// Compute the l2norm of two vectors
-	double compute_l2norm(
-			std::vector<double> const& d1,
-			std::vector<double> const& d2);
+	// Compute the normalized Euclidean norm of two vectors
+	double compute_normalizedl2norm(
+			std::vector<double> const& u,
+			std::vector<double> const& v);
 }
 
 #endif

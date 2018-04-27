@@ -48,16 +48,19 @@ public:
 
 	MPI_Datatype MPI_POSSEQ;
 
+	const int master = 0;
+
 public:
 	// use default constructor
 	~Parallel(){}
 
 	inline
-	bool is_master() {
+	bool is_master()
+	{
 #if (IMPI==1)
-		return ( (rank == MPI_MASTER) && (status == MPI_ADAPT_STATUS_NEW || status == MPI_ADAPT_STATUS_STAYING) );
+		return ( (rank == master) && (status == MPI_ADAPT_STATUS_NEW || status == MPI_ADAPT_STATUS_STAYING) );
 #else
-		return (rank == MPI_MASTER);
+		return (rank == master);
 #endif
 	}
 

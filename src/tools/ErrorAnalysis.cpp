@@ -18,103 +18,76 @@
 
 #include <tools/ErrorAnalysis.hpp>
 
-
 using namespace std;
 
-ErrorAnalysis::ErrorAnalysis (ForwardModel* full, ForwardModel* surr)
+
+void ErrorAnalysis::add_test_points(std::size_t n)
 {
-	this->fullmodel = full;
-	this->surrogate = surr;
-	this->input_size = fullmodel->get_input_size();
-	this->output_size = fullmodel->get_output_size();
-}
+	std::random_device rd;
+	std::mt19937 eng (rd());
+	pair<double,double> range;
+	std::size_t input_size = cfg.get_input_size();
+	test_points.resize(n);
+	test_points_data.resize(n);
 
-
-void ErrorAnalysis::update_surrogate(ForwardModel* surrogatemodel)
-{
-	this->surrogate = surrogatemodel;
-}
-
-void ErrorAnalysis::add_test_point(const double* m)
-{
-	// Add a new test_point slot and its data
-	test_points.push_back( unique_ptr<double[]>(new double[input_size]) );
-	test_points_data.push_back( unique_ptr<double[]>(new double[output_size]) );
-
-	// If m is not nullptr, copy it.
-	// Otherwize, generate a random test point.
-	if (m) {
-		for (size_t i=0; i<input_size; i++)
-			test_points.back()[i] = m[i];
-	} else {
-		double dmin, dmax;
-		default_random_engine gen;
-		for (size_t i=0; i<input_size; i++) {
-			fullmodel->get_input_space(i, dmin, dmax);
-			uniform_real_distribution<double> udist (dmin, dmax);
-			test_points.back()[i] = udist(gen);
+	for (std::size_t k=0; k < n; ++k) {
+		test_points[k].resize(input_size);
+		for (std::size_t i=0; i < input_size; ++i) {
+			range = fullmodel.get_input_space(i);
+			uniform_real_distribution<double> udist (range.first, range.second);
+			test_points[k][i] = udist(eng);
 		}
+		test_points_data[k] = fullmodel.run(test_points[k]);
 	}
-	// Compute test point data
-	fullmodel->run(test_points.back().get(), test_points_data.back().get());
+}
+
+void ErrorAnalysis::add_test_point_at(vector<double> const& m)
+{
+	test_points.push_back( vector<double>(m.cbegin(), m.cend()) );
+	test_points_data.push_back( fullmodel.run(m) );
 	return;
 }
 
-void ErrorAnalysis::add_test_points(int M)
+void ErrorAnalysis::copy_test_points(ErrorAnalysis const& that)
 {
-	fflush(NULL);
-	printf("Error Analysis adding %d points with full model.\n", M);
-	for (int k=0; k < M; k++)
-		add_test_point();
-}
-
-void ErrorAnalysis::copy_test_points(const ErrorAnalysis* that)
-{
-	int num_tps = that->test_points.size();
-	this->test_points.resize(num_tps);
-	this->test_points_data.resize(num_tps);
-
-	for (int k=0; k < num_tps; k++) {
-		// copy k-th test point
-		this->test_points[k].reset(new double[input_size]);
-		for (size_t i=0; i < input_size; i++)
-			this->test_points[k][i] = that->test_points[k][i];
-
-		// copy k-th test point data
-		this->test_points_data[k].reset(new double[output_size]);
-		for (size_t j=0; j < output_size; j++)
-			this->test_points_data[k][j] = that->test_points_data[k][j];
-	}
+	this->test_points = that.test_points;
+	this->test_points_data = that.test_points_data;
 	return;
 }
 
-double ErrorAnalysis::compute_model_error()
+double ErrorAnalysis::compute_surrogate_error()
 {
-	size_t num_tps = test_points.size();
-	unique_ptr<double[]> d (new double[output_size]);
-
-	// Compute surrogate model error for each test point
-	double mean = 0.0;
-	for (size_t i=0; i < num_tps; i++) {
-		surrogate->run(test_points[i].get(), d.get());
-		mean += ForwardModel::compute_l2norm(test_points_data[i].get(), d.get(), output_size);
+	if (test_points.size() < 1) {
+		cout << tools::red << "Error: no test points added. Program abort." << tools::reset << endl;
+		exit(EXIT_FAILURE);
 	}
-	return mean/double(num_tps);
+	if (test_points.size() != test_points_data.size()) {
+		cout << tools::red << "Error: test points and data mismatch. Program abort." << tools::reset << endl;
+		exit(EXIT_FAILURE);
+	}
+	std::size_t n = test_points.size();
+	double sum = 0.0;
+	for (int i=0; i < n; ++i) {
+		sum += tools::compute_normalizedl2norm(test_points_data[i], surrogate.run(test_points[i]));
+	}
+	return sum/n;
 }
 
-double ErrorAnalysis::compute_model_error(const double* m)
+double ErrorAnalysis::compute_surrogate_error_at(std::vector<double> const& m)
 {
-	unique_ptr<double[]> data_full (new double[output_size]);
-	fullmodel->run(m, data_full.get());
-
-	unique_ptr<double[]> data_surr (new double[output_size]);
-	surrogate->run(m, data_surr.get());
-
-	return ForwardModel::compute_l2norm(data_full.get(), data_surr.get(), output_size);
+	vector<double> fd = fullmodel.run(m);
+	vector<double> sd = surrogate.run(m);
+	return tools::compute_normalizedl2norm(fd, sd);
 }
 
-
-
-
-
+bool ErrorAnalysis::mpi_is_model_accurate(double tol)
+{
+	double err = compute_surrogate_error();
+	double mean;
+	MPI_Allreduce(&err, &mean, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	mean = mean / par.size;
+	if (par.is_master())
+		cout << "Average surrogate model error = " << mean << ", tol = " << tol << endl;
+	return (mean <= tol) ? true : false;
+}
 

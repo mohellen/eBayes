@@ -125,10 +125,10 @@ void SGI::build()
 	// 4. Update op_eval
 	eval.reset(sgpp::op_factory::createOperationEval(*grid).release());
 
-	cout << tools::yellow << "Rank " << par.rank << ": has " << maxpos_list.size() << " top maxpos points...\n";
-	for (auto it = maxpos_list.begin(); it != maxpos_list.end(); ++it)
-		cout << "\n\t" << it->first << " --- " << tools::sample_to_string(get_gp_coord(it->second));
-	cout << tools::reset << endl;
+//	cout << tools::yellow << "Rank " << par.rank << ": has " << maxpos_list.size() << " top maxpos points...\n";
+//	for (auto it = maxpos_list.begin(); it != maxpos_list.end(); ++it)
+//		cout << "\n\t" << it->first << " --- " << tools::sample_to_string(get_gp_coord(it->second));
+//	cout << tools::reset << endl;
 
 	// Master: print grogress
 	if (par.is_master()) {
@@ -219,9 +219,11 @@ void SGI::impi_adapt()
 					<< toc << " seconds." << endl;
 
 		//************************ ADAPT WINDOW ****************************
-		if (par.status == MPI_ADAPT_STATUS_JOINING) mpiio_read_grid();
+		if (par.status == MPI_ADAPT_STATUS_JOINING)
+			mpiio_read_grid();
 
-		MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, MPI_MASTER, newcomm);
+		if (joining_count > 0)
+			MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, par.master, newcomm);
 		//************************ ADAPT WINDOW ****************************
 
 		tic = MPI_Wtime();
@@ -738,7 +740,7 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 
 	while (true) {
 		// Receive a signal from MASTER
-		MPI_Recv(&job_todo, 1, MPI_INT, MPI_MASTER, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		MPI_Recv(&job_todo, 1, MPI_INT, par.master, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
 		if (status.MPI_TAG == MPIMW_TAG_TERMINATE) break;
 
@@ -748,7 +750,7 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 			compute_gp_range(seq_min, seq_max);
 			// tell master the job is done
 			job_done = job_todo;
-			MPI_Send(&job_done, 1, MPI_INT, MPI_MASTER, 321, MPI_COMM_WORLD);
+			MPI_Send(&job_done, 1, MPI_INT, par.master, 321, MPI_COMM_WORLD);
 			// send top maxpos list to master
 			mpimw_exchange_maxpos(par.rank);
 		}
@@ -783,7 +785,7 @@ void SGI::mpimw_exchange_maxpos(int worker_rank)
 			maxpos_list.emplace(-1.0, 0);
 		std::copy(maxpos_list.begin(), maxpos_list.end(), &buf[0]);
 		//2. Send to master
-		MPI_Send(&buf[0], num_maxpos, par.MPI_POSSEQ, MPI_MASTER, 123, MPI_COMM_WORLD);
+		MPI_Send(&buf[0], num_maxpos, par.MPI_POSSEQ, par.master, 123, MPI_COMM_WORLD);
 		maxpos_list.clear();
 	}
 	return;
@@ -804,7 +806,7 @@ void SGI::mpimw_sync_maxpos()
 		std::copy(maxpos_list.begin(), maxpos_list.end(), &buf[0]);
 	}
 	// Master broadcast
-	MPI_Bcast(&buf[0], num_maxpos, par.MPI_POSSEQ, MPI_MASTER, MPI_COMM_WORLD);
+	MPI_Bcast(&buf[0], num_maxpos, par.MPI_POSSEQ, par.master, MPI_COMM_WORLD);
 	// workders unpack
 	if (!par.is_master()) {
 		maxpos_list.clear();

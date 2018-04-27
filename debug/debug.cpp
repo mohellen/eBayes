@@ -1,5 +1,6 @@
 #include <tools/Config.hpp>
 #include <tools/Parallel.hpp>
+#include <tools/ErrorAnalysis.hpp>
 #include <model/NS.hpp>
 #include <mcmc/MCMC.hpp>
 #include <mcmc/MetropolisHastings.hpp>
@@ -21,13 +22,18 @@ int main(int argc, char** argv)
 	cout << tools::yellow << "Rank " << par.rank << ": status " << par.status << tools::reset << endl;
 
 	// Forward model
-	std::size_t resx = cfg.get_param_sizet("ns_resx");
-	std::size_t resy = cfg.get_param_sizet("ns_resy");
 	NS ns (cfg);
-
 	// Surrogate model
 	SGI sgi (cfg, par, ns);
-	sgi.build();
+	// Error analysis object
+	ErrorAnalysis ea (cfg, par, ns, sgi);
+	ea.add_test_points(5);
+
+	double tol = 0.1;
+	while(true) {
+		sgi.build();
+		if (ea.mpi_is_model_accurate(tol)) break;
+	}
 
 	// Test full model
 	//ns.print_info();
@@ -40,8 +46,8 @@ int main(int argc, char** argv)
 	//std::cout << std::endl;
 
 	// MCMC
-	MCMC* mcmc = new ParallelTempering(cfg, par, sgi);
-	mcmc->run(3, sgi.get_nth_maxpos(par.rank) );
+//	MCMC* mcmc = new ParallelTempering(cfg, par, sgi);
+//	mcmc->run(3, sgi.get_nth_maxpos(par.rank) );
 
 	par.mpi_final();
 	return 0;

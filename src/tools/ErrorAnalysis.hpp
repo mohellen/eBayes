@@ -20,8 +20,8 @@
 #define TOOLS_ERRORANALYSIS_HPP_
 
 #include <tools/Config.hpp>
-
-#include <memory>
+#include <tools/Parallel.hpp>
+#include <model/ForwardModel.hpp>
 #include <iostream>
 #include <vector>
 #include <random>
@@ -29,27 +29,34 @@
 
 class ErrorAnalysis {
 private:
-	std::size_t input_size;
-	std::size_t output_size;
-	ForwardModel* fullmodel;
-	ForwardModel* surrogate;
+	Config const&	cfg;
+	Parallel&		par;
+	ForwardModel&	fullmodel;
+	ForwardModel&	surrogate;
 
-	std::vector< std::unique_ptr<double[]> > test_points;
-	std::vector< std::unique_ptr<double[]> > test_points_data;
+	std::vector< std::vector<double> > test_points;
+	std::vector< std::vector<double> > test_points_data;
 
 public:
-	ErrorAnalysis(ForwardModel* fullmodel, ForwardModel* surrogatemodel);
+	~ErrorAnalysis() {}
 
-	void update_surrogate(ForwardModel* surrogatemodel);
+	ErrorAnalysis(
+			Config const& c,
+			Parallel& p,
+			ForwardModel& f,
+			ForwardModel& s)
+		: cfg(c), par(p), fullmodel(f), surrogate(s) {}
 
-	void add_test_point(const double* m = nullptr);
+	void add_test_points(std::size_t n);
 
-	void add_test_points(int M);
+	void add_test_point_at(std::vector<double> const& m);
 
-	void copy_test_points(const ErrorAnalysis* that);
+	void copy_test_points(ErrorAnalysis const& that);
 
-	double compute_model_error();
+	double compute_surrogate_error();
 
-	double compute_model_error(const double* m);
+	double compute_surrogate_error_at(std::vector<double> const& m);
+
+	bool mpi_is_model_accurate(double tol);
 };
 #endif /* TOOLS_ERRORANALYSIS_HPP_ */

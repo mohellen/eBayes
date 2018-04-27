@@ -369,20 +369,6 @@ string tools::trim_white_space(const string& str)
 	return str.substr(strBegin, strRange);
 }
 
-double tools::compute_l2norm(
-		vector<double> const& d1,
-		vector<double> const& d2)
-{
-	if (d1.size() != d2.size()) {
-		cout << red << "ERROR: vectors size mismatch. Program abort." << reset << endl;
-		exit(EXIT_FAILURE);
-	}
-	double tmp = 0.0;
-	for (int i=0; i < d1.size(); ++i)
-		tmp += (d1[i] - d2[i])*(d1[i] - d2[i]);
-	return sqrt(tmp);
-}
-
 string tools::sample_to_string(vector<double> const& v)
 {
 	std::ostringstream oss;
@@ -401,5 +387,36 @@ string tools::samplepos_to_string(vector<double> const& v)
 		oss << v[i] << ", ";
 	oss << v[v.size()-2] << "], (" << v.back() << ")";
 	return oss.str();
+}
+
+// Compute the normalized Euclidean norm of two vectors
+// normalized_l2_norm = 0.5 * |(u-umean)-(v-vmean)|^2 / (|u-umean|^2 + |v-vmean|^2), |x|:= l2norm of x = sqrt(sum(x_i^2))
+double tools::compute_normalizedl2norm(
+		vector<double> const& u,
+		vector<double> const& v)
+{
+	if (u.size() != v.size()) {
+		cout << tools::red << "ERROR: vectors size mismatch. Program abort." << tools::reset << endl;
+		exit(EXIT_FAILURE);
+	}
+	double u_mean = 0.0;
+	for (auto i: u) u_mean += i;
+	u_mean /= u.size();
+
+	double v_mean = 0.0;
+	for (auto i: v) v_mean += i;
+	v_mean /= v.size();
+
+	double uu2 = 0.0;
+	for (auto i: u) uu2 += (i-u_mean)*(i-u_mean);
+
+	double vv2 = 0.0;
+	for (auto i: v) vv2 += (i-v_mean)*(i-v_mean);
+
+	double uv2 = 0.0;
+	for (int i=0; i < u.size(); ++i)
+		uv2 += (u[i]-u_mean-v[i]+v_mean)*(u[i]-u_mean-v[i]+v_mean);
+
+	return (0.5 * uv2) / (uu2 + vv2);
 }
 
