@@ -59,8 +59,6 @@ public:
 			const std::string& datafile,
 			const std::string& posfile);
 
-	void impi_adapt();
-
 	std::vector<double> get_nth_maxpos(std::size_t n);
 
 	std::pair<double,double> get_input_space(int dim) const {return fullmodel.get_input_space(dim);}
@@ -87,6 +85,8 @@ private:
 #endif
 
 private:
+	void impi_adapt();
+
 	std::vector<double> get_gp_coord(std::size_t seq);
 
 	sgpp::base::BoundingBox* create_boundingbox();
@@ -135,8 +135,6 @@ private:
 
 	void mpimw_worker_compute(std::size_t gp_offset);
 
-	void mpimw_exchange_maxpos(int worker_rank);
-
 	void mpimw_sync_maxpos();	
 
 	void mpimw_get_job_range(
@@ -145,14 +143,23 @@ private:
 			std::size_t& seq_min,
 			std::size_t& seq_max);
 
-	void mpimw_seed_workers(
-			const int& num_jobs,
-			int& scnt,
-			int* jobs);
+	void mpimw_master_seed_workers(
+			std::vector<char>& jobs,
+			std::vector<char>& workers);
 
-	void mpimw_adapt_preparation(
-			std::vector<int> & jobs_done,
-			int & jobs_per_tic);
+	void mpimw_master_prepare_adapt(
+			std::vector<char>& jobs,
+			std::vector<char>& workers,
+			int& jobs_per_tic);
 
+	void mpimw_master_send_todo(
+			std::vector<char>& jobs,
+			std::vector<char>& workers);
+
+	void mpimw_master_receive_done(
+			std::vector<char>& jobs,
+			std::vector<char>& workers);
+
+	void mpimw_worker_send_done(int jobid);
 };
 #endif /* SURROGATE_SGI_HPP_ */
