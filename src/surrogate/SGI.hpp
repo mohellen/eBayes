@@ -161,5 +161,14 @@ private:
 			std::vector<char>& workers);
 
 	void mpimw_worker_send_done(int jobid);
+
+
+
+
+
+void print_workers(std::vector<char> const& workers);
+void print_jobs(std::vector<char> const& jobs);
+
+
 };
 #endif /* SURROGATE_SGI_HPP_ */

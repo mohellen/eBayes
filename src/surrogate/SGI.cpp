@@ -644,6 +644,12 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	vector<char> workers (par.size, 'i'); // a for active, i for idle
 	workers[par.master] = 'x'; // exclude master rank from any search
 
+cout << tools::yellow;
+print_jobs(jobs);
+print_workers(workers);
+cout << tools::reset << endl;
+
+
 #if (IMPI==1)
 	double tic = MPI_Wtime();
 	double toc;
@@ -653,6 +659,12 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	// Seed workers if any
 	if (par.size > 1)
 		mpimw_master_seed_workers(jobs, workers);
+
+cout << tools::yellow;
+print_jobs(jobs);
+print_workers(workers);
+cout << tools::reset << endl;
+
 
 	// As long as not all jobs are done, keep working...
 	while (!std::all_of(jobs.begin(), jobs.end(), [](char i){return i=='d';})) {
@@ -787,17 +799,22 @@ void SGI::mpimw_master_seed_workers(
 		vector<char>& jobs,
 		vector<char>& workers)
 {
-	vector<MPI_Request> req (par.size-1);
-	int scnt = 0;
+	cout << tools::magenta <<  "Seeding workers..." << tools::reset << endl;
+	vector<MPI_Request> sreq;
+	sreq.reserve(par.size-1);
+	vector<int> sbuf; //use unique send buffer for each Isend
+	sbuf.reserve(par.size-1);
 	for (int i=1; i < par.size; ++i) {
-		int jid = std::find(jobs.begin(), jobs.end(), 't') - jobs.begin();
-		if (jid >= jobs.size()) break; // no more todo jobs, stop seeding
-		MPI_Isend(&jid, 1, MPI_INT, i, MPIMW_TAG_WORK, MPI_COMM_WORLD, &req[i-1]);
-		scnt++;
-		jobs[jid] = 's';
-		workers[i] = 'a';
+		sbuf.push_back( std::find(jobs.begin(), jobs.end(), 't')-jobs.begin() ); // fetch a todo job
+		if (sbuf.back() >= jobs.size()) break; // no more todo jobs, stop seeding
+		sreq.push_back(MPI_Request());
+		MPI_Isend(&(sbuf.back()), 1, MPI_INT, i, MPIMW_TAG_WORK, MPI_COMM_WORLD, &(sreq.back()));
+		jobs[sbuf.back()] = 'p'; // mark job as "processing"
+		workers[i] = 'a'; // mark worker as "active"
+	cout << tools::magenta <<  "Sending job " << sbuf.back() << " to rank " << i << tools::reset << endl;
 	}
-	MPI_Waitall(scnt, &req[0], MPI_STATUS_IGNORE);
+	if (sreq.size() > 0) MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE);
+	cout << tools::magenta <<  "Seeding complete." << tools::reset << endl;
 	return;
 }
 
@@ -807,20 +824,23 @@ void SGI::mpimw_master_prepare_adapt(
 		int& jobs_per_tic)
 {
 #if (IMPI==1)
-	vector<MPI_Request> tmp_req (par.size-1);
-	vector<int> tmp_sbuf (par.size-1); // dummy send buffer
-
-	workers[par.master] = 'i'; // exclude master from search
+	vector<MPI_Request> sreq;
+	sreq.reserve(par.size-1);
+	vector<char> sbuf; // dummy send buffer, use unique send buffer for Isend
+	sbuf.reserve(par.size-1);
+	// If any worker still active, receive the finished job
 	while ( std::any_of(workers.begin(), workers.end(), [](char i){return i=='a';}) ) {
 		mpimw_master_receive_done(jobs, workers);
 		jobs_per_tic++;
 	}
 	// Send "adapt signal" to all
 	for (int i=1; i < par.size; i++) {
-		MPI_Isend(&tmp_sbuf[i-1], 1, MPI_INT, i, MPIMW_TAG_ADAPT,
-				MPI_COMM_WORLD, &tmp_req[i-1]);
+		sreq.push_back(MPI_Request());
+		sbuf.push_back('1');
+		MPI_Isend(&(sbuf.back()), 1, MPI_CHAR, i, MPIMW_TAG_ADAPT,
+				MPI_COMM_WORLD, &(sreq.back()));
 	}
-	MPI_Waitall(par.size-1, &tmp_req[0], MPI_STATUS_IGNORE);
+	MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE);
 	return;
 #endif
 }
@@ -833,13 +853,12 @@ void SGI::mpimw_master_send_todo(
 	int jid = std::find(jobs.begin(), jobs.end(), 't') - jobs.begin();
 	if (jid >= jobs.size()) return; // no more todo jobs, nothing to do
 	// find an idle worker 'i'
-	workers[par.master] = 'a'; // exclude master rank from research
 	int wid = std::find(workers.begin(), workers.end(), 'i') - workers.begin();
 	if (wid >= workers.size()) return; // All workers are busy, nothing to do
  	// Send job (jid) to the idle worker (wid)
 	MPI_Send(&jid, 1, MPI_INT, wid, MPIMW_TAG_WORK, MPI_COMM_WORLD);
-	jobs[jid] = 's';
-	workers[wid] = 'a';
+	jobs[jid] = 'p'; // Mark job as "processing"
+	workers[wid] = 'a'; // Mark worker as "active"
 	return;
 }
 
@@ -894,4 +913,19 @@ void SGI::mpimw_worker_send_done(int jobid)
 	MPI_Send(&buf[0], num_maxpos, par.MPI_POSSEQ, par.master, 123456, MPI_COMM_WORLD);
 	maxpos_list.clear();
 	return;
+}
+
+
+void SGI::print_workers(vector<char> const& workers) {
+	cout << "Worker status: ";
+	for (auto w: workers)
+		cout << w << " ... ";
+	cout << endl;
+}
+
+void SGI::print_jobs(vector<char> const& jobs) {
+	cout << "Job status: ";
+	for (auto j: jobs)
+		cout << j << " ... ";
+	cout << endl;
 }

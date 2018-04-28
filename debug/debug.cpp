@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 	SGI sgi (cfg, par, ns);
 	// Error analysis object
 	ErrorAnalysis ea (cfg, par, ns, sgi);
-	ea.add_test_points(5);
+	ea.add_test_points(1);
 
 	double tol = 0.1;
 	while(true) {
