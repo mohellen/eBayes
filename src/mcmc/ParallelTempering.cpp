@@ -108,11 +108,20 @@ void ParallelTempering::run(
 				if (par.rank == c1) {
 					MPI_Send(&samplepos[0], input_size+2, MPI_DOUBLE, nei_chain,
 							10, MPI_COMM_WORLD);
-					MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
-							20, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				} else {
-					MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
-							10, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					if (MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
+							20, MPI_COMM_WORLD, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+						cout << tools::red << "Error: MCMC Parallel Tempering rank " << par.rank 
+						   << " failed to receive sample from " << nei_chain << ". Program abort." << tools::reset << endl;
+						exit(EXIT_FAILURE);
+					}
+				}
+				if (par.rank == c2) {
+					if (MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
+							10, MPI_COMM_WORLD, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+						cout << tools::red << "Error: MCMC Parallel Tempering rank " << par.rank 
+						   << " failed to receive sample from " << nei_chain << ". Program abort." << tools::reset << endl;
+						exit(EXIT_FAILURE);
+					}
 					MPI_Send(&samplepos[0],  input_size+2, MPI_DOUBLE, nei_chain,
 							20, MPI_COMM_WORLD);
 				}

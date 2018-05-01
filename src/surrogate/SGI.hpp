@@ -54,13 +54,14 @@ public:
 	
 	void build();
 
-	void duplicate(
-			const std::string& gridfile,
-			const std::string& datafile,
-			const std::string& posfile);
+//	void duplicate(
+//			const std::string& gridfile,
+//			const std::string& datafile,
+//			const std::string& posfile);
 
 	std::vector<double> get_nth_maxpos(std::size_t n);
 
+	// Need to implement this virtual function from parent class
 	std::pair<double,double> get_input_space(int dim) const {return fullmodel.get_input_space(dim);}
 
 private:
@@ -91,7 +92,7 @@ private:
 
 	sgpp::base::BoundingBox* create_boundingbox();
 
-	void compute_hier_alphas(const std::string& outfile="");
+	void compute_hier_alphas();
 
 	void compute_grid_points(
 			std::size_t gp_offset,
@@ -103,25 +104,21 @@ private:
 
 	bool refine_grid(double portion_to_refine);
 
-	void mpiio_read_grid(
-			const std::string& outfile="");
+	void mpiio_read_grid();
 
-	void mpiio_write_grid(
-			const std::string& outfile="");
+	void mpiio_write_grid();
 
 	void mpiio_readwrite_data(
 			bool is_read,
 			std::size_t seq_min,
 			std::size_t seq_max,
-			double* buff,
-			const std::string& outfile="");
+			double* buff);
 
 	void mpiio_readwrite_posterior(
 			bool is_read,
 			std::size_t seq_min,
 			std::size_t seq_max,
-			double* buff,
-			const std::string& outfile="");
+			double* buff);
 
 	void mpina_get_local_range(
 			const std::size_t& gmin,

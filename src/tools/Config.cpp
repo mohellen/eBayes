@@ -99,11 +99,6 @@ void Config::add_params()
 	p.val = "no";
 	params[var] = p;
 
-	var = "sgi_from_path";
-	p.des = "Directory containing the SGI output files (from previous job) to create SGI model. (Default: ) (Type: string)";
-	p.val = "";
-	params[var] = p;
-
 	var = "sgi_init_level";
 	p.des = "Grid construction initial level (before any grid refinement). (Default: 4) (Type: size_t)";
 	p.val = "4";

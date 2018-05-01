@@ -109,8 +109,8 @@ void SGI::build()
 		mpiio_write_grid();
 #if (IMPI==1)
 	} else {
-		num_points = impi_gpoffset;
 		impi_adapt();
+		num_points = impi_gpoffset; // impi_gpoffset is only updated after impi_adapt()
 	}
 #endif
 	// 2. All: Compute data at each grid point (result written to MPI IO file)
@@ -143,39 +143,6 @@ void SGI::build()
 	return;
 }
 
-void SGI::duplicate(
-		string const& gridfile,
-		string const& datafile,
-		string const& posfile)
-{
-	// Set: grid, eval, bbox
-	mpiio_read_grid(gridfile);
-	// Set: alphas
-	compute_hier_alphas(datafile);
-	// Read posterior
-	std::size_t num_gps = grid->getSize();
-	unique_ptr<double[]> pos (new double[num_gps]);
-	mpiio_readwrite_posterior(true, 0, num_gps-1, pos.get(), posfile);
-
-	// Populate top maxpos list
-	std::size_t num_maxpos = ( cfg.get_param_sizet("mcmc_max_chains") < num_gps ) ?
-			cfg.get_param_sizet("mcmc_max_chains") : num_gps;
-	// 1. Fill the first maxpos (pos + gp_seq)
-	for (size_t i=0; i < num_maxpos; ++i) {
-		maxpos_list.emplace(pos[i], i);
-	}
-	// 2. Go through the rest gps, and add the top maxpos ones
-	for (size_t i=num_maxpos; i < num_gps; ++i) {
-		if (pos[i] > (*maxpos_list.begin()).first) { // compare current pos with the MIN pos in list
-			// insert current pos
-			maxpos_list.emplace(pos[i], i);
-			// remove the MIN pos
-			maxpos_list.erase(maxpos_list.begin());
-		}
-	}
-	return;
-}
-
 vector<double> SGI::get_nth_maxpos(std::size_t n)
 {
 	vector< pair<double, std::size_t> > list (maxpos_list.size());
@@ -187,6 +154,43 @@ vector<double> SGI::get_nth_maxpos(std::size_t n)
 	return samplepos;
 }
 
+//void SGI::duplicate(
+//		string const& gridfile,
+//		string const& datafile,
+//		string const& posfile)
+//{
+//	// Set: grid, eval, bbox
+//	mpiio_read_grid(gridfile);
+//	// Set: alphas
+//	compute_hier_alphas(datafile);
+//	// Read posterior
+//	std::size_t num_gps = grid->getSize();
+//	unique_ptr<double[]> pos (new double[num_gps]);
+//	mpiio_readwrite_posterior(true, 0, num_gps-1, pos.get(), posfile);
+//
+//	// Populate top maxpos list
+//	std::size_t num_maxpos = ( cfg.get_param_sizet("mcmc_max_chains") < num_gps ) ?
+//			cfg.get_param_sizet("mcmc_max_chains") : num_gps;
+//	// 1. Fill the first maxpos (pos + gp_seq)
+//	for (size_t i=0; i < num_maxpos; ++i) {
+//		maxpos_list.emplace(pos[i], i);
+//	}
+//	// 2. Go through the rest gps, and add the top maxpos ones
+//	for (size_t i=num_maxpos; i < num_gps; ++i) {
+//		if (pos[i] > (*maxpos_list.begin()).first) { // compare current pos with the MIN pos in list
+//			// insert current pos
+//			maxpos_list.emplace(pos[i], i);
+//			// remove the MIN pos
+//			maxpos_list.erase(maxpos_list.begin());
+//		}
+//	}
+//	return;
+//}
+
+
+/*********************************************
+ *       		 Private Methods
+ *********************************************/
 void SGI::impi_adapt()
 {
 #if (IMPI==1)
@@ -222,8 +226,12 @@ void SGI::impi_adapt()
 		if (par.status == MPI_ADAPT_STATUS_JOINING)
 			mpiio_read_grid();
 
-		if (joining_count > 0)
+		if (joining_count > 0) {
 			MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, par.master, newcomm);
+
+			cout << tools::yellow << "[Rank " << par.rank << ", Status " << par.status 
+				<< "]: impi_gpoffset = " << impi_gpoffset << tools::reset << endl;
+		}
 		//************************ ADAPT WINDOW ****************************
 
 		tic = MPI_Wtime();
@@ -245,10 +253,6 @@ void SGI::impi_adapt()
 #endif
 }
 
-
-/*********************************************
- *       		 Private Methods
- *********************************************/
 vector<double> SGI::get_gp_coord(std::size_t seq)
 {
 	std::size_t input_size = cfg.get_input_size();
@@ -277,7 +281,7 @@ BoundingBox* SGI::create_boundingbox()
 	return bb;
 }
 
-void SGI::compute_hier_alphas(const string& outfile)
+void SGI::compute_hier_alphas()
 {
 #if (SGI_PRINT_TIMER==1)
 	double tic = MPI_Wtime();
@@ -286,7 +290,7 @@ void SGI::compute_hier_alphas(const string& outfile)
 	std::size_t num_gps = grid->getSize();
 	// read raw data
 	unique_ptr<double[]> data (new double[output_size * num_gps]);
-	mpiio_readwrite_data(true, 0, num_gps-1, data.get(), outfile);
+	mpiio_readwrite_data(true, 0, num_gps-1, data.get());
 	// re-allocate alphas
 	for (std::size_t j=0; j < output_size; j++)
 		alphas[j].resize(num_gps);
@@ -299,11 +303,8 @@ void SGI::compute_hier_alphas(const string& outfile)
 	for (std::size_t j=0; j<output_size; j++)
 		hier->doHierarchisation(alphas[j]);
 #if (SGI_PRINT_TIMER==1)
-	if (par.is_master()) {
-		fflush(NULL);
-		printf("Rank %d: created alphas in %.5f seconds.\n",
-				par.rank, MPI_Wtime()-tic);
-	}
+	if (par.is_master())
+		cout << "Rank " << par.rank << ": created alphas in " << MPI_Wtime()-tic << " seconds." << endl;
 #endif
 	return;
 }
@@ -408,25 +409,22 @@ bool SGI::refine_grid(double portion_to_refine)
 	// NOTE: to refine X points, maximum (2*dim*X) points can be added to grid
 	int maxi = 10000;
 	int thres = int(ceil(maxi / 2 / cfg.get_input_size()));
-
 	// Number of points to refine
 	std::size_t num_gps = this->grid->getSize();
 	int refine_gps = int(ceil(num_gps * portion_to_refine));
 	refine_gps = (refine_gps > thres) ? thres : refine_gps;
-
 	// If not points to refine, return false (meaning grid not refined)
 	if (refine_gps < 1) return false;
-
 	// Read posterior from file
 	unique_ptr<double[]> pos (new double[num_gps]);
 	mpiio_readwrite_posterior(true, 0, num_gps-1, &pos[0]);
-
 	// For each gp, compute the refinement index
 	double data_norm;
 	DataVector refine_idx (num_gps);
+	std::size_t output_size = cfg.get_output_size();
 	for (std::size_t i=0; i<num_gps; i++) {
 		data_norm = 0;
-		for (std::size_t j=0; j < cfg.get_output_size(); j++) {
+		for (std::size_t j=0; j < output_size; j++) {
 			data_norm += (alphas[j][i] * alphas[j][i]);
 		}
 		data_norm = sqrt(data_norm);
@@ -435,69 +433,67 @@ bool SGI::refine_grid(double portion_to_refine)
 	}
 	// refine grid
 	grid->refine(refine_idx, refine_gps);
-
 #if (SGI_PRINT_TIMER==1)
-	if (par.is_master()) {
+	if (par.is_master())
 		cout << "Rank " << par.rank << ": refined grid in " << MPI_Wtime()-tic << " seconds." << endl;
-	}
 #endif
 	return true;
 }
 
-void SGI::mpiio_write_grid(const string& outfile)
+void SGI::mpiio_write_grid()
 {
 	// Pack grid into Char array
 	string sg_str = grid->serialize();
 	size_t count = sg_str.size();
-
 	// Get local range (local protion to write)
 	std::size_t lmin, lmax, load;
 	mpina_get_local_range(0, count-1, lmin, lmax);
 	load = lmax -lmin + 1;
-
 	// Copy partial grid to string
 	unique_ptr<char[]> buff (new char[load]);
 	sg_str.copy(buff.get(), load, lmin);
-
 	// Write to file
-	string ofile = outfile;
-	if (ofile == "") ofile = cfg.get_param_string("global_output_path") + "/grid.mpibin";
-
+	string ofile = cfg.get_param_string("global_output_path") + "/grid.mpibin";
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
 			MPI_INFO_NULL, &fh) != MPI_SUCCESS) {
-		cout << tools::red << "\nMPI write grid file open failed. Operation aborted!\n" << tools::reset << endl;
+		cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+			<< "] failed to open " << ofile << " for grid write. Program abort." << tools::reset << endl;
 		exit(EXIT_FAILURE);
 	}
-	MPI_File_write_at(fh, lmin, buff.get(), load, MPI_CHAR, MPI_STATUS_IGNORE);
+	if (MPI_File_write_at(fh, lmin, buff.get(), load, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+		cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+			<< "] failed to write grid to " << ofile << ". Program abort." << tools::reset << endl;
+		exit(EXIT_FAILURE);
+	}
 	MPI_File_close(&fh);
 	return;
 }
 
-void SGI::mpiio_read_grid(const string& outfile)
+void SGI::mpiio_read_grid()
 {
 	// Open file
-	string ofile = outfile;
-	if (ofile == "")
-		ofile =  cfg.get_param_string("global_output_path") + "/grid.mpibin";
+	string ofile = cfg.get_param_string("global_output_path") + "/grid.mpibin";
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 			!= MPI_SUCCESS) {
-		cout << tools::red << "\nMPI read grid file open failed. Operation aborted!\n" << tools::reset << endl;
+		cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+			<< "] failed to open " << ofile << " for grid read. Program abort." << tools::reset << endl;
 		exit(EXIT_FAILURE);
 	}
 	// Get file size,create buffer
 	long long int count;
 	MPI_File_get_size(fh, &count);
 	unique_ptr<char[]> buff (new char[count]);
-
 	// Read from file
-	MPI_File_read_at(fh, 0, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE);
+	if (MPI_File_read_at(fh, 0, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+		cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+			<< "] failed to read grid from " << ofile << ". Program abort." << tools::reset << endl;
+		exit(EXIT_FAILURE);
+	}
 	MPI_File_close(&fh);
-
 	// Create serialized grid string
 	string sg_str(buff.get());
-
 	// Construct new grid from grid string
 	grid.reset(Grid::unserialize(sg_str).release()); // create grid
 	bbox.reset(create_boundingbox());
@@ -510,36 +506,42 @@ void SGI::mpiio_readwrite_data(
 		bool is_read,
 		std::size_t seq_min,
 		std::size_t seq_max,
-		double* buff,
-		const string& outfile)
+		double* buff)
 {
 	// Do something only when seq_min <= seq_max
 	if (seq_min > seq_max) return;
-
 	std::size_t output_size = cfg.get_output_size();
-	string ofile = outfile;
-	if (ofile == "") ofile = cfg.get_param_string("global_output_path") + "/data.mpibin";
+	string ofile = cfg.get_param_string("global_output_path") + "/data.mpibin";
 	MPI_File fh;
-
 	if (is_read) { // Read data from file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			cout << tools::red << "\nMPI read data file open failed. Operation aborted!\n" << tools::reset << endl;
+			cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+				<< "] failed to open " << ofile << " for data read. Program abort." << tools::reset << endl;
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
-		MPI_File_read_at(fh, seq_min*output_size*sizeof(double), buff,
-				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE);
+		if (MPI_File_read_at(fh, seq_min*output_size*sizeof(double), buff,
+				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+			cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+				<< "] failed to read data from " << ofile << ". Program abort." << tools::reset << endl;
+			exit(EXIT_FAILURE);
+		}
 
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			cout << tools::red << "\nMPI write data file open failed. Operation aborted!\n" << tools::reset << endl;
+			cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+				<< "] failed to open " << ofile << " for data write. Program abort." << tools::reset << endl;
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
-		MPI_File_write_at(fh, seq_min*output_size*sizeof(double), buff,
-				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE);
+		if (MPI_File_write_at(fh, seq_min*output_size*sizeof(double), buff,
+				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+			cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+				<< "] failed to write data to " << ofile << ". Program abort." << tools::reset << endl;
+			exit(EXIT_FAILURE);
+		}
 	}
 	MPI_File_close(&fh);
 	return;
@@ -549,35 +551,41 @@ void SGI::mpiio_readwrite_posterior(
 		bool is_read,
 		std::size_t seq_min,
 		std::size_t seq_max,
-		double* buff,
-		const string& outfile)
+		double* buff)
 {
 	// Do something only when seq_min <= seq_max
 	if (seq_min > seq_max) return;
-
-	string ofile = outfile;
-	if (ofile == "") ofile = cfg.get_param_string("global_output_path") + "/pos.mpibin";
+	string ofile = cfg.get_param_string("global_output_path") + "/pos.mpibin";
 	MPI_File fh;
-
 	if (is_read) { // Read data from file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			cout << tools::red << "\nMPI read pos file open failed. Operation aborted!\n" << tools::reset << endl;
+			cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+				<< "] failed to open " << ofile << " for posterior read. Program abort." << tools::reset << endl;
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
-		MPI_File_read_at(fh, seq_min*sizeof(double), buff,
-				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE);
+		if (MPI_File_read_at(fh, seq_min*sizeof(double), buff,
+				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+			cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+				<< "] failed to read posterior from " << ofile << ". Program abort." << tools::reset << endl;
+			exit(EXIT_FAILURE);
+		}
 
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			cout << tools::red << "\nMPI write pos file open failed. Operation aborted!\n" << tools::reset << endl;
+			cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+				<< "] failed to open " << ofile << " for posterior write. Program abort." << tools::reset << endl;
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
-		MPI_File_write_at(fh, seq_min*sizeof(double), buff,
-				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE);
+		if (MPI_File_write_at(fh, seq_min*sizeof(double), buff,
+				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+			cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+				<< "] failed to write data to " << ofile << ". Program abort." << tools::reset << endl;
+			exit(EXIT_FAILURE);
+		}
 	}
 	MPI_File_close(&fh);
 	return;
@@ -739,7 +747,12 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 
 	while (true) {
 		// Receive a signal from MASTER
-		MPI_Recv(&job_todo, 1, MPI_INT, par.master, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+		if (MPI_Recv(&job_todo, 1, MPI_INT, par.master, MPI_ANY_TAG, MPI_COMM_WORLD, &status)
+				!= MPI_SUCCESS) {
+			cout << tools::red << "Error: [Rank " << par.rank << ", Status " << par.status
+			   << "] failed to receive from MASTER. Program abort." << tools::reset << endl;
+			exit(EXIT_FAILURE);
+		}
 
 		if (status.MPI_TAG == MPIMW_TAG_TERMINATE) break;
 
@@ -803,7 +816,8 @@ void SGI::mpimw_master_seed_workers(
 	sreq.reserve(par.size-1);
 	vector<int> sbuf; //use unique send buffer for each Isend
 	sbuf.reserve(par.size-1);
-	for (int i=1; i < par.size; ++i) {
+	// Seed workers avoiding MASTER itself
+	for (int i=0; i < par.master; ++i) {
 		sbuf.push_back( std::find(jobs.begin(), jobs.end(), 't')-jobs.begin() ); // fetch a todo job
 		if (sbuf.back() >= jobs.size()) break; // no more todo jobs, stop seeding
 		sreq.push_back(MPI_Request());
@@ -811,7 +825,21 @@ void SGI::mpimw_master_seed_workers(
 		jobs[sbuf.back()] = 'p'; // mark job as "processing"
 		workers[i] = 'a'; // mark worker as "active"
 	}
-	if (sreq.size() > 0) MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE);
+	for (int i=par.master+1; i < par.size; ++i) {
+		sbuf.push_back( std::find(jobs.begin(), jobs.end(), 't')-jobs.begin() ); // fetch a todo job
+		if (sbuf.back() >= jobs.size()) break; // no more todo jobs, stop seeding
+		sreq.push_back(MPI_Request());
+		MPI_Isend(&(sbuf.back()), 1, MPI_INT, i, MPIMW_TAG_WORK, MPI_COMM_WORLD, &(sreq.back()));
+		jobs[sbuf.back()] = 'p'; // mark job as "processing"
+		workers[i] = 'a'; // mark worker as "active"
+	}
+	if (sreq.size() > 0) {
+		if (MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+			cout << tools::red << "Error: Master failed to Isend for seeding workers. Program abort."
+				<< tools::reset << endl;
+			exit(EXIT_FAILURE);
+		}
+	}
 	return;
 }
 
@@ -830,14 +858,26 @@ void SGI::mpimw_master_prepare_adapt(
 		mpimw_master_receive_done(jobs, workers);
 		jobs_per_tic++;
 	}
-	// Send "adapt signal" to all
-	for (int i=1; i < par.size; i++) {
+	// Send "adapt signal" to all workers (avoiding MASTER itself)
+	for (int i=0; i < par.master; i++) {
 		sreq.push_back(MPI_Request());
 		sbuf.push_back('1');
 		MPI_Isend(&(sbuf.back()), 1, MPI_CHAR, i, MPIMW_TAG_ADAPT,
 				MPI_COMM_WORLD, &(sreq.back()));
 	}
-	MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE);
+	for (int i=par.master+1; i < par.size; i++) {
+		sreq.push_back(MPI_Request());
+		sbuf.push_back('1');
+		MPI_Isend(&(sbuf.back()), 1, MPI_CHAR, i, MPIMW_TAG_ADAPT,
+				MPI_COMM_WORLD, &(sreq.back()));
+	}
+	if (sreq.size() > 0) {
+		if (MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+			cout << tools::red << "Error: Master failed to Isend adapt signal to workers. Program abort."
+				<< tools::reset << endl;
+			exit(EXIT_FAILURE);
+		}
+	}
 	return;
 #endif
 }
@@ -868,7 +908,7 @@ void SGI::mpimw_master_receive_done(
 	int jid, wid;
 	MPI_Status status;
 	if (MPI_Recv(&jid, 1, MPI_INT, MPI_ANY_SOURCE, 12345, MPI_COMM_WORLD, &status) != MPI_SUCCESS) {
-		cout << tools::red << "Error: master receive a finished jobid failed. Program abort." << tools::reset << endl;
+		cout << tools::red << "Error: MASTER failed to receive a finished jobid. Program abort." << tools::reset << endl;
 		exit(EXIT_FAILURE);
 	}
 	wid = status.MPI_SOURCE;
@@ -879,7 +919,8 @@ void SGI::mpimw_master_receive_done(
 	typedef std::pair<double, std::size_t> posseq;
 	vector<posseq> buf (num_maxpos);
 	if (MPI_Recv(&buf[0], num_maxpos, par.MPI_POSSEQ, wid, 123456, MPI_COMM_WORLD, &status) != MPI_SUCCESS) {
-		cout << tools::red << "Error: master receive maxpos list failed. Program abort." << tools::reset << endl;
+		cout << tools::red << "Error: MASTER failed to receive maxpos list from rank " << wid 
+			<<". Program abort." << tools::reset << endl;
 		exit(EXIT_FAILURE);
 	}
 	for (auto p: buf) {
@@ -912,7 +953,7 @@ void SGI::mpimw_worker_send_done(int jobid)
 	return;
 }
 
-
+// For debug only
 void SGI::print_workers(vector<char> const& workers)
 {
 	cout << "Worker status: ";

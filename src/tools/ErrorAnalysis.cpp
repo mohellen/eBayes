@@ -70,7 +70,7 @@ double ErrorAnalysis::compute_surrogate_error()
 	for (int i=0; i < n; ++i) {
 		sum += tools::compute_normalizedl2norm(test_points_data[i], surrogate.run(test_points[i]));
 	}
-	return sum/n;
+	return sum/double(n);
 }
 
 double ErrorAnalysis::compute_surrogate_error_at(std::vector<double> const& m)
@@ -85,7 +85,9 @@ bool ErrorAnalysis::mpi_is_model_accurate(double tol)
 	double err = compute_surrogate_error();
 	double mean;
 	MPI_Allreduce(&err, &mean, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	mean = mean / par.size;
+	mean = mean / double(par.size);
+	cout << "Rank " << par.rank << ": local error = " << err << ", global err = " << mean
+			<< ", MPI size = " << par.size << endl;
 	if (par.is_master())
 		cout << "Average surrogate model error = " << mean << ", tol = " << tol << endl;
 	return (mean <= tol) ? true : false;
