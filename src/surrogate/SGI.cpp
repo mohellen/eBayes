@@ -76,7 +76,7 @@ void SGI::build()
 #endif
 		if (is_init) {
 			if (par.is_master())
-				cout << "\n...Initializing SGI model..." << endl;
+				cout << "\n>>> Initializing SGI model..." << endl;
 			// 1. All: Construct grid
 			grid.reset(Grid::createModLinearGrid(input_size).release()); // create empty grid
 			grid->getGenerator().regular(init_level); // populate grid points
@@ -84,26 +84,26 @@ void SGI::build()
 			grid->setBoundingBox(*bbox); // set up bounding box
 			num_points = grid->getSize();
 			if (par.is_master()) {
-				cout << "\nGrid points added: " << num_points;
-				cout << "\nTotal grid points: " << num_points << endl;
+				cout << "\n>>> Grid points added: " << num_points;
+				cout << "\n>>> Total grid points: " << num_points << endl;
 			}
 		} else {
 			if (par.is_master())
-				cout << "\n...Refining SGI model..." << endl;
+				cout << "\n>>> Refining SGI model..." << endl;
 			// 1. All: refine grid
 			num_points = grid->getSize();
 			if (!refine_grid(refine_portion)) {
 				if (par.is_master()) {
-					cout << "\nGrid not refined!!";
-					cout << "\nGrid points added: 0";
-					cout << "\nTotal grid points: " << num_points << endl;
+					cout << "\n>>> Grid not refined!!";
+					cout << "\n>>> Grid points added: 0";
+					cout << "\n>>> Total grid points: " << num_points << endl;
 				}
 				return;
 			}
 			new_num_points = grid->getSize();
 			if (par.is_master()) {
-				cout << "\nGrid points added: " << new_num_points-num_points;
-				cout << "\nTotal grid points: " << new_num_points << endl;
+				cout << "\n>>> Grid points added: " << new_num_points-num_points;
+				cout << "\n>>> Total grid points: " << new_num_points << endl;
 			}
 		}
 		mpiio_write_grid();
@@ -135,9 +135,9 @@ void SGI::build()
 		//cout << "Max posterior: " << (*maxpos_list.end()).first
 		//	<< " at " << tools::sample_to_string(get_gp_coord((*maxpos_list.end()).second));
 		if (is_init) {
-			cout << "\n...Initialize SGI model successful...\n" << endl;
+			cout << ">>> Initialize SGI model successful.\n" << endl;
 		} else {
-			cout << "\n...Refine SGI model successful...\n" << endl;
+			cout << ">>> Refine SGI model successful.\n" << endl;
 		}
 	}
 	return;
@@ -315,8 +315,8 @@ void SGI::compute_grid_points(
 #if (SGI_PRINT_TIMER==1)
 	double tic = MPI_Wtime(); // start the timer
 #endif
-	// NOTE: both "Master-minion" or "Naive" schemes can run under MPI & iMPI
-	//		settings, but only the "Master-minion" scheme uses the iMPI features.
+	// NOTE: "Master-minion" scheme can run under MPI & iMPI
+	// 		 "Naive" (aka SIMD) scheme can run under only MPI
 	if (is_masterworker) {
 		// Master-worker style
 		if (par.is_master()) {
@@ -644,11 +644,11 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	vector<char> workers (par.size, 'i'); // a for active, i for idle
 	workers[par.master] = 'x'; // exclude master rank from any search
 
+// for debug only
 cout << tools::yellow;
 print_jobs(jobs);
 print_workers(workers);
 cout << tools::reset << endl;
-
 
 #if (IMPI==1)
 	double tic = MPI_Wtime();
@@ -660,11 +660,11 @@ cout << tools::reset << endl;
 	if (par.size > 1)
 		mpimw_master_seed_workers(jobs, workers);
 
+// for debug only
 cout << tools::yellow;
 print_jobs(jobs);
 print_workers(workers);
 cout << tools::reset << endl;
-
 
 	// As long as not all jobs are done, keep working...
 	while (!std::all_of(jobs.begin(), jobs.end(), [](char i){return i=='d';})) {
@@ -673,17 +673,17 @@ cout << tools::reset << endl;
 			// #1. Receive a finished job (only if there is any active worker)
 			if (std::any_of(workers.begin(), workers.end(), [](char i){return i=='a';})) {
 				mpimw_master_receive_done(jobs, workers);
-			}
 #if (IMPI==1)
-			jobs_per_tic++;
+				jobs_per_tic++;
 #endif
+			}
 			// #2. Send another job
 			mpimw_master_send_todo(jobs, workers); // internally checks for todo jobs and idle workers
 		} else { // if there is NO worker
 			// #1. Find a todo job 't'
 			int jid = std::find(jobs.begin(), jobs.end(), 't') - jobs.begin();
 			if (jid == jobs.size()) continue;
-			jobs[jid] = 's';
+			jobs[jid] = 'p';
 			// #2. Compute a job
 			std::size_t seq_min, seq_max;
 			mpimw_get_job_range(jid, gp_offset, seq_min, seq_max);
@@ -799,7 +799,6 @@ void SGI::mpimw_master_seed_workers(
 		vector<char>& jobs,
 		vector<char>& workers)
 {
-	cout << tools::magenta <<  "Seeding workers..." << tools::reset << endl;
 	vector<MPI_Request> sreq;
 	sreq.reserve(par.size-1);
 	vector<int> sbuf; //use unique send buffer for each Isend
@@ -811,10 +810,8 @@ void SGI::mpimw_master_seed_workers(
 		MPI_Isend(&(sbuf.back()), 1, MPI_INT, i, MPIMW_TAG_WORK, MPI_COMM_WORLD, &(sreq.back()));
 		jobs[sbuf.back()] = 'p'; // mark job as "processing"
 		workers[i] = 'a'; // mark worker as "active"
-	cout << tools::magenta <<  "Sending job " << sbuf.back() << " to rank " << i << tools::reset << endl;
 	}
 	if (sreq.size() > 0) MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE);
-	cout << tools::magenta <<  "Seeding complete." << tools::reset << endl;
 	return;
 }
 
@@ -916,14 +913,16 @@ void SGI::mpimw_worker_send_done(int jobid)
 }
 
 
-void SGI::print_workers(vector<char> const& workers) {
+void SGI::print_workers(vector<char> const& workers)
+{
 	cout << "Worker status: ";
 	for (auto w: workers)
 		cout << w << " ... ";
 	cout << endl;
 }
 
-void SGI::print_jobs(vector<char> const& jobs) {
+void SGI::print_jobs(vector<char> const& jobs)
+{
 	cout << "Job status: ";
 	for (auto j: jobs)
 		cout << j << " ... ";

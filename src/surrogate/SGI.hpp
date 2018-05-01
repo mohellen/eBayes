@@ -135,7 +135,7 @@ private:
 
 	void mpimw_worker_compute(std::size_t gp_offset);
 
-	void mpimw_sync_maxpos();	
+	void mpimw_sync_maxpos();
 
 	void mpimw_get_job_range(
 			const std::size_t& jobid,
@@ -162,13 +162,8 @@ private:
 
 	void mpimw_worker_send_done(int jobid);
 
-
-
-
-
-void print_workers(std::vector<char> const& workers);
-void print_jobs(std::vector<char> const& jobs);
-
-
+	// For debug only
+	void print_workers(std::vector<char> const& workers);
+	void print_jobs(std::vector<char> const& jobs);
 };
 #endif /* SURROGATE_SGI_HPP_ */

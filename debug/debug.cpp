@@ -18,8 +18,6 @@ int main(int argc, char** argv)
 	Config cfg (argc, argv);
 	Parallel par;
 	par.mpi_init(argc, argv);
-	
-	cout << tools::yellow << "Rank " << par.rank << ": status " << par.status << tools::reset << endl;
 
 	// Forward model
 	NS ns (cfg);
@@ -27,7 +25,7 @@ int main(int argc, char** argv)
 	SGI sgi (cfg, par, ns);
 	// Error analysis object
 	ErrorAnalysis ea (cfg, par, ns, sgi);
-	ea.add_test_points(1);
+	ea.add_test_points(5);
 
 	double tol = 0.1;
 	while(true) {
@@ -46,8 +44,8 @@ int main(int argc, char** argv)
 	//std::cout << std::endl;
 
 	// MCMC
-//	MCMC* mcmc = new ParallelTempering(cfg, par, sgi);
-//	mcmc->run(3, sgi.get_nth_maxpos(par.rank) );
+	MCMC* mcmc = new ParallelTempering(cfg, par, sgi);
+	mcmc->run(10000, sgi.get_nth_maxpos(par.rank) );
 
 	par.mpi_final();
 	return 0;
