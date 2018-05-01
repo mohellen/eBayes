@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <iomanip> //for std::setprecision
 #include <cstdlib> //for system()
+#include <cmath>
 
 // Global enum type, so that everybody knows what are the available scenarios
 enum Scenario {
