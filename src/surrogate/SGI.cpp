@@ -66,7 +66,6 @@ void SGI::build()
 	double refine_portion = cfg.get_param_double("sgi_refine_portion");
 	bool is_masterworker = cfg.get_param_bool("sgi_is_masterworker");
 	bool is_fromfiles = cfg.get_param_bool("sgi_is_from_files");
-	string from_path = cfg.get_param_string("sgi_from_path");
 	// find out whether it's grid initialization or refinement
 	bool is_init = (!this->eval) ? true : false;
 	std::size_t num_points, new_num_points;
@@ -898,7 +897,6 @@ void SGI::mpimw_master_send_todo(
 	workers[wid] = 'a'; // Mark worker as "active"
 	return;
 }
-
 
 void SGI::mpimw_master_receive_done(
 		vector<char>& jobs,
