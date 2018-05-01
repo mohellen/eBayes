@@ -1,6 +1,3 @@
-IMPIPATH=/work_fast/hellenbr/workspace/ihpcins_2016stable
-
-
 CC=$(IMPIPATH)/bin/mpicxx
 
 CFLAGS=-std=c++11 
