@@ -739,6 +739,11 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 		if (status.MPI_TAG == MPIMW_TAG_WORK) {
 			// get the job range and compute
 			mpimw_get_job_range(job_todo, gp_offset, seq_min, seq_max);
+
+			cout << tools::green << "[Rank " << par.rank << ", Status " << par.status << "]: compute job "
+				<< job_todo << " at (" << seq_min << ", " << seq_max << "). Offset "
+				<< gp_offset << tools::reset << endl;
+
 			compute_gp_range(seq_min, seq_max);
 			// tell master the job is done
 			job_done = job_todo;
