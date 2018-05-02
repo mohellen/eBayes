@@ -68,7 +68,7 @@ void SGI::build()
 	bool is_fromfiles = cfg.get_param_bool("sgi_is_from_files");
 	// find out whether it's grid initialization or refinement
 	bool is_init = (!this->eval) ? true : false;
-	std::size_t num_points, new_num_points;
+	std::size_t num_points;
 
 #if (IMPI==1)
 	if (par.status != MPI_ADAPT_STATUS_JOINING) {
@@ -81,43 +81,34 @@ void SGI::build()
 			grid->getGenerator().regular(init_level); // populate grid points
 			bbox.reset(create_boundingbox());
 			grid->setBoundingBox(*bbox); // set up bounding box
+			impi_gpoffset = 0; // NEW ranks set this variable needed by the JOINING ranks
 			num_points = grid->getSize();
-			impi_gpoffset = num_points; // NEW ranks set this variable needed by the JOINING ranks
-			if (par.is_master()) {
-				cout << "SGI: grid points added = " << num_points << ", total grid points = " << num_points << endl;
-			}
 		} else {
 			if (par.is_master())
-				cout << "\nSGI: refining SGI model..." << endl;
+				cout << "\nSGI: Refining SGI model..." << endl;
 			// 1. All: refine grid
-			num_points = grid->getSize();
-			impi_gpoffset = num_points; // STAYING ranks set this variable needed by the JOINING ranks
+			impi_gpoffset = grid->getSize(); // STAYING ranks set this variable needed by the JOINING ranks
 			if (!refine_grid(refine_portion)) {
 				if (par.is_master()) {
-					cout << tools::yellow << "SGI: grid NOT refined, grid points added = 0, total grid points = "
-						<< num_points << tools::reset << endl;
+					cout << tools::yellow << "SGI: Grid NOT refined, grid points added = 0, total grid points = "
+						<< impi_gpoffset << tools::reset << endl;
 				}
 				return;
 			}
-			new_num_points = grid->getSize();
-			if (par.is_master()) {
-				cout << "SGI: grid points added = " << new_num_points-num_points << ", total grid points = " << new_num_points << endl;
-			}
+			num_points = grid->getSize();
 		}
 		mpiio_write_grid();
+		if (par.is_master())
+			cout << "SGI: Grid points added = " << num_points - impi_gpoffset
+				<< ", total grid points = " << num_points << endl;
 #if (IMPI==1)
 	} else {
 		impi_adapt();
-		num_points = impi_gpoffset; // impi_gpoffset is only updated after impi_adapt()
 	}
 #endif
 	// 2. All: Compute data at each grid point (result written to MPI IO file)
 	//		and find the top maxpos points
-	if (is_init) {
-		compute_grid_points(0, is_masterworker);
-	} else {
-		compute_grid_points(num_points, is_masterworker);
-	}
+	compute_grid_points(impi_gpoffset, is_masterworker);
 	// 3. All: Compute and hierarchize alphas
 	compute_hier_alphas();
 	// 4. Update op_eval
@@ -131,9 +122,9 @@ void SGI::build()
 	// Master: print grogress
 	if (par.is_master()) {
 		if (is_init) {
-			cout << "SGI: initialize SGI model successful.\n" << endl;
+			cout << "SGI: Initialize SGI model successful.\n" << endl;
 		} else {
-			cout << "SGI: refine SGI model successful.\n" << endl;
+			cout << "SGI: Refine SGI model successful.\n" << endl;
 		}
 	}
 	return;
@@ -351,7 +342,7 @@ void SGI::compute_gp_range(
 	if (seq_max < seq_min) return;
 
 #if (SGI_PRINT_RANKPROGRESS==1)
-	cout << "SGI: rank " << par.rank << " computing " << (seq_max-seq_min+1) 
+	cout << "SGI: Rank " << par.rank << " computing " << (seq_max-seq_min+1) 
 		<< " grid points ["<< seq_min << ", " << seq_max << "]" << endl;
 #endif
 
@@ -382,7 +373,7 @@ void SGI::compute_gp_range(
 			maxpos_list.erase(maxpos_list.begin());
 		}
 #if (SGI_PRINT_GRIDPOINTS==1)
-		cout << tools::blue << "SGI: rank " << par.rank << " completed grid point " << i << " at "
+		cout << tools::blue << "SGI: Rank " << par.rank << " completed grid point " << i << " at "
 			<< tools::sample_to_string(get_gp_coord(i)) << ", pos = "
 			<< *p << tools::reset << endl;
 #endif
