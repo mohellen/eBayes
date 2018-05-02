@@ -82,11 +82,19 @@ double ErrorAnalysis::compute_surrogate_error_at(std::vector<double> const& m)
 
 bool ErrorAnalysis::mpi_is_model_accurate(double tol)
 {
-	double err = compute_surrogate_error();
-	double mean;
-	MPI_Allreduce(&err, &mean, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	mean = mean / double(par.size);
-	cout << tools::yellow << "Rank " << par.rank << ": local error = " << err << ", global err = " << mean
+	double local_err = compute_surrogate_error();
+	vector<double> err (par.size);
+	MPI_Allgather(&local_err, 1, MPI_DOUBLE, &err[0], 1, MPI_DOUBLE, MPI_COMM_WORLD);
+	// Exclude invalid values
+	double mean = 0.0;
+	int count = 0;
+	for (auto e: err) {
+		if (isnan(e) || isinf(e)) continue;
+		mean += e;
+		count++;
+	}
+	mean = mean / double(count);
+	cout << tools::yellow << "Rank " << par.rank << ": local error = " << local_err << ", global err = " << mean
 			<< ", MPI size = " << par.size << tools::reset << endl;
 	if (par.is_master())
 		cout << "Average surrogate model error = " << mean << ", tol = " << tol << endl;

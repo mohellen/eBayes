@@ -99,7 +99,7 @@ void SGI::build()
 		}
 		mpiio_write_grid();
 		if (par.is_master())
-			cout << "SGI: " << num_points - impi_gpoffset << "grid points added [" << impi_gpoffset 
+			cout << "SGI: " << num_points - impi_gpoffset << " grid points added [" << impi_gpoffset 
 				<< ", " << num_points-1 << "], total grid points = " << num_points << endl;
 #if (IMPI==1)
 	} else {
@@ -342,7 +342,7 @@ void SGI::compute_gp_range(
 	if (seq_max < seq_min) return;
 
 #if (SGI_PRINT_RANKPROGRESS==1)
-	cout << "SGI: Rank " << par.rank << " computing " << (seq_max-seq_min+1) 
+	cout << "SGI: Rank " << par.rank << "/" << par.size << " computing " << (seq_max-seq_min+1) 
 		<< " grid points ["<< seq_min << ", " << seq_max << "]" << endl;
 #endif
 
@@ -373,7 +373,7 @@ void SGI::compute_gp_range(
 			maxpos_list.erase(maxpos_list.begin());
 		}
 #if (SGI_PRINT_GRIDPOINTS==1)
-		cout << tools::blue << "SGI: Rank " << par.rank << " completed grid point " << i << " at "
+		cout << tools::blue << "SGI: Rank " << par.rank << "/" << par.size << " completed grid point " << i << " at "
 			<< tools::sample_to_string(get_gp_coord(i)) << ", pos = "
 			<< *p << tools::reset << endl;
 #endif
