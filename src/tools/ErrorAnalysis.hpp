@@ -25,6 +25,7 @@
 #include <iostream>
 #include <vector>
 #include <random>
+#include <cmath> //for isinf() isnan()
 
 
 class ErrorAnalysis {

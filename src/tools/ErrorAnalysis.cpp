@@ -66,11 +66,15 @@ double ErrorAnalysis::compute_surrogate_error()
 		exit(EXIT_FAILURE);
 	}
 	std::size_t n = test_points.size();
-	double sum = 0.0;
+	double err, sum = 0.0;
+	int count = 0;
 	for (int i=0; i < n; ++i) {
-		sum += tools::compute_normalizedl2norm(test_points_data[i], surrogate.run(test_points[i]));
+		err = tools::compute_normalizedl2norm(test_points_data[i], surrogate.run(test_points[i]));
+		if (std::isnan(err) || std::isinf(err)) continue;
+		sum += err;
+		count++;
 	}
-	return sum/double(n);
+	return sum/double(count);
 }
 
 double ErrorAnalysis::compute_surrogate_error_at(std::vector<double> const& m)
@@ -89,13 +93,18 @@ bool ErrorAnalysis::mpi_is_model_accurate(double tol)
 	double mean = 0.0;
 	int count = 0;
 	for (double e: err) {
-		if (isnan(e) || isinf(e)) continue;
+		if (std::isnan(e) || std::isinf(e)) continue;
 		mean += e;
 		count++;
 	}
 	mean = mean / double(count);
-	cout << tools::yellow << "Rank " << par.rank << ": local error = " << local_err << ", global err = " << mean
-			<< ", MPI size = " << par.size << tools::reset << endl;
+
+	cout << tools::yellow << "Rank " << par.rank << ": err = [";
+	for (double e: err)
+		cout << e << "  ";
+	cout << "]. Local error = " << local_err << ". Global err = " << mean
+			<< ". MPI size = " << par.size << tools::reset << endl;
+
 	if (par.is_master())
 		cout << "Average surrogate model error = " << mean << ", tol = " << tol << endl;
 	return (mean <= tol) ? true : false;

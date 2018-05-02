@@ -1,9 +1,15 @@
 .*
 dep/sgpp-base-2.0.0/.sconf_temp/
 dep/sgpp-base-2.0.0/base/examples/JSONExample
+dep/sgpp-base-2.0.0/base/examples/JSONTest
 dep/sgpp-base-2.0.0/base/examples/dataMatrixSerializeDemo
 dep/sgpp-base-2.0.0/base/examples/datavectorSerializeDemo
 dep/sgpp-base-2.0.0/base/examples/detectPlatformConfiguration
+dep/sgpp-base-2.0.0/base/examples/platformConfigurationTest
+dep/sgpp-base-2.0.0/base/examples/predictive_refinement
+dep/sgpp-base-2.0.0/base/examples/quadrature
+dep/sgpp-base-2.0.0/base/examples/refinement
+dep/sgpp-base-2.0.0/base/examples/tutorial
 dep/sgpp-base-2.0.0/base/examples/unserializeGrid
 dep/sgpp-base-2.0.0/site_scons/Helper.pyc
 dep/sgpp-base-2.0.0/site_scons/ModuleHelper.pyc

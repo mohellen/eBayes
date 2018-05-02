@@ -212,12 +212,8 @@ void SGI::impi_adapt()
 		if (par.status == MPI_ADAPT_STATUS_JOINING)
 			mpiio_read_grid();
 
-		if (joining_count > 0) {
+		if (joining_count > 0)
 			MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, par.master, newcomm);
-
-			cout << tools::yellow << "[Rank " << par.rank << ", Status " << par.status 
-				<< "]: impi_gpoffset = " << impi_gpoffset << tools::reset << endl;
-		}
 		//************************ ADAPT WINDOW ****************************
 
 		tic = MPI_Wtime();
@@ -325,7 +321,7 @@ void SGI::compute_grid_points(
 
 #if (SGI_PRINT_TIMER==1)
 	if (par.is_master()) {
-		cout << "SGI: " << par.size << " ranks computed " << grid->getSize()-gp_offset
+		cout << "SGI: Computed " << grid->getSize()-gp_offset
 		   	<< " grid points [" << gp_offset << ", " << grid->getSize()-1
 			<<"] in " << MPI_Wtime()-tic << " seconds." << endl;
 	}
