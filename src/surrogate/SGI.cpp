@@ -99,8 +99,8 @@ void SGI::build()
 		}
 		mpiio_write_grid();
 		if (par.is_master())
-			cout << "SGI: Grid points added = " << num_points - impi_gpoffset
-				<< ", total grid points = " << num_points << endl;
+			cout << "SGI: " << num_points - impi_gpoffset << "grid points added [" << impi_gpoffset 
+				<< ", " << num_points-1 << "], total grid points = " << num_points << endl;
 #if (IMPI==1)
 	} else {
 		impi_adapt();
