@@ -88,7 +88,7 @@ bool ErrorAnalysis::mpi_is_model_accurate(double tol)
 	// Exclude invalid values
 	double mean = 0.0;
 	int count = 0;
-	for (auto e: err) {
+	for (double e: err) {
 		if (isnan(e) || isinf(e)) continue;
 		mean += e;
 		count++;
