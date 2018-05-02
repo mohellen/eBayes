@@ -214,6 +214,10 @@ void SGI::impi_adapt()
 
 		if (joining_count > 0)
 			MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, par.master, newcomm);
+
+		std::size_t ngps = grid->getSize();
+		cout << tools::green << "[Rank " << par.rank << ", Status " << par.status << "]: num grip points = "
+			<< ngps << ", gpoffset = " << impi_gpoffset << tools::reset << endl;
 		//************************ ADAPT WINDOW ****************************
 
 		tic = MPI_Wtime();
