@@ -163,9 +163,8 @@ vector<double> MCMC::initialize_samplepos(
 void MCMC::print_progress(int iter, vector<double> const& max_samplepos)
 {
 	if ((iter+1) % stoi(cfg.get_param_string("mcmc_progress_freq_step")) == 0) {
-		cout << tools::green << "MCMC: Rank " << par.rank
-			<< " completed " << iter+1 << " steps. Current max.: "
-			<< tools::samplepos_to_string(max_samplepos) << tools::reset << endl;
+		cout << "MCMC: rank " << par.rank << " completed " << iter+1 << " steps. Current max.: "
+			<< tools::samplepos_to_string(max_samplepos) << endl;
 	}
 	return;
 }

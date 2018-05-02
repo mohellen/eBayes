@@ -110,7 +110,7 @@ void ParallelTempering::run(
 							10, MPI_COMM_WORLD);
 					if (MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
 							20, MPI_COMM_WORLD, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-						cout << tools::red << "Error: MCMC Parallel Tempering rank " << par.rank 
+						cout << tools::red << "ERROR: MCMC Parallel Tempering rank " << par.rank 
 						   << " failed to receive sample from " << nei_chain << ". Program abort." << tools::reset << endl;
 						exit(EXIT_FAILURE);
 					}
@@ -118,7 +118,7 @@ void ParallelTempering::run(
 				if (par.rank == c2) {
 					if (MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
 							10, MPI_COMM_WORLD, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-						cout << tools::red << "Error: MCMC Parallel Tempering rank " << par.rank 
+						cout << tools::red << "ERROR: MCMC Parallel Tempering rank " << par.rank 
 						   << " failed to receive sample from " << nei_chain << ". Program abort." << tools::reset << endl;
 						exit(EXIT_FAILURE);
 					}
@@ -128,8 +128,8 @@ void ParallelTempering::run(
 				// Exchange only if both me and nei accepted
 				if ((samplepos.back() > 0.5) && (rbuf.back() > 0.5)) {
 					samplepos = rbuf;
-					cout << tools::green << "MCMC: rank " << par.rank << " swapped with rank "
-							<< nei_chain << " at iteration " << it << "." << tools::reset << endl;
+					cout << "MCMC.PT: rank " << par.rank << " swapped with rank "
+							<< nei_chain << " at iteration " << it << "." << endl;
 				}
 				samplepos.pop_back(); //remove the exchange decision, samplepos go back to input_size+1 length
 			}

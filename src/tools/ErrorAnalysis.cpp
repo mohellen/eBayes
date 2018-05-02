@@ -58,11 +58,11 @@ void ErrorAnalysis::copy_test_points(ErrorAnalysis const& that)
 double ErrorAnalysis::compute_surrogate_error()
 {
 	if (test_points.size() < 1) {
-		cout << tools::red << "Error: no test points added. Program abort." << tools::reset << endl;
+		cout << tools::red << "ERROR: no test points added. Program abort." << tools::reset << endl;
 		exit(EXIT_FAILURE);
 	}
 	if (test_points.size() != test_points_data.size()) {
-		cout << tools::red << "Error: test points and data mismatch. Program abort." << tools::reset << endl;
+		cout << tools::red << "ERROR: test points and data mismatch. Program abort." << tools::reset << endl;
 		exit(EXIT_FAILURE);
 	}
 	std::size_t n = test_points.size();
@@ -86,8 +86,8 @@ bool ErrorAnalysis::mpi_is_model_accurate(double tol)
 	double mean;
 	MPI_Allreduce(&err, &mean, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	mean = mean / double(par.size);
-	cout << "Rank " << par.rank << ": local error = " << err << ", global err = " << mean
-			<< ", MPI size = " << par.size << endl;
+	cout << tools::yellow << "Rank " << par.rank << ": local error = " << err << ", global err = " << mean
+			<< ", MPI size = " << par.size << tools::reset << endl;
 	if (par.is_master())
 		cout << "Average surrogate model error = " << mean << ", tol = " << tol << endl;
 	return (mean <= tol) ? true : false;
