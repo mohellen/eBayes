@@ -19,13 +19,17 @@ int main(int argc, char** argv)
 	Parallel par;
 	par.mpi_init(argc, argv);
 
+	if (par.status == MPI_ADAPT_STATUS_JOINING) {
+		cout << "JOINING Rank " << par.rank << " arrived!" << endl;
+	}
+
 	// Forward model
 	NS ns (cfg);
 	// Surrogate model
 	SGI sgi (cfg, par, ns);
 	// Error analysis object
 	ErrorAnalysis ea (cfg, par, ns, sgi);
-	ea.add_test_points(5);
+	ea.add_test_points(2);
 
 	double tol = 0.1;
 	while(true) {

@@ -12,7 +12,7 @@ Config::Config(int argc, char** argv)
 	// Parse config file (if provided)
 	for (int i=0; i < argc; i++) {
 		string s(argv[i]);
-		if (s != "config_file") {
+		if (s != "configfile") {
 		 	continue;
 		} else {
 			if (i+1 < argc) config_file = argv[i+1];

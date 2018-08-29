@@ -88,19 +88,9 @@ void SGI::build()
 				cout << "\nSGI: Refining SGI model..." << endl;
 			// 1. All: refine grid
 			impi_gpoffset = grid->getSize(); // STAYING ranks set this variable needed by the JOINING ranks
-			if (!refine_grid(refine_portion)) {
-				if (par.is_master()) {
-					cout << tools::yellow << "SGI: Grid NOT refined, grid points added = 0, total grid points = "
-						<< impi_gpoffset << tools::reset << endl;
-				}
-				return;
-			}
+			refine_grid(refine_portion); // MASTER refine and write grid, others read grid
 			num_points = grid->getSize();
 		}
-		mpiio_write_grid();
-		if (par.is_master())
-			cout << "SGI: " << num_points - impi_gpoffset << " grid points added [" << impi_gpoffset 
-				<< ", " << num_points-1 << "], total grid points = " << num_points << endl;
 #if (IMPI==1)
 	} else {
 		impi_adapt();
@@ -211,13 +201,20 @@ void SGI::impi_adapt()
 		//************************ ADAPT WINDOW ****************************
 		if (par.status == MPI_ADAPT_STATUS_JOINING)
 			mpiio_read_grid();
+			
+		//TODO: DEBUG only
+		bool is_grid_equal = verify_grid_from_read(0, intercomm);
+		if (par.is_master()) {
+			if (is_grid_equal) {
+				cout << "Joining rank 0 read grid correctly!" << endl;
+			} else {
+				cout << "Joining rank 0 read grid wrong! Abort!!" << endl;
+				exit(EXIT_FAILURE);
+			}
+		}
 
 		if (joining_count > 0)
 			MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, par.master, newcomm);
-
-		std::size_t ngps = grid->getSize();
-		cout << tools::green << "[Rank " << par.rank << ", Status " << par.status << "]: num grip points = "
-			<< ngps << ", gpoffset = " << impi_gpoffset << tools::reset << endl;
 		//************************ ADAPT WINDOW ****************************
 
 		tic = MPI_Wtime();
@@ -341,11 +338,6 @@ void SGI::compute_gp_range(
 	// This also prevents overriding wrong data to data files!
 	if (seq_max < seq_min) return;
 
-#if (SGI_PRINT_RANKPROGRESS==1)
-	cout << "SGI: Rank " << par.rank << "/" << par.size << " computing " << (seq_max-seq_min+1) 
-		<< " grid points ["<< seq_min << ", " << seq_max << "]" << endl;
-#endif
-
 	std::size_t output_size = cfg.get_output_size();
 	std::size_t load = std::size_t(fmax(0, seq_max - seq_min + 1));
 	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
@@ -384,8 +376,18 @@ void SGI::compute_gp_range(
 	return;
 }
 
-bool SGI::refine_grid(double portion_to_refine)
+/**
+ * TODO: BUG!!!
+ * For some strange reason, each rank refine its own grid creates different grids
+ * even thought num_gps and refine_gps are the same before refinement.
+ * Therefore, we have to use a single-refine strategy: Master refine, others read
+ */
+#if (1==0)
+bool SGI::refine_grid_old(double portion_to_refine)
 {
+	//TODO: DEBUG only
+	cout << "[Rank " << par.rank << "/" << par.size << "]: grid BEFORE refine " << grid->getSize() << endl;
+
 #if (SGI_PRINT_TIMER==1)
 	double tic = MPI_Wtime();
 #endif
@@ -395,8 +397,14 @@ bool SGI::refine_grid(double portion_to_refine)
 	int thres = int(ceil(maxi / 2 / cfg.get_input_size()));
 	// Number of points to refine
 	std::size_t num_gps = this->grid->getSize();
+	//TODO: DEBUG only
+	cout << "[Rank " << par.rank << "/" << par.size << "]: num_gps = " << num_gps << endl;
+
 	int refine_gps = int(ceil(num_gps * portion_to_refine));
 	refine_gps = (refine_gps > thres) ? thres : refine_gps;
+	//TODO: DEBUG only
+	cout << "[Rank " << par.rank << "/" << par.size << "]: refine_gps = " << refine_gps << endl;
+
 	// If not points to refine, return false (meaning grid not refined)
 	if (refine_gps < 1) return false;
 	// Read posterior from file
@@ -417,37 +425,101 @@ bool SGI::refine_grid(double portion_to_refine)
 	}
 	// refine grid
 	grid->refine(refine_idx, refine_gps);
+
+	//TODO: DEBUG only
+	cout << "[Rank " << par.rank << "/" << par.size << "]: grid AFTER refine " << grid->getSize() << endl;
+
 #if (SGI_PRINT_TIMER==1)
 	if (par.is_master())
 		cout << "SGI: MASTER refined grid in " << MPI_Wtime()-tic << " seconds." << endl;
 #endif
 	return true;
 }
+#endif
+
+/**
+ * Single-refine scheme: only MASTER refines and write grid, others read grid
+ * REASON: see function above
+ */
+void SGI::refine_grid(double portion_to_refine)
+{
+	// Master refine and write grid
+	if (par.is_master()) {
+#if (SGI_PRINT_TIMER==1)
+		double tic = MPI_Wtime();
+#endif
+		// Compute threshold number of grid points to be added
+		// NOTE: to refine X points, maximum (2*dim*X) points can be added to grid
+		int maxi = 10000;
+		int thres = int(ceil(maxi / 2 / cfg.get_input_size()));
+		// Number of points to refine
+		std::size_t num_gps = this->grid->getSize();
+		int refine_gps = int(ceil(num_gps * portion_to_refine));
+		refine_gps = (refine_gps > thres) ? thres : refine_gps;
+		// If no points to refine abort
+		if (refine_gps < 1) {
+			fflush(NULL);
+			printf("SGI: refine grid failed (no points to refine). Program abort!\n");
+			exit(EXIT_FAILURE);	
+		};
+		// Read posterior from file
+		unique_ptr<double[]> pos (new double[num_gps]);
+		mpiio_readwrite_posterior(true, 0, num_gps-1, &pos[0]);
+		// For each gp, compute the refinement index
+		double data_norm;
+		DataVector refine_idx (num_gps);
+		std::size_t output_size = cfg.get_output_size();
+		for (std::size_t i=0; i<num_gps; i++) {
+			data_norm = 0;
+			for (std::size_t j=0; j < output_size; j++) {
+				data_norm += (alphas[j][i] * alphas[j][i]);
+			}
+			data_norm = sqrt(data_norm);
+			// refinement_index = |alpha| * posterior
+			refine_idx[i] = data_norm * pos[i];
+		}
+		// refine grid
+		grid->refine(refine_idx, refine_gps);
+		mpiio_write_grid();
+		std::size_t new_num_gps = grid->getSize();
+
+		fflush(NULL);
+		printf("SGI: total %zu gps, %zu added, range [%zu, %zu]\n",
+				new_num_gps, new_num_gps-num_gps, num_gps, new_num_gps-1);
+#if (SGI_PRINT_TIMER==1)
+		printf("SGI: refined grid in %.6f seconds.\n", MPI_Wtime()-tic);
+#endif
+	}
+	// Ensure read grid after its written completely
+	MPI_Barrier(MPI_COMM_WORLD);
+	// Others read grid
+	if (!par.is_master()) mpiio_read_grid();
+	
+	return;
+}
 
 void SGI::mpiio_write_grid()
 {
 	// Pack grid into Char array
 	string sg_str = grid->serialize();
-	size_t count = sg_str.size();
-	// Get local range (local protion to write)
-	std::size_t lmin, lmax, load;
-	mpina_get_local_range(0, count-1, lmin, lmax);
-	load = lmax -lmin + 1;
+	int count = static_cast<int>(sg_str.size());
 	// Copy partial grid to string
-	unique_ptr<char[]> buff (new char[load]);
-	sg_str.copy(buff.get(), load, lmin);
+	unique_ptr<char[]> buff (new char[count]);
+	sg_str.copy(buff.get(), count, 0);
 	// Write to file
 	string ofile = cfg.get_param_string("global_output_path") + "/grid.mpibin";
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
 			MPI_INFO_NULL, &fh) != MPI_SUCCESS) {
-		cout << tools::red << "ERROR: [Rank " << par.rank << ", Status " << par.status
-			<< "] failed to open " << ofile << " for grid write. Program abort." << tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: Rank[%d](%d) fail to open %s for grid write. Program abort!\n",
+				par.rank, par.status, ofile);
 		exit(EXIT_FAILURE);
 	}
-	if (MPI_File_write_at(fh, lmin, buff.get(), load, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-		cout << tools::red << "ERROR: [Rank " << par.rank << ", Status " << par.status
-			<< "] failed to write grid to " << ofile << ". Program abort." << tools::reset << endl;
+	if (MPI_File_write(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+		fflush(NULL);
+		printf("ERROR: Rank[%d](%d) fail to write grid to %s. Program abort!\n",
+				par.rank, par.status, ofile);
 		exit(EXIT_FAILURE);
 	}
 	MPI_File_close(&fh);
@@ -461,8 +533,9 @@ void SGI::mpiio_read_grid()
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 			!= MPI_SUCCESS) {
-		cout << tools::red << "ERROR: [Rank " << par.rank << ", Status " << par.status
-			<< "] failed to open " << ofile << " for grid read. Program abort." << tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: Rank[%d](%d) fail to open %s for grid read. Program abort!\n",
+				par.rank, par.status, ofile);
 		exit(EXIT_FAILURE);
 	}
 	// Get file size,create buffer
@@ -470,9 +543,10 @@ void SGI::mpiio_read_grid()
 	MPI_File_get_size(fh, &count);
 	unique_ptr<char[]> buff (new char[count]);
 	// Read from file
-	if (MPI_File_read_at(fh, 0, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-		cout << tools::red << "ERROR: [Rank " << par.rank << ", Status " << par.status
-			<< "] failed to read grid from " << ofile << ". Program abort." << tools::reset << endl;
+	if (MPI_File_read(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+		fflush(NULL);
+		printf("ERROR: Rank[%d](%d) fail to read grid from %s. Program abort!\n",
+				par.rank, par.status, ofile);
 		exit(EXIT_FAILURE);
 	}
 	MPI_File_close(&fh);
@@ -632,11 +706,11 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	// Determine total # jobs (compute only the newly added points)
 	std::size_t added_gps = grid->getSize() - gp_offset;
 	std::size_t num_jobs = (added_gps % jobsize > 0) ? (added_gps/jobsize + 1) : (added_gps/jobsize);
-	vector<char> jobs (num_jobs, 't'); // t for todo, p for doing, d for done
-	vector<char> workers (par.size, 'i'); // a for active, i for idle
+	vector<char> jobs (num_jobs, JOBTODO); // JOBTODO, JOBDONE, JOBINPROG
+	vector<char> workers (par.size, RANKIDLE); // RANKACTIVE, RANKIDLE
 	workers[par.master] = 'x'; // exclude master rank from any search
 
-// for debug only
+//TODO: debug output to be removed!
 cout << tools::yellow;
 print_jobs(jobs);
 print_workers(workers);
@@ -652,18 +726,18 @@ cout << tools::reset << endl;
 	if (par.size > 1)
 		mpimw_master_seed_workers(jobs, workers);
 
-// for debug only
+//TODO: debug output to be removed!
 cout << tools::yellow;
 print_jobs(jobs);
 print_workers(workers);
 cout << tools::reset << endl;
 
 	// As long as not all jobs are done, keep working...
-	while (!std::all_of(jobs.begin(), jobs.end(), [](char i){return i=='d';})) {
+	while (!std::all_of(jobs.begin(), jobs.end(), [](char i){return i==JOBDONE;})) {
 
 		if (par.size > 1) {
 			// #1. Receive a finished job (only if there is any active worker)
-			if (std::any_of(workers.begin(), workers.end(), [](char i){return i=='a';})) {
+			if (std::any_of(workers.begin(), workers.end(), [](char i){return i==RANKACTIVE;})) {
 				mpimw_master_receive_done(jobs, workers);
 #if (IMPI==1)
 				jobs_per_tic++;
@@ -672,15 +746,15 @@ cout << tools::reset << endl;
 			// #2. Send another job
 			mpimw_master_send_todo(jobs, workers); // internally checks for todo jobs and idle workers
 		} else { // if there is NO worker
-			// #1. Find a todo job 't'
-			int jid = std::find(jobs.begin(), jobs.end(), 't') - jobs.begin();
+			// #1. Find a todo job
+			int jid = std::find(jobs.begin(), jobs.end(), JOBTODO) - jobs.begin();
 			if (jid == jobs.size()) continue;
-			jobs[jid] = 'p';
+			jobs[jid] = JOBINPROG;
 			// #2. Compute a job
 			std::size_t seq_min, seq_max;
 			mpimw_get_job_range(jid, gp_offset, seq_min, seq_max);
 			compute_gp_range(seq_min, seq_max); // this also handles local maxpos list
-			jobs[jid] = 'd';
+			jobs[jid] = JOBDONE;
 #if (IMPI==1)
 			jobs_per_tic++;
 #endif
@@ -694,14 +768,14 @@ cout << tools::reset << endl;
 			cout << "SGI.PERFORMANCE: # forward simulations per second = "
 				<< double(jobs_per_tic * jobsize)/toc << endl;
 			// Only when there are remaining jobs, it's worth trying to adapt
-			if (std::any_of(jobs.begin(), jobs.end(), [](char i){return i=='t';})) {
+			if (std::any_of(jobs.begin(), jobs.end(), [](char i){return i==JOBTODO;})) {
 				// Prepare workers for adapt (receive done jobs, then send adapt signal)
 				if (par.size > 1)
 					mpimw_master_prepare_adapt(jobs, workers, jobs_per_tic);
 				// Adapt
 				impi_adapt();
 				workers.resize(par.size); // Update worker list
-				for (auto w: workers) w = 'i'; // Reset all workers to idle status 'i'
+				for (auto w: workers) w = RANKIDLE; // Reset all workers to idle status
 				workers[par.master] = 'x'; // Exclude master rank from any search
 				// Seed workers again
 				if (par.size > 1)
@@ -744,9 +818,22 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 			// get the job range and compute
 			mpimw_get_job_range(job_todo, gp_offset, seq_min, seq_max);
 
-			cout << tools::green << "[Rank " << par.rank << ", Status " << par.status << "]: compute job "
-				<< job_todo << " at (" << seq_min << ", " << seq_max << "). Offset "
-				<< gp_offset << tools::reset << endl;
+			//TODO: DEBUG only
+#if (SGI_DEBUG==1)
+			if (job_todo != (seq_min - gp_offset)/cfg.get_param_sizet("sgi_masterworker_jobsize")) {
+				cout << tools::red << "ERROR [Rank " << par.rank << "/" << par.size << " ("
+					<< par.status << ")]: jobid " << job_todo << ", offset " << gp_offset
+					<< ", range (" << seq_min << "--" << seq_max << ") mismatch!"
+					<< tools::reset << endl;
+				exit(EXIT_FAILURE);
+			}
+#endif
+
+#if (SGI_PRINT_RANKPROGRESS==1)
+	cout << tools::green << "[Rank " << par.rank << "/" << par.size << " (" << par.status
+		<< ")]: computing job " << job_todo << " range (" << seq_min << "--" << seq_max << ") offset "
+		<< gp_offset << tools::reset << endl;
+#endif
 
 			compute_gp_range(seq_min, seq_max);
 			// tell master the job is done
@@ -807,20 +894,20 @@ void SGI::mpimw_master_seed_workers(
 	sbuf.reserve(par.size-1);
 	// Seed workers avoiding MASTER itself
 	for (int i=0; i < par.master; ++i) {
-		sbuf.push_back( std::find(jobs.begin(), jobs.end(), 't')-jobs.begin() ); // fetch a todo job
+		sbuf.push_back( std::find(jobs.begin(), jobs.end(), JOBTODO)-jobs.begin() ); // fetch a todo job
 		if (sbuf.back() >= jobs.size()) break; // no more todo jobs, stop seeding
 		sreq.push_back(MPI_Request());
 		MPI_Isend(&(sbuf.back()), 1, MPI_INT, i, MPIMW_TAG_WORK, MPI_COMM_WORLD, &(sreq.back()));
-		jobs[sbuf.back()] = 'p'; // mark job as "processing"
-		workers[i] = 'a'; // mark worker as "active"
+		jobs[sbuf.back()] = JOBINPROG; // mark job as "processing"
+		workers[i] = RANKACTIVE; // mark worker as "active"
 	}
 	for (int i=par.master+1; i < par.size; ++i) {
-		sbuf.push_back( std::find(jobs.begin(), jobs.end(), 't')-jobs.begin() ); // fetch a todo job
+		sbuf.push_back( std::find(jobs.begin(), jobs.end(), JOBTODO)-jobs.begin() ); // fetch a todo job
 		if (sbuf.back() >= jobs.size()) break; // no more todo jobs, stop seeding
 		sreq.push_back(MPI_Request());
 		MPI_Isend(&(sbuf.back()), 1, MPI_INT, i, MPIMW_TAG_WORK, MPI_COMM_WORLD, &(sreq.back()));
-		jobs[sbuf.back()] = 'p'; // mark job as "processing"
-		workers[i] = 'a'; // mark worker as "active"
+		jobs[sbuf.back()] = JOBINPROG; // mark job as "processing"
+		workers[i] = RANKACTIVE; // mark worker as "active"
 	}
 	if (sreq.size() > 0) {
 		if (MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE) != MPI_SUCCESS) {
@@ -843,7 +930,7 @@ void SGI::mpimw_master_prepare_adapt(
 	vector<char> sbuf; // dummy send buffer, use unique send buffer for Isend
 	sbuf.reserve(par.size-1);
 	// If any worker still active, receive the finished job
-	while ( std::any_of(workers.begin(), workers.end(), [](char i){return i=='a';}) ) {
+	while ( std::any_of(workers.begin(), workers.end(), [](char i){return i==RANKACTIVE;}) ) {
 		mpimw_master_receive_done(jobs, workers);
 		jobs_per_tic++;
 	}
@@ -875,16 +962,16 @@ void SGI::mpimw_master_send_todo(
 		vector<char>& jobs,
 		vector<char>& workers)
 {
-	// find a todo job 't'
-	int jid = std::find(jobs.begin(), jobs.end(), 't') - jobs.begin();
+	// find a todo job
+	int jid = std::find(jobs.begin(), jobs.end(), JOBTODO) - jobs.begin();
 	if (jid >= jobs.size()) return; // no more todo jobs, nothing to do
-	// find an idle worker 'i'
-	int wid = std::find(workers.begin(), workers.end(), 'i') - workers.begin();
+	// find an idle worker
+	int wid = std::find(workers.begin(), workers.end(), RANKIDLE) - workers.begin();
 	if (wid >= workers.size()) return; // All workers are busy, nothing to do
  	// Send job (jid) to the idle worker (wid)
 	MPI_Send(&jid, 1, MPI_INT, wid, MPIMW_TAG_WORK, MPI_COMM_WORLD);
-	jobs[jid] = 'p'; // Mark job as "processing"
-	workers[wid] = 'a'; // Mark worker as "active"
+	jobs[jid] = JOBINPROG; // Mark job as "in process"
+	workers[wid] = RANKACTIVE; // Mark worker as "active"
 	return;
 }
 
@@ -900,8 +987,8 @@ void SGI::mpimw_master_receive_done(
 		exit(EXIT_FAILURE);
 	}
 	wid = status.MPI_SOURCE;
-	jobs[jid] = 'd';
-	workers[wid] = 'i';
+	jobs[jid] = JOBDONE;
+	workers[wid] = RANKIDLE;
 	// 2. Receive maxpos list
 	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
 	typedef std::pair<double, std::size_t> posseq;
@@ -956,4 +1043,49 @@ void SGI::print_jobs(vector<char> const& jobs)
 	for (auto j: jobs)
 		cout << j << " ... ";
 	cout << endl;
+}
+
+// Verify a joining rank's grid (read from file) against MASTER's grid
+// Only MASTER gets the correct compare result
+bool SGI::verify_grid_from_read(int joinrank, MPI_Comm intercomm)
+{
+	if ((par.status == MPI_ADAPT_STATUS_JOINING) && (par.rank == joinrank)) {
+		// Pack grid into Char array
+		string sg_str = grid->serialize();
+		int count = static_cast<int>(sg_str.size());
+		// Copy grid to string
+		unique_ptr<char[]> sbuf (new char[count]);
+		sg_str.copy(sbuf.get(), count, 0);
+		// Send to MASTER (in the remote group)
+		if (MPI_Send(sbuf.get(), count, MPI_CHAR, par.master, 713, intercomm) != MPI_SUCCESS) {
+			cout << tools::red << "ERROR: [Rank " << par.rank << " (" << par.status
+				<< ")]: failed to send serialized grid (DEBUG: verify joining rank's grid)."
+				<< tools::reset << endl;
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (par.is_master()) {
+		// Pack grid into Char array
+		string sg_str_own = grid->serialize();
+
+		MPI_Status status;
+		MPI_Probe(joinrank, 713, intercomm, &status);
+		int count;
+		MPI_Get_count(&status, MPI_CHAR, &count);
+		unique_ptr<char[]> rbuf (new char[count]);
+		
+		if (MPI_Recv(rbuf.get(), count, MPI_CHAR, joinrank, 713, intercomm, &status) != MPI_SUCCESS) {
+			cout << tools::red << "ERROR: [Rank " << par.rank << " (" << par.status
+				<< ")]: failed to receive serialized grid (DEBUG: verify joining rank's grid)."
+				<< tools::reset << endl;
+			exit(EXIT_FAILURE);
+		}
+		string sg_str_joinrank(rbuf.get());
+		
+		// compare
+		if (sg_str_own.compare(sg_str_joinrank) == 0) {
+			return true;
+		}
+	}
+	return false;
 }

@@ -38,6 +38,12 @@
 #define MPIMW_TAG_WORK		20
 #define MPIMW_TAG_ADAPT		30
 
+#define JOBTODO		't'
+#define JOBDONE		'd'
+#define JOBINPROG	'p'
+
+#define RANKACTIVE	'a'
+#define RANKIDLE	'i'
 
 class SGI : public ForwardModel
 {
@@ -102,7 +108,7 @@ private:
 			const std::size_t& seq_min,
 			const std::size_t& seq_max);
 
-	bool refine_grid(double portion_to_refine);
+	void refine_grid(double portion_to_refine);
 
 	void mpiio_read_grid();
 
@@ -162,5 +168,6 @@ private:
 	// For debug only
 	void print_workers(std::vector<char> const& workers);
 	void print_jobs(std::vector<char> const& jobs);
+	bool verify_grid_from_read(int joinrank, MPI_Comm intercomm);
 };
 #endif /* SURROGATE_SGI_HPP_ */

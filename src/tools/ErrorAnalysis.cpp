@@ -31,6 +31,7 @@ void ErrorAnalysis::add_test_points(std::size_t n)
 	test_points_data.resize(n);
 
 	for (std::size_t k=0; k < n; ++k) {
+		cout << "Adding test point " << k << endl;
 		test_points[k].resize(input_size);
 		for (std::size_t i=0; i < input_size; ++i) {
 			range = fullmodel.get_input_space(i);
