@@ -1,6 +1,7 @@
 #include <tools/Parallel.hpp>
 
 
+
 void Parallel::mpi_init(int argc, char** argv)
 {
 #if (IMPI==1)

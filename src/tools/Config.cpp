@@ -57,7 +57,8 @@ Config::Config(int argc, char** argv)
 double Config::compute_posterior(std::vector<double> const& data) const
 {
 	if (observation.size() != data.size()) {
-		cout << tools::red << "ERROR: vectors size mismatch. Program abort." << tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: vectors size mismatch. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
 	double sum = 0.0;
@@ -277,7 +278,8 @@ void Config::parse_file()
 	// Open config file
 	ifstream f(config_file);
 	if (!f) {
-		cout << tools::red << "\nWARNING: cannot open config file.\n" << tools::reset << endl;
+		fflush(NULL);
+		printf("\nWARNING: cannot open config file.\n");
 		return;
 	}
 	// Read lines
@@ -391,7 +393,8 @@ double tools::compute_normalizedl2norm(
 		vector<double> const& v)
 {
 	if (u.size() != v.size()) {
-		cout << tools::red << "ERROR: vectors size mismatch. Program abort." << tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: vectors size mismatch. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
 	double u_mean = 0.0;

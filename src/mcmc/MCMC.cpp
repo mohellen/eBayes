@@ -117,8 +117,8 @@ fstream MCMC::open_output_file()
 	//fstream fout (rank_output_file, fstream::out | fstream::app); // Append if file exists
 	fstream fout (rank_output_file, fstream::out | ios::trunc); // Overwrite if file exists
 	if (!fout) {
-		cout << tools::red << "ERROR: MCMC open output file " << rank_output_file
-				<< " failed. Program abort.\n" << tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: MCMC open output file %s failed. Program abort!\n", rank_output_file);
 		exit(EXIT_FAILURE);
 	}
 	return fout;
@@ -163,8 +163,9 @@ vector<double> MCMC::initialize_samplepos(
 void MCMC::print_progress(int iter, vector<double> const& max_samplepos)
 {
 	if ((iter+1) % stoi(cfg.get_param_string("mcmc_progress_freq_step")) == 0) {
-		cout << "MCMC: rank " << par.rank << " completed " << iter+1 << " steps. Current max.: "
-			<< tools::samplepos_to_string(max_samplepos) << endl;
+		fflush(NULL);
+		printf("MCMC: Rank[%d|%d](%d) computed %d steps, current maxpos %s\n",
+				par.rank, par.size, par.status, iter+1, tools::samplepos_to_string(max_samplepos));
 	}
 	return;
 }

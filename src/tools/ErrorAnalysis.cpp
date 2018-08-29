@@ -30,8 +30,11 @@ void ErrorAnalysis::add_test_points(std::size_t n)
 	test_points.resize(n);
 	test_points_data.resize(n);
 
+	fflush(NULL);
+	printf("EA: Rank[%d|%d](%d) adding test points...\n",
+			par.rank, par.size, par.status);
+
 	for (std::size_t k=0; k < n; ++k) {
-		cout << "Adding test point " << k << endl;
 		test_points[k].resize(input_size);
 		for (std::size_t i=0; i < input_size; ++i) {
 			range = fullmodel.get_input_space(i);
@@ -59,11 +62,13 @@ void ErrorAnalysis::copy_test_points(ErrorAnalysis const& that)
 double ErrorAnalysis::compute_surrogate_error()
 {
 	if (test_points.size() < 1) {
-		cout << tools::red << "ERROR: no test points added. Program abort." << tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: EA compute surrogate error failed due to no test points. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
 	if (test_points.size() != test_points_data.size()) {
-		cout << tools::red << "ERROR: test points and data mismatch. Program abort." << tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: EA compute surrogate error failed, test points and data dimension mismatch. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
 	std::size_t n = test_points.size();
@@ -100,14 +105,16 @@ bool ErrorAnalysis::mpi_is_model_accurate(double tol)
 	}
 	mean = mean / double(count);
 
-	cout << tools::yellow << "Rank " << par.rank << ": err = [";
-	for (double e: err)
-		cout << e << "  ";
-	cout << "]. Local error = " << local_err << ". Global err = " << mean
-			<< ". MPI size = " << par.size << tools::reset << endl;
+#if (EA_LOCALINFO == 1)
+	fflush(NULL);
+	printf("EA: Rank[%d|%d](%d) %lu test points, local error %.8f, global error %.8f\n",
+			par.rank, par.size, par.status, test_points.size(), local_err, mean);
+#endif
 
-	if (par.is_master())
-		cout << "Average surrogate model error = " << mean << ", tol = " << tol << endl;
+	if (par.is_master()) {
+		fflush(NULL);
+		printf("EA: Surrogate error %.8f\n, tol %.2f\n", mean, tol);
+	}
 	return (mean <= tol) ? true : false;
 }
 

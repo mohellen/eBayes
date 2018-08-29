@@ -27,8 +27,8 @@ void ParallelTempering::run(
 {
 	// Cannot perform Parallel Tempering with less than 2 chains
 	if (num_chains < 2) {
-		cout << tools::red << "ERROR: cannot perform MCMC Parallel Tempering with less than 2 chains. Program abort."
-			<< tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: Cannot perform MCMC Parallel Tempering with less than 2 chains. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -110,16 +110,18 @@ void ParallelTempering::run(
 							10, MPI_COMM_WORLD);
 					if (MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
 							20, MPI_COMM_WORLD, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-						cout << tools::red << "ERROR: MCMC Parallel Tempering rank " << par.rank 
-						   << " failed to receive sample from " << nei_chain << ". Program abort." << tools::reset << endl;
+						fflush(NULL);
+						printf("ERROR: MCMCPT Rank %d failed to receive sample from %d. Program abort!\n",
+								par.rank, nei_chain);
 						exit(EXIT_FAILURE);
 					}
 				}
 				if (par.rank == c2) {
 					if (MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
 							10, MPI_COMM_WORLD, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-						cout << tools::red << "ERROR: MCMC Parallel Tempering rank " << par.rank 
-						   << " failed to receive sample from " << nei_chain << ". Program abort." << tools::reset << endl;
+						fflush(NULL);
+						printf("ERROR: MCMCPT Rank %d failed to receive sample from %d. Program abort!\n",
+								par.rank, nei_chain);
 						exit(EXIT_FAILURE);
 					}
 					MPI_Send(&samplepos[0],  input_size+2, MPI_DOUBLE, nei_chain,
@@ -128,8 +130,12 @@ void ParallelTempering::run(
 				// Exchange only if both me and nei accepted
 				if ((samplepos.back() > 0.5) && (rbuf.back() > 0.5)) {
 					samplepos = rbuf;
-					cout << "MCMC.PT: rank " << par.rank << " swapped with rank "
-							<< nei_chain << " at iteration " << it << "." << endl;
+					fflush(NULL);
+					if (par.rank == c1) {
+						fflush(NULL);
+						printf("MCMC.PT: Rank %d swapped with Rank %d at iteration %d.\n",
+								par.rank, nei_chain, it);
+					}
 				}
 				samplepos.pop_back(); //remove the exchange decision, samplepos go back to input_size+1 length
 			}

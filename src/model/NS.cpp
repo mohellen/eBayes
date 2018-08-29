@@ -135,7 +135,8 @@ vector<double> NS::sim(
 {
 	// Check input parameter validity
 	if (m.size() != cfg.get_input_size()) {
-		cout << tools::red << "ERROR: NS simulation input parameter size mismatch. Program abort." << tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: NS simulation input parameter size mismatch. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -241,7 +242,8 @@ vector<double> NS::sim(
 
 		// 7. Write VTK output data (if enabled) */
 		if ((write_vtk) && (floor(t/vtk_freq) >= vtk_cnt)) {
-			cout << "NS: simulation writing VTK output at t = " << t << endl;
+			fflush(NULL);
+			printf("NS: simulation writing VTK output at t = %.4f\n", t);
 			write_vtk_file(vtk_outfile.c_str(), vtk_cnt, M, U, V, P);
 			vtk_cnt ++;
 		}
@@ -599,8 +601,9 @@ void NS::update_domain_uv(
 				U[j][i] = 0.0;
 				V[j][i] = 0.0;
 			} else { //forbidden cases
-				cout << tools::red << "ERROR: NS forbidden cell M[" << j << "][" << i << "] = " << M[j][i]
-					<< " in update_domain_uv(). Program abort." << tools::reset << endl;
+				fflush(NULL);
+				printf("ERROR: NS forbidden cell M[%d][%d] = %d in update_domain_uv(). Program abort!\n",
+						j, i, M[j][i]);
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -645,8 +648,9 @@ void NS::update_domain_fg(
 				F[j][i] = U[j][i];
 				G[j][i] = V[j][i];
 			} else { //forbidden cases
-				cout << tools::red << "ERROR: NS forbidden cell M[" << j << "][" << i << "] = " << M[j][i]
-					<< " in update_domain_fg(). Program abort." << tools::reset << endl;
+				fflush(NULL);
+				printf("ERROR: NS forbidden cell M[%d][%d] = %d in update_domain_fg(). Program abort!\n",
+						j, i, M[j][i]);
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -681,8 +685,9 @@ void NS::update_domain_p(
 			} else if (M[j][i] == B_IN) {
 				P[j][i] = 0;
 			} else { //forbidden cases
-				cout << tools::red << "ERROR: NS forbidden cell M[" << j << "][" << i << "] = " << M[j][i]
-					<< " in update_domain_p(). Program abort." << tools::reset << endl;
+				fflush(NULL);
+				printf("ERROR: NS forbidden cell M[%d][%d] = %d in update_domain_p(). Program abort!\n",
+						j, i, M[j][i]);
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -817,7 +822,8 @@ void NS::solve_for_p_sor(
 		// Check residual
 		if (res <= TOLERANCE) return;
 	}
-	cout << "WARNING: NS SOR solver did not converge for " << ITERMAX << " iterations!" << endl;
+	fflush(NULL);
+	printf("WARNING: NS SOR solver did not converge for %lu iterations!\n", ITERMAX);
 	return;
 }
 
@@ -962,7 +968,8 @@ void NS::write_vtk_file(
 	std::ofstream fout;
 	fout.open(outfile, std::ofstream::out);
 	if (!fout.is_open()) {
-		cout << tools::red << "ERROR: NS fail to open output VTK file. Program aborted!" << tools::reset << endl;
+		fflush(NULL);
+		printf("ERROR: NS fail to open output VTK file. Program aborted!\n");
 		exit(EXIT_FAILURE);
 	}
 	// write header and coordinates
