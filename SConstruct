@@ -7,8 +7,7 @@ import SCons
 ########################################
 cxx = 'mpicxx'
 # Compile flags
-cppflags = ['-O3','-std=c++11','-fmessage-length=0',
-            '-Wno-unused-result','-Wno-deprecated','-pedantic']
+cppflags = ['-O3','-std=c++11','-pedantic','-Wno-deprecated'] #'-fmessage-length=0','-Wno-unused-result'
 # Include paths: -Iinclude without '-I'
 cpppath = ['src', 'dep', 'dep/sgpp-base-2.0.0/base/src']
 # Library look up paths: -Lpath without '-L'
@@ -30,27 +29,66 @@ bindir = basedir + "/bin"
 #### Customs command line variables ####
 ########################################
 vars = Variables()
-vars.Add( BoolVariable('impi', 'Enable iMPI support', True) )
-vars.Add( PathVariable('impipath', 'Specify iMPI installation path', '/usr') )
-vars.Add( BoolVariable('impinodes', 'Enable iMPI node information in output', True) )
-vars.Add( 'exe', 'Set executable name (default: main)', 'main' )
+vars.AddVariables(
+
+    EnumVariable('scenario', 'Inverse problem scenarios: 1 for NS, 2 for heat', '1',
+        allowed_values=('1') # so far only NaviarStokes supported
+    ),
+    EnumVariable('impi', 'Enable iMPI support [1|0]', '1',
+        allowed_values=('1','0')
+    ),
+    PathVariable('impipath', 'Specify iMPI installation path', '/usr'),
+
+    EnumVariable('impinodes', 'Enable iMPI node information in output [1|0]', '1',
+        allowed_values=('1','0')
+    ),
+    EnumVariable('sgitime', 'Print time measurements during SGI surrogate construction [1|0]', '1',
+        allowed_values=('1','0')
+    ),
+    EnumVariable('sgirank', 'Print rank progress during SGI surrogate construction [1|0]', '1',
+        allowed_values=('1','0')
+    ),
+    EnumVariable('sgigps', 'Print grid point detail during SGI surrogate construction [1|0]', '0',
+        allowed_values=('1','0')
+    ),
+    EnumVariable('mcmcprog', 'Print MCMC progress information [1|0]', '1',
+        allowed_values=('1','0')
+    ),
+    EnumVariable('ealocal', 'Print rank local results for Error Analysis [1|0]', '0',
+        allowed_values=('1','0')
+    ),
+
+    ( 'exe', 'Set executable name (default: main)', 'main' ),
+)#end AddVariables
 ########################################
 
+print(os.environ['IMPIPATH'])
 
 ########## Setup environment ###########
 ########################################
 env = Environment(variables=vars, ENV=os.environ)
 
-if env['impi']:
-	env.Append( CCFLAGS=['-DIMPI'] )
-	# check iMPI installation
-	if not (os.path.isfile(env['impipath'] + '/bin/mpicc') and
+env.Append( CCFLAGS=['-DIMPI='+env['impi']] )
+env.Append( CCFLAGS=['-DIMPI_NODES='+env['impinodes']] ) #TODO: add node info support in src
+env.Append( CCFLAGS=['-DGLOBAL_SCENARIO='+env['scenario']] )
+env.Append( CCFLAGS=['-DSGI_PRINT_TIMER='+env['sgitime']] )
+env.Append( CCFLAGS=['-DSGI_PRINT_RANKPROGRESS='+env['sgirank']] )
+env.Append( CCFLAGS=['-DSGI_PRINT_GRIDPOINTS='+env['sgigps']] )
+env.Append( CCFLAGS=['-DMCMC_PRINT_PROGRESS='+env['mcmcprog']] )
+env.Append( CCFLAGS=['-DEA_LOCALINFO='+env['ealocal']] )
+
+# check iMPI installation if it's enabled
+if (env['impi']=='1'):
+	if (os.path.isfile(env['impipath'] + '/bin/mpicc') and
 			os.path.isfile(env['impipath'] + '/lib/libmpi.so')):
-		sys.exit("Error: iMPI installation not found. Check impipath. Operation aborted.")
-	cpppath += [env['impipath'] + '/include']
-	libpath += [env['impipath'] + '/lib']
-	if env['impinodes']:
-		env.Append( CCFLAGS=['-DIMPI_NODES'] )
+            cpppath += [env['impipath'] + '/include']
+	    libpath += [env['impipath'] + '/lib']
+        elif (os.path.isfile(os.environ['IMPIPATH'] + '/bin/mpicc') and 
+                os.path.isfile(os.environ['IMPIPATH'] + '/lib/libmpi.so')):
+            cpppath += [os.environ['IMPIPATH'] + '/include']
+	    libpath += [os.environ['IMPIPATH'] + '/lib']
+        else:
+            sys.exit("Error: iMPI installation not found. Check impipath. Operation aborted.")
 else:
 	cpppath += ['/usr/include/mpich']
 	libpath += ['/usr/lib']
