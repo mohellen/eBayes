@@ -113,7 +113,7 @@ bool ErrorAnalysis::mpi_is_model_accurate(double tol)
 
 	if (par.is_master()) {
 		fflush(NULL);
-		printf("EA: Surrogate error %.8f\n, tol %.2f\n", mean, tol);
+		printf("EA: Surrogate error %.8f, tol %.2f\n", mean, tol);
 	}
 	return (mean <= tol) ? true : false;
 }

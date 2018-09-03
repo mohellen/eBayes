@@ -62,7 +62,6 @@ vars.AddVariables(
 )#end AddVariables
 ########################################
 
-print(os.environ['IMPIPATH'])
 
 ########## Setup environment ###########
 ########################################
@@ -81,14 +80,14 @@ env.Append( CCFLAGS=['-DEA_LOCALINFO='+env['ealocal']] )
 if (env['impi']=='1'):
 	if (os.path.isfile(env['impipath'] + '/bin/mpicc') and
 			os.path.isfile(env['impipath'] + '/lib/libmpi.so')):
-            cpppath += [env['impipath'] + '/include']
-	    libpath += [env['impipath'] + '/lib']
+            impipath = env['impipath']
         elif (os.path.isfile(os.environ['IMPIPATH'] + '/bin/mpicc') and 
                 os.path.isfile(os.environ['IMPIPATH'] + '/lib/libmpi.so')):
-            cpppath += [os.environ['IMPIPATH'] + '/include']
-	    libpath += [os.environ['IMPIPATH'] + '/lib']
+            impipath = os.environ['IMPIPATH']
         else:
             sys.exit("Error: iMPI installation not found. Check impipath. Operation aborted.")
+        cpppath += [impipath + '/include']
+        libpath += [impipath + '/lib']
 else:
 	cpppath += ['/usr/include/mpich']
 	libpath += ['/usr/lib']
@@ -195,7 +194,7 @@ def PhonyTargets(env = None, **kw):
 ##                   DEFINES = '@echo $CPPDEFINES',
 ##                   LIBS    = '@echo $LIBS')
 
-cmd = 'cd '+basedir+'/dep/sgpp-base-2.0.0; scons -c; scons BUILDDIR='+env['impipath']+'/lib; cd '+basedir
+cmd = 'cd '+basedir+'/dep/sgpp-base-2.0.0; scons -c; scons BUILDDIR='+impipath+'/lib; cd '+basedir
 PhonyTargets(sgpp = cmd)
 ##############################################
 

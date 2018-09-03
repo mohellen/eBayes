@@ -8,6 +8,7 @@
 #include <surrogate/SGI.hpp>
 
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <map>
 
@@ -20,7 +21,13 @@ int main(int argc, char** argv)
 	par.mpi_init(argc, argv);
 
 	if (par.status == MPI_ADAPT_STATUS_JOINING) {
-		cout << "JOINING Rank " << par.rank << " arrived!" << endl;
+		fflush(NULL);
+		printf("~~~~~~~~~ JOINING Rank[%d] arrived! ~~~~~~~~~\n", par.rank);
+
+		ofstream testrank;
+		testrank.open("output/joining_"+std::to_string(par.rank)+".out");
+		testrank << "Joining rank " << par.rank << "is working..." << endl;
+		testrank.close();
 	}
 
 	// Forward model
@@ -29,7 +36,7 @@ int main(int argc, char** argv)
 	SGI sgi (cfg, par, ns);
 	// Error analysis object
 	ErrorAnalysis ea (cfg, par, ns, sgi);
-	ea.add_test_points(2);
+	ea.add_test_points(5);
 
 	double tol = 0.1;
 	while(true) {
