@@ -87,6 +87,7 @@ void SGI::build()
 			grid->getGenerator().regular(init_level); // populate grid points
 			bbox.reset(create_boundingbox());
 			grid->setBoundingBox(*bbox); // set up bounding box
+			if (par.is_master()) mpiio_write_grid(); // MASTER write grid
 			impi_gpoffset = 0; // NEW ranks set this variable needed by the JOINING ranks
 			num_points = grid->getSize();
 		} else {
