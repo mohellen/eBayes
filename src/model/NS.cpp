@@ -602,7 +602,7 @@ void NS::update_domain_uv(
 				V[j][i] = 0.0;
 			} else { //forbidden cases
 				fflush(NULL);
-				printf("ERROR: NS forbidden cell M[%d][%d] = %d in update_domain_uv(). Program abort!\n",
+				printf("ERROR: NS forbidden cell M[%lu][%lu] = %d in update_domain_uv(). Program abort!\n",
 						j, i, M[j][i]);
 				exit(EXIT_FAILURE);
 			}
@@ -649,7 +649,7 @@ void NS::update_domain_fg(
 				G[j][i] = V[j][i];
 			} else { //forbidden cases
 				fflush(NULL);
-				printf("ERROR: NS forbidden cell M[%d][%d] = %d in update_domain_fg(). Program abort!\n",
+				printf("ERROR: NS forbidden cell M[%lu][%lu] = %d in update_domain_fg(). Program abort!\n",
 						j, i, M[j][i]);
 				exit(EXIT_FAILURE);
 			}
@@ -686,7 +686,7 @@ void NS::update_domain_p(
 				P[j][i] = 0;
 			} else { //forbidden cases
 				fflush(NULL);
-				printf("ERROR: NS forbidden cell M[%d][%d] = %d in update_domain_p(). Program abort!\n",
+				printf("ERROR: NS forbidden cell M[%lu][%lu] = %d in update_domain_p(). Program abort!\n",
 						j, i, M[j][i]);
 				exit(EXIT_FAILURE);
 			}

@@ -7,7 +7,7 @@ import SCons
 ########################################
 cxx = 'mpicxx'
 # Compile flags
-cppflags = ['-O3','-std=c++11','-pedantic','-Wno-deprecated'] #'-fmessage-length=0','-Wno-unused-result'
+cppflags = ['-O3','-std=c++11','-pedantic','-Wno-deprecated','-Wno-unused-result'] #'-fmessage-length=0',
 # Include paths: -Iinclude without '-I'
 cpppath = ['src', 'dep', 'dep/sgpp-base-2.0.0/base/src']
 # Library look up paths: -Lpath without '-L'

@@ -536,13 +536,13 @@ void SGI::mpiio_write_grid()
 			MPI_INFO_NULL, &fh) != MPI_SUCCESS) {
 		fflush(NULL);
 		printf("ERROR: Rank[%d|%d](%d) fail to open %s for grid write. Program abort!\n",
-				par.rank, par.size, par.status, ofile);
+				par.rank, par.size, par.status, ofile.c_str());
 		exit(EXIT_FAILURE);
 	}
 	if (MPI_File_write(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
 		fflush(NULL);
 		printf("ERROR: Rank[%d|%d](%d) fail to write grid to %s. Program abort!\n",
-				par.rank, par.size, par.status, ofile);
+				par.rank, par.size, par.status, ofile.c_str());
 		exit(EXIT_FAILURE);
 	}
 	MPI_File_close(&fh);
@@ -558,7 +558,7 @@ void SGI::mpiio_read_grid()
 			!= MPI_SUCCESS) {
 		fflush(NULL);
 		printf("ERROR: Rank[%d|%d](%d) fail to open %s for grid read. Program abort!\n",
-				par.rank, par.size, par.status, ofile);
+				par.rank, par.size, par.status, ofile.c_str());
 		exit(EXIT_FAILURE);
 	}
 	// Get file size,create buffer
@@ -569,7 +569,7 @@ void SGI::mpiio_read_grid()
 	if (MPI_File_read(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
 		fflush(NULL);
 		printf("ERROR: Rank[%d|%d](%d) fail to read grid from %s. Program abort!\n",
-				par.rank, par.size, par.status, ofile);
+				par.rank, par.size, par.status, ofile.c_str());
 		exit(EXIT_FAILURE);
 	}
 	MPI_File_close(&fh);
@@ -599,7 +599,7 @@ void SGI::mpiio_readwrite_data(
 				!= MPI_SUCCESS) {
 			fflush(NULL);
 			printf("ERROR: Rank[%d|%d](%d) fail to open %s for data read. Program abort!\n",
-					par.rank, par.size, par.status, ofile);
+					par.rank, par.size, par.status, ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
@@ -607,7 +607,7 @@ void SGI::mpiio_readwrite_data(
 				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
 			fflush(NULL);
 			printf("ERROR: Rank[%d|%d](%d) fail read data from %s. Program abort!\n",
-					par.rank, par.size, par.status, ofile);
+					par.rank, par.size, par.status, ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 
@@ -616,7 +616,7 @@ void SGI::mpiio_readwrite_data(
 				!= MPI_SUCCESS) {
 			fflush(NULL);
 			printf("ERROR: Rank[%d|%d](%d) fail to open %s for data write. Program abort!\n",
-					par.rank, par.size, par.status, ofile);
+					par.rank, par.size, par.status, ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
@@ -624,7 +624,7 @@ void SGI::mpiio_readwrite_data(
 				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
 			fflush(NULL);
 			printf("ERROR: Rank[%d|%d](%d) fail to write data to %s. Program abort!\n",
-					par.rank, par.size, par.status, ofile);
+					par.rank, par.size, par.status, ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -647,7 +647,7 @@ void SGI::mpiio_readwrite_posterior(
 				!= MPI_SUCCESS) {
 			fflush(NULL);
 			printf("ERROR: Rank[%d|%d](%d) fail to open %s for posterior read. Program abort!\n",
-					par.rank, par.size, par.status, ofile);
+					par.rank, par.size, par.status, ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
@@ -655,7 +655,7 @@ void SGI::mpiio_readwrite_posterior(
 				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
 			fflush(NULL);
 			printf("ERROR: Rank[%d|%d](%d) fail to read posterior from %s. Program abort!\n",
-					par.rank, par.size, par.status, ofile);
+					par.rank, par.size, par.status, ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 
@@ -664,7 +664,7 @@ void SGI::mpiio_readwrite_posterior(
 				!= MPI_SUCCESS) {
 			fflush(NULL);
 			printf("ERROR: Rank[%d|%d](%d) fail to open %s for posterior write. Program abort!\n",
-					par.rank, par.size, par.status, ofile);
+					par.rank, par.size, par.status, ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
@@ -672,7 +672,7 @@ void SGI::mpiio_readwrite_posterior(
 				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
 			fflush(NULL);
 			printf("ERROR: Rank[%d|%d](%d) fail to write posterior to %s. Program abort!\n",
-					par.rank, par.size, par.status, ofile);
+					par.rank, par.size, par.status, ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -1076,7 +1076,7 @@ void SGI::print_workers(vector<char> const& workers)
 	for (int i=0; i < workers.size()-1; ++i) {
 		printf("[%d]%c ... ", i, workers[i]);
 	}
-	printf("[%d]%c\n", workers.size()-1, workers[workers.size()-1]);
+	printf("[%lu]%c\n", workers.size()-1, workers[workers.size()-1]);
 }
 
 void SGI::print_jobs(vector<char> const& jobs)
@@ -1086,7 +1086,7 @@ void SGI::print_jobs(vector<char> const& jobs)
 	for (int i=0; i < jobs.size()-1; ++i) {
 		printf("[%d]%c ... ", i, jobs[i]);
 	}
-	printf("[%d]%c\n", jobs.size()-1, jobs[jobs.size()-1]);
+	printf("[%lu]%c\n", jobs.size()-1, jobs[jobs.size()-1]);
 }
 
 // Verify a joining rank's grid (read from file) against MASTER's grid
