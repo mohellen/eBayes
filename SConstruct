@@ -51,6 +51,9 @@ vars.AddVariables(
     EnumVariable('sgigps', 'Print grid point detail during SGI surrogate construction [1|0]', '0',
         allowed_values=('1','0')
     ),
+    EnumVariable('sgidebug', 'Print SGI class debug information [1|0]', '1',
+        allowed_values=('1','0')
+    ),
     EnumVariable('mcmcprog', 'Print MCMC progress information [1|0]', '1',
         allowed_values=('1','0')
     ),
@@ -73,6 +76,7 @@ env.Append( CCFLAGS=['-DGLOBAL_SCENARIO='+env['scenario']] )
 env.Append( CCFLAGS=['-DSGI_PRINT_TIMER='+env['sgitime']] )
 env.Append( CCFLAGS=['-DSGI_PRINT_RANKPROGRESS='+env['sgirank']] )
 env.Append( CCFLAGS=['-DSGI_PRINT_GRIDPOINTS='+env['sgigps']] )
+env.Append( CCFLAGS=['-DSGI_DEBUG='+env['sgidebug']] )
 env.Append( CCFLAGS=['-DMCMC_PRINT_PROGRESS='+env['mcmcprog']] )
 env.Append( CCFLAGS=['-DEA_LOCALINFO='+env['ealocal']] )
 

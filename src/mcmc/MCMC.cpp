@@ -112,7 +112,7 @@ fstream MCMC::open_output_file()
 {
 	// Initialize rank specific output file
 	string rank_output_file = cfg.get_param_string("global_output_path") +
-			"/mcmcmh_r" + std::to_string(par.rank) + "_samplepos.txt";
+			"/mcmc_r" + std::to_string(par.rank) + "_samplepos.txt";
 	// Open file:
 	//fstream fout (rank_output_file, fstream::out | fstream::app); // Append if file exists
 	fstream fout (rank_output_file, fstream::out | ios::trunc); // Overwrite if file exists

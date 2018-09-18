@@ -36,15 +36,20 @@ void ParallelTempering::run(
 	// Ranks with (mpirank > num_chains) do NOT participate in MCMC computation
 	if (par.rank >= num_chains) return;
 
-	// Output file
-	fstream fout = open_output_file();
+	// Output file (only chain0's output is valid output)
+	fstream fout;
+	if (par.is_master()) {
+		fout = open_output_file();
+	}
 	
 	// Initialize starting point & maxpos point
 	std::size_t input_size = cfg.get_input_size();
 	vector<double> samplepos = initialize_samplepos(init_samplepos);
 	vector<double> max_samplepos = samplepos;
 	// Write initial MCMC sample
-	write_samplepos(fout, samplepos);
+	if (par.is_master()) {
+		write_samplepos(fout, samplepos);
+	}
 
 	//=============== Parallel Tempering Stuff =================
 	// Random generators
@@ -76,10 +81,11 @@ void ParallelTempering::run(
 	vector<double> rbuf (input_size + 2);
 
 	// Initialize temperatures of each chain
+	// 1=T0 < T1 < ... Tmax, with T_i = 2^{sqrt(i)}
 	// For convenience purpose, the inverse of temperatures are stored
 	vector<double> inv_temps (num_chains);
 	for (int t=0; t < num_chains; t++)
-		inv_temps[t] = pow(2.0, double(t)/-2.0);
+		inv_temps[t] = pow(2.0, double(t)*-0.5);
 	//=========================================================
 
 	// Run the MCMC chain
@@ -99,9 +105,12 @@ void ParallelTempering::run(
 				// neighbor rank
 				int nei_chain = (par.rank==c1) ? c2 : c1;
 
+				// acc_i = pi_i^(1/Tj - 1/Ti)
+				// acc_j = pi_j^(1/Ti - 1/Tj))
+				// acc = (acc_i*acc_j, 1)
+
 				// Compute exchange decision, append it to samplepos
-				double acc = fmin(1.0,
-						pow(samplepos.back(), inv_temps[nei_chain]) / pow(samplepos.back(), inv_temps[par.rank]));
+				double acc = pow(samplepos.back(), inv_temps[nei_chain]-inv_temps[par.rank]);
 				samplepos.push_back( (udist_r(gen) < acc) ? 1.0 : 0.0 ); // samplepos is temporary input_size+2 length
 
 				// MPI communication

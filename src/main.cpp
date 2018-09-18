@@ -24,10 +24,12 @@ int main(int argc, char** argv)
 		fflush(NULL);
 		printf("~~~~~~~~~ JOINING Rank[%d] arrived! ~~~~~~~~~\n", par.rank);
 
+#if (SGI_DEBUG==1)
 		ofstream testrank;
 		testrank.open("output/joining_"+std::to_string(par.rank)+".out");
-		testrank << "Joining rank " << par.rank << "is working..." << endl;
+		testrank << "Joining rank " << par.rank << " is has arrived..." << endl;
 		testrank.close();
+#endif
 	}
 
 	// Forward model

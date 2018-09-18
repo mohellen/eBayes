@@ -75,7 +75,7 @@ double ErrorAnalysis::compute_surrogate_error()
 	double err, sum = 0.0;
 	int count = 0;
 	for (int i=0; i < n; ++i) {
-		err = tools::compute_normalizedl2norm(test_points_data[i], surrogate.run(test_points[i]));
+		err = tools::compute_l2norm(test_points_data[i], surrogate.run(test_points[i]));
 		if (std::isnan(err) || std::isinf(err)) continue;
 		sum += err;
 		count++;
@@ -87,7 +87,7 @@ double ErrorAnalysis::compute_surrogate_error_at(std::vector<double> const& m)
 {
 	vector<double> fd = fullmodel.run(m);
 	vector<double> sd = surrogate.run(m);
-	return tools::compute_normalizedl2norm(fd, sd);
+	return tools::compute_l2norm(fd, sd);
 }
 
 bool ErrorAnalysis::mpi_is_model_accurate(double tol)

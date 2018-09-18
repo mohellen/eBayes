@@ -386,8 +386,13 @@ string tools::samplepos_to_string(vector<double> const& v)
 	return oss.str();
 }
 
-// Compute the normalized Euclidean norm of two vectors
-// normalized_l2_norm = 0.5 * |(u-umean)-(v-vmean)|^2 / (|u-umean|^2 + |v-vmean|^2), |x|:= l2norm of x = sqrt(sum(x_i^2))
+/**
+ * Compute the normalized Euclidean norm of two vectors
+ * normalized_l2_norm = 0.5 * |(u-umean)-(v-vmean)|^2 / (|u-umean|^2 + |v-vmean|^2), |x|:= l2norm of x = sqrt(sum(x_i^2))
+ *
+ * Normalized l2-norm transforms vector into unit vector, and then compare,
+ * which mean only compares vector orientation, ignoring vector actual magnitude
+ */
 double tools::compute_normalizedl2norm(
 		vector<double> const& u,
 		vector<double> const& v)
@@ -418,3 +423,25 @@ double tools::compute_normalizedl2norm(
 	return (0.5 * uv2) / (uu2 + vv2);
 }
 
+
+/**
+ * Compute the Euclidean norm (l2-norm) of two vectors 
+ * l2_norm = sqrt(sum((xi-yi)^2)), |x|:= l2norm of x = sqrt(sum(x_i^2))
+ *
+ * l2-norm compares both magnitude and oriention of two vectors
+ */
+double tools::compute_l2norm(
+		vector<double> const& u,
+		vector<double> const& v)
+{
+	if (u.size() != v.size()) {
+		fflush(NULL);
+		printf("ERROR: vectors size mismatch. Program abort!\n");
+		exit(EXIT_FAILURE);
+	}
+	double sum = 0.0;
+	for (int i=0; i < u.size(); ++i) {
+		sum += (u[i]-v[i])*(u[i]-v[i]);
+	}
+	return sqrt(sum);
+}

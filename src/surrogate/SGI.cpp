@@ -190,16 +190,19 @@ void SGI::impi_adapt()
 	double tic1, toc1;
 
 	tic = MPI_Wtime();
-	//----
-	MPI_Probe_adapt(&adapt_flag, &par.status, &info);
-	//----
+
+	// Joining ranks can omit probe_adapt, and call adapt_begin directly
+	if (par.status != MPI_ADAPT_STATUS_JOINING) { 
+		MPI_Probe_adapt(&adapt_flag, &par.status, &info);
+	}
 	toc = MPI_Wtime() - tic;
 	if (par.is_master()) {
 		fflush(NULL);
 		printf("SGI.IMPI: MASTER call MPI_Probe_adapt() in %.6f seconds.\n", toc);
 	}
 
-	if (adapt_flag == MPI_ADAPT_TRUE){
+	// Both preexisting ranks (that has adapt_true) and joining ranks will enter adapt window
+	if ((adapt_flag == MPI_ADAPT_TRUE) || (par.status == MPI_ADAPT_STATUS_JOINING)) {
 		tic1 = MPI_Wtime();
 
 		tic = MPI_Wtime();
@@ -216,18 +219,20 @@ void SGI::impi_adapt()
 		if (par.status == MPI_ADAPT_STATUS_JOINING) {
 			// JOINING ranks should not read grid any sooner to ensure the grid is properly refined
 			mpiio_read_grid();
-		}
-		//TODO: DEBUG only
-		bool is_grid_equal = verify_grid_from_read(1, intercomm);
-		if (par.is_master()) {
-			if (is_grid_equal) {
-				fflush(NULL);
-				printf("JOINING Rank[1] read grid correctly.\n");
-			} else {
-				fflush(NULL);
-				printf("JOINING Rank[1] read grid wrong. Program abort!\n");
-				exit(EXIT_FAILURE);
+
+#if (SGI_DEBUG==1) //Debug only: to check if read grid from file correct
+			bool is_grid_equal = verify_grid_from_read(1, intercomm); //intercomm is valid only when there are joinning ranks
+			if (par.is_master()) {
+				if (is_grid_equal) {
+					fflush(NULL);
+					printf("JOINING Rank[1] read grid correctly.\n");
+				} else {
+					fflush(NULL);
+					printf("JOINING Rank[1] read grid wrong. Program abort!\n");
+					exit(EXIT_FAILURE);
+				}
 			}
+#endif
 		}
 		if (joining_count > 0) {
 			MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, par.master, newcomm);
@@ -245,6 +250,22 @@ void SGI::impi_adapt()
 		}
 
 		par.mpi_update();
+#if (SGI_DEBUG==1) //Debug only: test if rank ID correct after commit
+		ofstream testrank;
+		testrank.open("output/aftercommit_"+std::to_string(par.rank)+".out");
+		testrank << "After adapt_commit, Rank " << par.rank << " is working..." << endl;
+		testrank.close();
+#endif
+
+#if (SGI_DEBUG==1) //Debug only: to check if read grid from file correct
+		for (int i=0; i < par.size; ++i) {
+			if (i == par.rank) {
+				fflush(NULL);
+				printf("My rank %d, status %d, size %d, MPI_COMM_WORLD %d\n", par.rank, par.status, par.size, MPI_COMM_WORLD);
+			}
+			MPI_Barrier(MPI_COMM_WORLD);
+		}
+#endif
 
 		toc1 = MPI_Wtime() - tic1;
 		if (par.is_master()) {
@@ -408,9 +429,6 @@ void SGI::compute_gp_range(
 #if (1==0)
 bool SGI::refine_grid_old(double portion_to_refine)
 {
-	//TODO: DEBUG only
-	cout << "[Rank " << par.rank << "/" << par.size << "]: grid BEFORE refine " << grid->getSize() << endl;
-
 #if (SGI_PRINT_TIMER==1)
 	double tic = MPI_Wtime();
 #endif
@@ -420,14 +438,8 @@ bool SGI::refine_grid_old(double portion_to_refine)
 	int thres = int(ceil(maxi / 2 / cfg.get_input_size()));
 	// Number of points to refine
 	std::size_t num_gps = this->grid->getSize();
-	//TODO: DEBUG only
-	cout << "[Rank " << par.rank << "/" << par.size << "]: num_gps = " << num_gps << endl;
-
 	int refine_gps = int(ceil(num_gps * portion_to_refine));
 	refine_gps = (refine_gps > thres) ? thres : refine_gps;
-	//TODO: DEBUG only
-	cout << "[Rank " << par.rank << "/" << par.size << "]: refine_gps = " << refine_gps << endl;
-
 	// If not points to refine, return false (meaning grid not refined)
 	if (refine_gps < 1) return false;
 	// Read posterior from file
@@ -448,10 +460,6 @@ bool SGI::refine_grid_old(double portion_to_refine)
 	}
 	// refine grid
 	grid->refine(refine_idx, refine_gps);
-
-	//TODO: DEBUG only
-	cout << "[Rank " << par.rank << "/" << par.size << "]: grid AFTER refine " << grid->getSize() << endl;
-
 #if (SGI_PRINT_TIMER==1)
 	if (par.is_master())
 		cout << "SGI: MASTER refined grid in " << MPI_Wtime()-tic << " seconds." << endl;
@@ -741,12 +749,9 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	vector<char> workers (par.size, RANKIDLE); // RANKACTIVE, RANKIDLE
 	workers[par.master] = 'x'; // exclude master rank from any search
 
-//TODO: DEBUG only
-#if (SGI_DEBUG==1) 
-	cout << tools::yellow;
+#if (SGI_DEBUG==2) // Debug only: check jobs and workers array (set 2 to disable it permtly)
 	print_jobs(jobs);
 	print_workers(workers);
-	cout << tools::reset << endl;
 #endif
 
 #if (IMPI==1)
@@ -759,12 +764,9 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	if (par.size > 1)
 		mpimw_master_seed_workers(jobs, workers);
 
-//TODO: DEBUG only
-#if (SGI_DEBUG==1) 
-	cout << tools::yellow;
+#if (SGI_DEBUG==2) // Debug only: check jobs and workers array (set 2 to disable this permtly.)
 	print_jobs(jobs);
 	print_workers(workers);
-	cout << tools::reset << endl;
 #endif
 
 	// As long as not all jobs are done, keep working...
@@ -855,8 +857,7 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 			// get the job range and compute
 			mpimw_get_job_range(job_todo, gp_offset, seq_min, seq_max);
 
-			//TODO: DEBUG only
-#if (SGI_DEBUG==1)
+#if (SGI_DEBUG==1) // Debug only: check jobid and offset match
 			if (job_todo != (seq_min - gp_offset)/cfg.get_param_sizet("sgi_masterworker_jobsize")) {
 				fflush(NULL);
 				printf("ERROR: Rank[%d|%d](%d) jobid %d, offset %lu, range [%lu, %lu] mismatch. Program abort!\n",
@@ -864,14 +865,8 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 				exit(EXIT_FAILURE);
 			}
 #endif
-
-#if (SGI_PRINT_RANKPROGRESS==1)
-			fflush(NULL);
-			printf("SGI: Rank[%d|%d](%d) computing job %d range [%lu, %lu] offset %lu\n",
-					par.rank, par.size, par.status, job_todo, seq_min, seq_max, gp_offset);
-#endif
 			compute_gp_range(seq_min, seq_max);
-			// tell master the job is done
+			// tell master the job is done (use a different send buffer)
 			job_done = job_todo;
 			mpimw_worker_send_done(job_done);
 		}
@@ -1028,6 +1023,11 @@ void SGI::mpimw_master_receive_done(
 	wid = status.MPI_SOURCE;
 	jobs[jid] = JOBDONE;
 	workers[wid] = RANKIDLE;
+#if (SGI_PRINT_RANKPROGRESS==1)
+	fflush(NULL);
+	printf("SGI: Rank[%d|%d] completed job %d/%lu offset %lu\n",
+			wid, par.size, jid, jobs.size(), impi_gpoffset);
+#endif
 	// 2. Receive maxpos list
 	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
 	typedef std::pair<double, std::size_t> posseq;
