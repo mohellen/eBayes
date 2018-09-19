@@ -32,6 +32,7 @@
 #include <iterator>
 #include <random>
 #include <chrono>
+#include <cmath>
 
 /******************************************
  * MCMC solver writes output data into a text file.
@@ -65,7 +66,9 @@ public:
 protected:
 	void one_step_single_dim(
 			std::size_t dim,
-			std::vector<double> & samplepos);
+			std::vector<double> & samplepos,
+			double inv_temp = 1.0); // The optional parameter is for PT only.
+									// Others (e.g. MH) can call the single step without the temperature.
 
 	std::vector<double> read_max_samplepos(std::fstream& fin);
 

@@ -33,7 +33,8 @@ MCMC::MCMC(
 
 void MCMC::one_step_single_dim(
 		std::size_t dim,	// IN: the dimension to be update in this step
-		vector<double> & samplepos) // IN/OUT: sample+posterior vector from last step (to be updated if proposal get accepted)
+		vector<double> & samplepos, // IN/OUT: sample+posterior vector from last step (to be updated if proposal get accepted)
+		double inv_temp)
 {
 	/// NOTE: samplepos has length (input_size + 1), 
 	///       with last element being the posterior of the sample
@@ -58,6 +59,7 @@ void MCMC::one_step_single_dim(
 	// 2. Compute acceptance rate
 	vector<double> d = model.run(proposal);
 	double pos = cfg.compute_posterior(d);
+	pos = pow(pos, inv_temp); // For PT: i-th chain pi(x)_i = pi(x)^(1/T_i)
 	double acc = fmin(1.0, pos/samplepos.back());
 
 	// 3. Accept or reject proposal

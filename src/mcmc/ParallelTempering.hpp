@@ -35,7 +35,7 @@ class ParallelTempering : public MCMC
 {
 private:
 	double mixing_rate; /// [0,1]. How often we should mix (exchange) samples
-	std::unique_ptr<double[]> inv_temps;
+	std::unique_ptr<double[]> inv_temps; // Stores the inverse temperatures 1/T_i for all chains
 
 public:
 	~ParallelTempering() {}

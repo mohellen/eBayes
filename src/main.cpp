@@ -20,11 +20,11 @@ int main(int argc, char** argv)
 	Parallel par;
 	par.mpi_init(argc, argv);
 
+#if (SGI_DEBUG==1)
 	if (par.status == MPI_ADAPT_STATUS_JOINING) {
 		fflush(NULL);
 		printf("~~~~~~~~~ JOINING Rank[%d] arrived! ~~~~~~~~~\n", par.rank);
-
-#if (SGI_DEBUG==1)
+		// print a file to prove existence
 		ofstream testrank;
 		testrank.open("output/joining_"+std::to_string(par.rank)+".out");
 		testrank << "Joining rank " << par.rank << " is has arrived..." << endl;
@@ -34,13 +34,13 @@ int main(int argc, char** argv)
 
 	// Forward model
 	NS ns (cfg);
-	// Surrogate model
+	// Surrogate modez
 	SGI sgi (cfg, par, ns);
 	// Error analysis object
 	ErrorAnalysis ea (cfg, par, ns, sgi);
 	ea.add_test_points(5);
 
-	double tol = 0.1;
+	double tol = 0.05; // 5% error in model is allowed
 	while(true) {
 		sgi.build();
 		if (ea.mpi_is_model_accurate(tol)) break;

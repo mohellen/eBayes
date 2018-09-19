@@ -38,18 +38,14 @@ void ParallelTempering::run(
 
 	// Output file (only chain0's output is valid output)
 	fstream fout;
-	if (par.is_master()) {
-		fout = open_output_file();
-	}
+	if (par.is_master()) fout = open_output_file();
 	
 	// Initialize starting point & maxpos point
 	std::size_t input_size = cfg.get_input_size();
 	vector<double> samplepos = initialize_samplepos(init_samplepos);
 	vector<double> max_samplepos = samplepos;
 	// Write initial MCMC sample
-	if (par.is_master()) {
-		write_samplepos(fout, samplepos);
-	}
+	if (par.is_master()) write_samplepos(fout, samplepos);
 
 	//=============== Parallel Tempering Stuff =================
 	// Random generators
@@ -81,11 +77,26 @@ void ParallelTempering::run(
 	vector<double> rbuf (input_size + 2);
 
 	// Initialize temperatures of each chain
-	// 1=T0 < T1 < ... Tmax, with T_i = 2^{sqrt(i)}
+	// 1=T0 < T1 < ... Tmax, with T_i = sqrt(2^i)
 	// For convenience purpose, the inverse of temperatures are stored
 	vector<double> inv_temps (num_chains);
-	for (int t=0; t < num_chains; t++)
-		inv_temps[t] = pow(2.0, double(t)*-0.5);
+	for (int i=0; i < num_chains; i++)
+		inv_temps[i] = pow(2.0, -i/2);
+
+	// Update the initial pos value: pi_i = pi^(1/T_i)
+	samplepos.back() = pow(samplepos.back(), inv_temps[par.rank]);
+
+#if (MCMC_DEBUG==1)
+	if (par.is_master()) {
+		fflush(NULL);
+		printf("\nMCMCPT: %lu chains. 1/T from chain 0 to chain %lu are ...\n", 
+				inv_temps.size(), inv_temps.size());
+		for (auto t = inv_temps.begin(); t != inv_temps.end(); ++t) {
+			printf("\t%.6f", *t);
+		}
+		printf("\n");
+	}
+#endif
 	//=========================================================
 
 	// Run the MCMC chain
@@ -93,7 +104,7 @@ void ParallelTempering::run(
 	for (int it=0; it < num_samples; ++it) {
 		// 1. Perform 1 MCMC step
 		dim = it%input_size;
-		one_step_single_dim(dim, samplepos);
+		one_step_single_dim(dim, samplepos, inv_temps[par.rank]);
 
 		// 1.1 Mixing chains if needed
 		if (exchange_iter_chain[it].first == 1) {
@@ -151,7 +162,7 @@ void ParallelTempering::run(
 		}
 
 		// 2. write result
-		write_samplepos(fout, samplepos);
+		if (par.is_master()) write_samplepos(fout, samplepos);
 
 		// 3. Get max posterior and the corresponding sample point
 		if (samplepos.back() > max_samplepos.back()) {
@@ -163,9 +174,11 @@ void ParallelTempering::run(
 #endif
 	}
 	// Insert MAXPOS point to file
-	fout << "MAXPOS ";
-	write_samplepos(fout, max_samplepos);
-	fout.close();
+	if (par.is_master()) {
+		fout << "MAXPOS ";
+		write_samplepos(fout, samplepos);
+		fout.close();
+	}
 	return;
 }
 

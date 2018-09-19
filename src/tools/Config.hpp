@@ -95,6 +95,10 @@ namespace tools
 	double compute_l2norm(
 			std::vector<double> const& u,
 			std::vector<double> const& v);
+
+	// Compute the Euclidean norm (l2-norm) of a vector
+	double compute_l2norm(
+			std::vector<double> const& v);
 }
 
 #endif

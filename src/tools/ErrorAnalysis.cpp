@@ -29,6 +29,7 @@ void ErrorAnalysis::add_test_points(std::size_t n)
 	std::size_t input_size = cfg.get_input_size();
 	test_points.resize(n);
 	test_points_data.resize(n);
+	test_points_data_l2norm.resize(n);
 
 	fflush(NULL);
 	printf("EA: Rank[%d|%d](%d) adding test points...\n",
@@ -42,6 +43,7 @@ void ErrorAnalysis::add_test_points(std::size_t n)
 			test_points[k][i] = udist(eng);
 		}
 		test_points_data[k] = fullmodel.run(test_points[k]);
+		test_points_data_l2norm[k] = tools::compute_l2norm(test_points_data[k]);
 	}
 }
 
@@ -75,8 +77,10 @@ double ErrorAnalysis::compute_surrogate_error()
 	double err, sum = 0.0;
 	int count = 0;
 	for (int i=0; i < n; ++i) {
-		err = tools::compute_l2norm(test_points_data[i], surrogate.run(test_points[i]));
-		if (std::isnan(err) || std::isinf(err)) continue;
+		// err := l2norm(v1, v_ref) / l2norm(v_ref)
+		err = tools::compute_l2norm(test_points_data[i], surrogate.run(test_points[i])) 
+				/ test_points_data_l2norm[i];
+		if (std::isnan(err) || std::isinf(err)) continue; //skip invalid values
 		sum += err;
 		count++;
 	}
@@ -99,7 +103,7 @@ bool ErrorAnalysis::mpi_is_model_accurate(double tol)
 	double mean = 0.0;
 	int count = 0;
 	for (double e: err) {
-		if (std::isnan(e) || std::isinf(e)) continue;
+		if (std::isnan(e) || std::isinf(e)) continue; //skip invalid values
 		mean += e;
 		count++;
 	}

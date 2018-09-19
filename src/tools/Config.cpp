@@ -445,3 +445,17 @@ double tools::compute_l2norm(
 	}
 	return sqrt(sum);
 }
+
+/**
+ * Compute the Euclidean norm (l2-norm) of a vector 
+ * |x|:= l2norm of x = sqrt(sum(x_i^2))
+ */
+double tools::compute_l2norm(
+		vector<double> const& v)
+{
+	double sum = 0.0;
+	for (int i=0; i < v.size(); ++i) {
+		sum += v[i]*v[i];
+	}
+	return sqrt(sum);
+}

@@ -35,8 +35,9 @@ private:
 	ForwardModel&	fullmodel;
 	ForwardModel&	surrogate;
 
-	std::vector< std::vector<double> > test_points;
-	std::vector< std::vector<double> > test_points_data;
+	std::vector< std::vector<double> >	test_points;
+	std::vector< std::vector<double> >	test_points_data;
+	std::vector<double> 				test_points_data_l2norm;
 
 public:
 	~ErrorAnalysis() {}
