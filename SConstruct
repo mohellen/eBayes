@@ -22,7 +22,6 @@ libs = ['m','sgppbase','mpi','mpicxx']
 homedir = os.path.expanduser("~")
 basedir = os.getcwd()
 srcdir = basedir + "/src"
-bindir = basedir + "/bin"
 #########################
 
 
@@ -30,6 +29,8 @@ bindir = basedir + "/bin"
 ########################################
 vars = Variables()
 vars.AddVariables(
+
+    PathVariable('buildpath', 'eBayes build path', './bin'),
 
     EnumVariable('scenario', 'Inverse problem scenarios: 1 for NS, 2 for heat', '1',
         allowed_values=('1') # so far only NaviarStokes supported
@@ -131,11 +132,9 @@ To clean up build:
 # Specify build name
 tar = str(env['exe'])
 # Save the base path
-target = bindir + '/' + tar
-builddir = bindir + '/build_' + tar
+target = env['buildpath'] + '/' + tar
+builddir = env['buildpath'] + '/build_' + tar
 # Make output and build dir
-if not os.path.exists(bindir):
-	os.makedirs(bindir)
 if not os.path.exists(builddir):
 	os.makedirs(builddir)
 
