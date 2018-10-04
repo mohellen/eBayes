@@ -508,7 +508,7 @@ void SGI::refine_grid(double portion_to_refine)
 		}
 		// refine grid
 		grid->refine(refine_idx, refine_gps);
-		mpiio_write_grid();
+		//mpiio_write_grid();
 		std::size_t new_num_gps = grid->getSize();
 
 		fflush(NULL);
@@ -518,10 +518,10 @@ void SGI::refine_grid(double portion_to_refine)
 		printf("SGI: refined grid in %.6f seconds.\n", MPI_Wtime()-tic);
 #endif
 	}
-	// Ensure read grid after its written completely
-	MPI_Barrier(MPI_COMM_WORLD);
-	// Others read grid
-	if (!par.is_master()) mpiio_read_grid();
+	//// Ensure read grid after its written completely
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//// Others read grid
+	//if (!par.is_master()) mpiio_read_grid();
 	
 	return;
 }
@@ -1112,4 +1112,70 @@ bool SGI::verify_grid_from_read(int joinrank, MPI_Comm intercomm)
 		}
 	}
 	return false;
+}
+
+// The master broadcast grid to the rest of the group
+// Can use with either MPI_COMM_WORLD or NEW_COMM
+void SGI::broadcast_grid(MPI_Comm comm)
+{
+	if (par.is_master()) {
+		// Pack grid into Char array
+		string sg_str = grid->serialize();
+		int count = static_cast<int>(sg_str.size());
+		// Copy partial grid to string
+		unique_ptr<char[]> buff (new char[count]);
+		sg_str.copy(buff.get(), count, 0);
+		// Write to file
+		string ofile = cfg.get_grid_fname();
+		MPI_File fh;
+		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
+				MPI_INFO_NULL, &fh) != MPI_SUCCESS) {
+			par.info();
+			printf("ERROR: fail to open %s for grid write. Program abort!\n", ofile.c_str());
+			exit(EXIT_FAILURE);
+		}
+		if (MPI_File_write(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+			par.info();
+			printf("ERROR: fail to write grid to %s. Program abort!\n", ofile.c_str());
+			exit(EXIT_FAILURE);
+		}
+		MPI_File_close(&fh);
+	}
+	return;
+}
+
+void SGI::mpiio_read_grid()
+{
+	// Open file
+	string ofile = cfg.get_grid_fname();
+	MPI_File fh;
+	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
+			!= MPI_SUCCESS) {
+		par.info();
+		printf("ERROR: fail to open %s for grid read. Program abort!\n", ofile.c_str());
+		exit(EXIT_FAILURE);
+	}
+	// Get file size,create buffer
+	long long int count;
+	MPI_File_get_size(fh, &count);
+	unique_ptr<char[]> buff (new char[count]);
+	// Read from file
+	if (MPI_File_read(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
+		par.info();
+		printf("ERROR: fail to read grid from %s. Program abort!\n", ofile.c_str());
+		exit(EXIT_FAILURE);
+	}
+	MPI_File_close(&fh);
+	// Create serialized grid string
+	string sg_str(buff.get());
+	// Construct new grid from grid string
+	grid.reset(Grid::unserialize(sg_str).release()); // create grid
+	bbox.reset(create_boundingbox());
+	grid->setBoundingBox(*bbox); // set up bounding box
+	eval.reset(sgpp::op_factory::createOperationEval(*grid).release());
+	return;
+}
+
+void SGI::mpiio_readwrite_data(
+	
 }
