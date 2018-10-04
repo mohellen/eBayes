@@ -35,13 +35,31 @@ public:
 	std::size_t get_input_size() const {return insize;}
 	std::size_t get_output_size() const {return observation.size();}
 	std::vector<double> get_observation() const {return observation;}
+
 	// Retrieve parameter value
-	std::string get_param_string(std::string var) const {return params.at(var).val;}
-	double get_param_double(std::string var) const {return stod(params.at(var).val);}
-	std::size_t get_param_sizet(std::string var) const {return std::size_t(stoul(params.at(var).val));}
+	std::string get_param_string(std::string var) const {
+		return params.at(var).val;}
+
+	double get_param_double(std::string var) const {
+		return stod(params.at(var).val);}
+
+	std::size_t get_param_sizet(std::string var) const {
+		return std::size_t(stoul(params.at(var).val));}
+
 	bool get_param_bool(std::string var) const {
 		return (params.at(var).val == "yes") ? true : false; }
-	
+
+	// Date files:
+	// They will be read/write from different functions, names must be consistently defined here
+	// These are fully built files, to be read from when resume job
+	std::string get_grid_fname() const {return get_param_string("global_output_path")+"/grid.mpibin";}
+	std::string get_data_fname() const {return get_param_string("global_output_path")+"/data.mpibin";}
+	std::string get_pos_fname() const  {return get_param_string("global_output_path")+"/pos.mpibin";}
+	// These are temp files for during the build
+	std::string get_grid_bak_fname() const {return get_param_string("global_output_path")+"/grid.mpibin.bak";}
+	std::string get_data_bak_fname() const {return get_param_string("global_output_path")+"/data.mpibin.bak";}
+	std::string get_pos_bak_fname() const  {return get_param_string("global_output_path")+"/pos.mpibin.bak";}
+
 	// Compute the posteria for a given simulation data
 	double compute_posterior(std::vector<double> const& data) const;
 

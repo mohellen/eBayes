@@ -27,21 +27,21 @@ Config::Config(int argc, char** argv)
 
 	// Determine input size
 	if (GLOBAL_SCENARIO == NS_OBS)	{
-		istringstream iss(params.at("ns_obstacle_list").val);
+		istringstream iss(get_param_string("ns_obstacle_list"));
 		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 		// For NS_OBS, num_obs = tokens.size()/4
 		// insize = 2 * num_obs (each obstacle has 2 coordinates (x, y)).
 		insize = 2 * (tokens.size() / 4);
 	}
 	// Get observation
-	istringstream iss(params.at("global_observation").val);
+	istringstream iss(get_param_string("global_observation"));
 	vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 	observation.reserve(tokens.size());
 	for (auto it=tokens.begin(); it != tokens.end(); ++it) {
 		observation.push_back(stod(*it));
 	}
 	// Compute observation sigma := noise * mean(observation)
-	double noise = stod(params.at("global_observation_noise").val);
+	double noise = get_param_double("global_observation_noise");
 	double mean = 0.0;
 	for (double d: observation)
 		mean += d;
@@ -356,6 +356,8 @@ void Config::print_help(int argc, char** argv)
 	return;
 }
 
+
+
 string tools::trim_white_space(const string& str)
 {
 	std::string whitespace=" \t";
@@ -422,7 +424,6 @@ double tools::compute_normalizedl2norm(
 
 	return (0.5 * uv2) / (uu2 + vv2);
 }
-
 
 /**
  * Compute the Euclidean norm (l2-norm) of two vectors 

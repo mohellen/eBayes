@@ -27,7 +27,7 @@ global_observation	1.452448 1.462823 1.488205 1.308171 1.251706 1.058352 1.59076
 # iMPI setting
 #------------------
 # iMPI adapt frequency (seconds): call probe_adapt every N seconds
-impi_adapt_freq_sec	60
+impi_adapt_freq_sec		60
 
 #------------------------
 # Surrogate SGI setting

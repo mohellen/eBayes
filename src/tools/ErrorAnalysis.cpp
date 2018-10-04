@@ -31,9 +31,8 @@ void ErrorAnalysis::add_test_points(std::size_t n)
 	test_points_data.resize(n);
 	test_points_data_l2norm.resize(n);
 
-	fflush(NULL);
-	printf("EA: Rank[%d|%d](%d) adding test points...\n",
-			par.rank, par.size, par.status);
+	par.info();
+	printf("EA: adding test points...\n");
 
 	for (std::size_t k=0; k < n; ++k) {
 		test_points[k].resize(input_size);
@@ -64,12 +63,12 @@ void ErrorAnalysis::copy_test_points(ErrorAnalysis const& that)
 double ErrorAnalysis::compute_surrogate_error()
 {
 	if (test_points.size() < 1) {
-		fflush(NULL);
+		par.info();
 		printf("ERROR: EA compute surrogate error failed due to no test points. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
 	if (test_points.size() != test_points_data.size()) {
-		fflush(NULL);
+		par.info();
 		printf("ERROR: EA compute surrogate error failed, test points and data dimension mismatch. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
@@ -110,9 +109,9 @@ bool ErrorAnalysis::mpi_is_model_accurate(double tol)
 	mean = mean / double(count);
 
 #if (EA_LOCALINFO == 1)
-	fflush(NULL);
-	printf("EA: Rank[%d|%d](%d) %lu test points, local error %.8f, global error %.8f\n",
-			par.rank, par.size, par.status, test_points.size(), local_err, mean);
+	par.info();
+	printf("EA: %lu test points, local error %.8f, global error %.8f\n",
+			test_points.size(), local_err, mean);
 #endif
 
 	if (par.is_master()) {

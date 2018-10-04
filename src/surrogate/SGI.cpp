@@ -43,9 +43,8 @@ vector<double> SGI::run(
 {
 	// Grid check
 	if (!eval) {
-		fflush(NULL);
-		printf("ERROR: Rank[%d|%d](%d) SGI::run fail because surrogate is not properly built. Program abort!\n",
-				par.rank, par.size, par.status);
+		par.info();
+		printf("ERROR: SGI::run fail because surrogate is not properly built. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
 	// Convert m into DataVector
@@ -80,7 +79,8 @@ void SGI::build()
 		if (is_init) {
 			if (par.is_master()) {
 				fflush(NULL);
-				printf("\nSGI: Initializing SGI surrogate...\n");
+				printf("\n==========================================\n");
+				printf("SGI: Initializing SGI surrogate...\n");
 			}
 			// 1. All: Construct grid
 			grid.reset(Grid::createModLinearGrid(input_size).release()); // create empty grid
@@ -93,7 +93,8 @@ void SGI::build()
 		} else {
 			if (par.is_master()) {
 				fflush(NULL);
-				printf("\nSGI: Refining SGI surrogate...\n");
+				printf("\n==========================================\n");
+				printf("SGI: Refining SGI surrogate...\n");
 			}
 			// 1. All: refine grid
 			impi_gpoffset = grid->getSize(); // STAYING ranks set this variable needed by the JOINING ranks
@@ -121,11 +122,23 @@ void SGI::build()
 		if (is_init) {
 			fflush(NULL);
 			printf("SGI: Initialize SGI surrogate successful.\n");
+			printf("==========================================\n\n");
 		} else {
 			fflush(NULL);
 			printf("SGI: Refine SGI surrogate successful.\n");
+			printf("==========================================\n\n");
 		}
+
+		// Make a copy of data files
+		string cmd = "cp " + cfg.get_grid_fname() + " " + cfg.get_grid_bak_fname();
+		system(cmd.c_str());	
+		cmd = "cp " + cfg.get_data_fname() + " " + cfg.get_data_bak_fname();
+		system(cmd.c_str());	
+		cmd = "cp " + cfg.get_pos_fname() + " " + cfg.get_pos_bak_fname();
+		system(cmd.c_str());	
 	}
+
+
 	return;
 }
 
@@ -181,24 +194,23 @@ vector<double> SGI::get_nth_maxpos(std::size_t n)
 void SGI::impi_adapt()
 {
 #if (IMPI==1)
-	int adapt_flag;
+	int adapt_flag = MPI_ADAPT_FALSE;
 	MPI_Info info;
 	MPI_Comm intercomm;
 	MPI_Comm newcomm;
 	int staying_count, leaving_count, joining_count;
-	double tic, toc;
-	double tic1, toc1;
-
-	tic = MPI_Wtime();
+	double tic, tic1;
 
 	// Joining ranks can omit probe_adapt, and call adapt_begin directly
 	if (par.status != MPI_ADAPT_STATUS_JOINING) { 
+		tic = MPI_Wtime();
+		//----
 		MPI_Probe_adapt(&adapt_flag, &par.status, &info);
-	}
-	toc = MPI_Wtime() - tic;
-	if (par.is_master()) {
-		fflush(NULL);
-		printf("SGI.IMPI: MASTER call MPI_Probe_adapt() in %.6f seconds.\n", toc);
+		//----
+		if (par.is_master()) {
+			par.info();
+			printf("iMPI: MPI_Probe_adapt() in %.6f sec\n", MPI_Wtime()-tic);
+		}
 	}
 
 	// Both preexisting ranks (that has adapt_true) and joining ranks will enter adapt window
@@ -209,31 +221,34 @@ void SGI::impi_adapt()
 		//----
 		MPI_Comm_adapt_begin(&intercomm, &newcomm, &staying_count, &leaving_count, &joining_count);
 		//----
-		toc = MPI_Wtime() - tic;
 		if (par.is_master()) {
-			fflush(NULL);
-			printf("SGI.IMPI: MASTER call MPI_Comm_adapt_begin() in %.6f seconds.\n", toc);
+			par.info();
+			printf("iMPI: MPI_Comm_adapt_begin() in %.6f sec\n", MPI_Wtime()-tic);
 		}
 
 		//************************ ADAPT WINDOW ****************************
 		if (par.status == MPI_ADAPT_STATUS_JOINING) {
 			// JOINING ranks should not read grid any sooner to ensure the grid is properly refined
 			mpiio_read_grid();
+		}
 
 #if (SGI_DEBUG==1) //Debug only: to check if read grid from file correct
-			bool is_grid_equal = verify_grid_from_read(1, intercomm); //intercomm is valid only when there are joinning ranks
+		//intercomm is valid only when there are joinning ranks
+		if (joining_count > 0) {
+			bool is_grid_equal = verify_grid_from_read(1, intercomm); 
 			if (par.is_master()) {
 				if (is_grid_equal) {
-					fflush(NULL);
-					printf("JOINING Rank[1] read grid correctly.\n");
+					par.info();
+					printf("iMPI DEBUG: read grid correctly.\n");
 				} else {
-					fflush(NULL);
-					printf("JOINING Rank[1] read grid wrong. Program abort!\n");
+					par.info();
+					printf("iMPI DEBUG: read grid wrong. Program abort!\n");
 					exit(EXIT_FAILURE);
 				}
 			}
-#endif
 		}
+#endif
+
 		if (joining_count > 0) {
 			MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, par.master, newcomm);
 		}
@@ -243,34 +258,16 @@ void SGI::impi_adapt()
 		//----
 		MPI_Comm_adapt_commit();
 		//----
-		toc = MPI_Wtime() - tic;
 		if (par.is_master()) {
-			fflush(NULL);
-			printf("SGI.IMPI: MASTER call MPI_Comm_adapt_commit() in %.6f seconds.\n", toc);
+			par.info();
+			printf("iMPI: MPI_Comm_adapt_commit() in %.6f seconds.\n", MPI_Wtime()-tic);
 		}
-
+		// Update Comm World size, rank, status
 		par.mpi_update();
-#if (SGI_DEBUG==1) //Debug only: test if rank ID correct after commit
-		ofstream testrank;
-		testrank.open("output/aftercommit_"+std::to_string(par.rank)+".out");
-		testrank << "After adapt_commit, Rank " << par.rank << " is working..." << endl;
-		testrank.close();
-#endif
 
-#if (SGI_DEBUG==1) //Debug only: to check if read grid from file correct
-		for (int i=0; i < par.size; ++i) {
-			if (i == par.rank) {
-				fflush(NULL);
-				printf("My rank %d, status %d, size %d, MPI_COMM_WORLD %d\n", par.rank, par.status, par.size, MPI_COMM_WORLD);
-			}
-			MPI_Barrier(MPI_COMM_WORLD);
-		}
-#endif
-
-		toc1 = MPI_Wtime() - tic1;
 		if (par.is_master()) {
-			fflush(NULL);
-			printf("SGI.IMPI: MASTER call impi_adapt() in %.6f seconds.\n", toc1);
+			par.info();
+			printf("iMPI: impi_adapt() in %.6f sec\n", MPI_Wtime()-tic1);
 		}
 	}
 	return;
@@ -329,7 +326,7 @@ void SGI::compute_hier_alphas()
 #if (SGI_PRINT_TIMER==1)
 	if (par.is_master()) {
 		fflush(NULL);
-		printf("SGI: MASTER created alphas in  %.6f seconds.\n", MPI_Wtime()-tic);
+		printf("SGI: created alphas in  %.6f sec\n", MPI_Wtime()-tic);
 	}
 #endif
 	return;
@@ -367,7 +364,7 @@ void SGI::compute_grid_points(
 #if (SGI_PRINT_TIMER==1)
 	if (par.is_master()) {
 		fflush(NULL);
-		printf("SGI: Computed %lu gps range [%lu, %lu] in %.6f seconds.\n",
+		printf("SGI: computed %lu gps range [%lu, %lu] in %.6f sec\n",
 				grid->getSize()-gp_offset, gp_offset, grid->getSize()-1, MPI_Wtime()-tic);
 	}
 #endif
@@ -409,9 +406,9 @@ void SGI::compute_gp_range(
 			maxpos_list.erase(maxpos_list.begin());
 		}
 #if (SGI_PRINT_GRIDPOINTS==1)
-		fflush(NULL);
-		printf("SGI: Rank[%d|%d](%d) computed gp %lu at %s, pos %.6f\n",
-				par.rank, par.size, park.status, i, tools::sample_to_string(get_gp_coord(i)), *p);
+		par.info();
+		printf("SGI: computed gp %lu at %s, pos %.6f\n",
+				i, tools::sample_to_string(get_gp_coord(i)), *p);
 #endif
 	}
 	// Write results to file
@@ -489,8 +486,8 @@ void SGI::refine_grid(double portion_to_refine)
 		refine_gps = (refine_gps > thres) ? thres : refine_gps;
 		// If no points to refine abort
 		if (refine_gps < 1) {
-			fflush(NULL);
-			printf("SGI: Refine grid failed due to no points to refine. Program abort!\n");
+			par.info();
+			printf("SGI: refine grid failed due to no points to refine. Program abort!\n");
 			exit(EXIT_FAILURE);	
 		};
 		// Read posterior from file
@@ -538,19 +535,17 @@ void SGI::mpiio_write_grid()
 	unique_ptr<char[]> buff (new char[count]);
 	sg_str.copy(buff.get(), count, 0);
 	// Write to file
-	string ofile = cfg.get_param_string("global_output_path") + "/grid.mpibin";
+	string ofile = cfg.get_grid_fname();
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
 			MPI_INFO_NULL, &fh) != MPI_SUCCESS) {
-		fflush(NULL);
-		printf("ERROR: Rank[%d|%d](%d) fail to open %s for grid write. Program abort!\n",
-				par.rank, par.size, par.status, ofile.c_str());
+		par.info();
+		printf("ERROR: fail to open %s for grid write. Program abort!\n", ofile.c_str());
 		exit(EXIT_FAILURE);
 	}
 	if (MPI_File_write(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-		fflush(NULL);
-		printf("ERROR: Rank[%d|%d](%d) fail to write grid to %s. Program abort!\n",
-				par.rank, par.size, par.status, ofile.c_str());
+		par.info();
+		printf("ERROR: fail to write grid to %s. Program abort!\n", ofile.c_str());
 		exit(EXIT_FAILURE);
 	}
 	MPI_File_close(&fh);
@@ -560,13 +555,12 @@ void SGI::mpiio_write_grid()
 void SGI::mpiio_read_grid()
 {
 	// Open file
-	string ofile = cfg.get_param_string("global_output_path") + "/grid.mpibin";
+	string ofile = cfg.get_grid_fname();
 	MPI_File fh;
 	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 			!= MPI_SUCCESS) {
-		fflush(NULL);
-		printf("ERROR: Rank[%d|%d](%d) fail to open %s for grid read. Program abort!\n",
-				par.rank, par.size, par.status, ofile.c_str());
+		par.info();
+		printf("ERROR: fail to open %s for grid read. Program abort!\n", ofile.c_str());
 		exit(EXIT_FAILURE);
 	}
 	// Get file size,create buffer
@@ -575,9 +569,8 @@ void SGI::mpiio_read_grid()
 	unique_ptr<char[]> buff (new char[count]);
 	// Read from file
 	if (MPI_File_read(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-		fflush(NULL);
-		printf("ERROR: Rank[%d|%d](%d) fail to read grid from %s. Program abort!\n",
-				par.rank, par.size, par.status, ofile.c_str());
+		par.info();
+		printf("ERROR: fail to read grid from %s. Program abort!\n", ofile.c_str());
 		exit(EXIT_FAILURE);
 	}
 	MPI_File_close(&fh);
@@ -600,39 +593,35 @@ void SGI::mpiio_readwrite_data(
 	// Do something only when seq_min <= seq_max
 	if (seq_min > seq_max) return;
 	std::size_t output_size = cfg.get_output_size();
-	string ofile = cfg.get_param_string("global_output_path") + "/data.mpibin";
+	string ofile = cfg.get_data_fname();
 	MPI_File fh;
 	if (is_read) { // Read data from file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) fail to open %s for data read. Program abort!\n",
-					par.rank, par.size, par.status, ofile.c_str());
+			par.info();
+			printf("ERROR: fail to open %s for data read. Program abort!\n", ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
 		if (MPI_File_read_at(fh, seq_min*output_size*sizeof(double), buff,
 				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) fail read data from %s. Program abort!\n",
-					par.rank, par.size, par.status, ofile.c_str());
+			par.info();
+			printf("ERROR: fail read data from %s. Program abort!\n", ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) fail to open %s for data write. Program abort!\n",
-					par.rank, par.size, par.status, ofile.c_str());
+			par.info();
+			printf("ERROR: fail to open %s for data write. Program abort!\n", ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
 		if (MPI_File_write_at(fh, seq_min*output_size*sizeof(double), buff,
 				(seq_max-seq_min+1)*output_size, MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) fail to write data to %s. Program abort!\n",
-					par.rank, par.size, par.status, ofile.c_str());
+			par.info();
+			printf("ERROR: fail to write data to %s. Program abort!\n", ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -648,39 +637,35 @@ void SGI::mpiio_readwrite_posterior(
 {
 	// Do something only when seq_min <= seq_max
 	if (seq_min > seq_max) return;
-	string ofile = cfg.get_param_string("global_output_path") + "/pos.mpibin";
+	string ofile = cfg.get_pos_fname();
 	MPI_File fh;
 	if (is_read) { // Read data from file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) fail to open %s for posterior read. Program abort!\n",
-					par.rank, par.size, par.status, ofile.c_str());
+			par.info();
+			printf("ERROR: fail to open %s for posterior read. Program abort!\n", ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
 		if (MPI_File_read_at(fh, seq_min*sizeof(double), buff,
 				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) fail to read posterior from %s. Program abort!\n",
-					par.rank, par.size, par.status, ofile.c_str());
+			par.info();
+			printf("ERROR: fail to read posterior from %s. Program abort!\n", ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) fail to open %s for posterior write. Program abort!\n",
-					par.rank, par.size, par.status, ofile.c_str());
+			par.info();
+			printf("ERROR: fail to open %s for posterior write. Program abort!\n", ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 		// offset is in # of bytes, and is ALWAYS calculated from beginning of file.
 		if (MPI_File_write_at(fh, seq_min*sizeof(double), buff,
 				(seq_max-seq_min+1), MPI_DOUBLE, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) fail to write posterior to %s. Program abort!\n",
-					par.rank, par.size, par.status, ofile.c_str());
+			par.info();
+			printf("ERROR: fail to write posterior to %s. Program abort!\n", ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -803,7 +788,7 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 		if (toc >= impi_adapt_freq) {
 			// performance measure: # gps computed per second
 			fflush(NULL);
-			printf("SGI.PERFORMANCE: %d ranks computed %d gps in %.6f seconds. # gps per second = %.6f\n",
+			printf("SGI Performance: %d ranks computed %d gps in %.6f sec. #gps/sec = %.6f\n",
 					par.size, jobs_per_tic, toc, double(jobs_per_tic * jobsize)/toc);
 			// Only when there are remaining jobs, it's worth trying to adapt
 			if (std::any_of(jobs.begin(), jobs.end(), [](char i){return i==JOBTODO;})) {
@@ -845,9 +830,8 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 		// Receive a signal from MASTER
 		if (MPI_Recv(&job_todo, 1, MPI_INT, par.master, MPI_ANY_TAG, MPI_COMM_WORLD, &status)
 				!= MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) fail receive from MASTER. Program abort!\n",
-					par.rank, par.size, par.status);
+			par.info();
+			printf("ERROR: fail receive from MASTER. Program abort!\n");
 			exit(EXIT_FAILURE);
 		}
 
@@ -859,9 +843,9 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 
 #if (SGI_DEBUG==1) // Debug only: check jobid and offset match
 			if (job_todo != (seq_min - gp_offset)/cfg.get_param_sizet("sgi_masterworker_jobsize")) {
-				fflush(NULL);
-				printf("ERROR: Rank[%d|%d](%d) jobid %d, offset %lu, range [%lu, %lu] mismatch. Program abort!\n",
-						par.rank, par.size, par.status, job_todo, gp_offset, seq_min, seq_max);
+				par.info();
+				printf("ERROR: jobid %d, offset %lu, range [%lu, %lu] mismatch. Program abort!\n",
+						job_todo, gp_offset, seq_min, seq_max);
 				exit(EXIT_FAILURE);
 			}
 #endif
@@ -941,9 +925,8 @@ void SGI::mpimw_master_seed_workers(
 	}
 	if (sreq.size() > 0) {
 		if (MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) MASTER failed to Isend for seeding workers. Program abort!\n",
-					par.rank, par.size, par.status);
+			par.info();
+			printf("ERROR: failed to Isend for seeding workers. Program abort!\n");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -980,9 +963,8 @@ void SGI::mpimw_master_prepare_adapt(
 	}
 	if (sreq.size() > 0) {
 		if (MPI_Waitall(sreq.size(), &sreq[0], MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-			fflush(NULL);
-			printf("ERROR: Rank[%d|%d](%d) MASTER failed to Isend adapt signal to workers. Program abort!\n",
-					par.rank, par.size, par.status);
+			par.info();
+			printf("ERROR: failed to Isend adapt signal to workers. Program abort!\n");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -1015,27 +997,25 @@ void SGI::mpimw_master_receive_done(
 	int jid, wid;
 	MPI_Status status;
 	if (MPI_Recv(&jid, 1, MPI_INT, MPI_ANY_SOURCE, 12345, MPI_COMM_WORLD, &status) != MPI_SUCCESS) {
-		fflush(NULL);
-		printf("ERROR: Rank[%d|%d](%d) MASTER failed to receive a done job. Program abort!\n",
-				par.rank, par.size, par.status);
+		par.info();
+		printf("ERROR: failed to receive a done job. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
 	wid = status.MPI_SOURCE;
 	jobs[jid] = JOBDONE;
 	workers[wid] = RANKIDLE;
 #if (SGI_PRINT_RANKPROGRESS==1)
-	fflush(NULL);
-	printf("SGI: Rank[%d|%d] completed job %d/%lu offset %lu\n",
-			wid, par.size, jid, jobs.size(), impi_gpoffset);
+	par.info();
+	printf("SGI: worker %d completed job %d/%lu offset %lu\n",
+			wid, jid, jobs.size(), impi_gpoffset);
 #endif
 	// 2. Receive maxpos list
 	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
 	typedef std::pair<double, std::size_t> posseq;
 	vector<posseq> buf (num_maxpos);
 	if (MPI_Recv(&buf[0], num_maxpos, par.MPI_POSSEQ, wid, 123456, MPI_COMM_WORLD, &status) != MPI_SUCCESS) {
-		fflush(NULL);
-		printf("ERROR: Rank[%d|%d](%d) MASTER failed to receive maxpos list from rank %d. Program abort!\n",
-				par.rank, par.size, par.status, wid);
+		par.info();
+		printf("ERROR: failed to receive maxpos list from rank %d. Program abort!\n", wid);
 		exit(EXIT_FAILURE);
 	}
 	for (auto p: buf) {

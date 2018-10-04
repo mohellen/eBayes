@@ -27,7 +27,7 @@ void ParallelTempering::run(
 {
 	// Cannot perform Parallel Tempering with less than 2 chains
 	if (num_chains < 2) {
-		fflush(NULL);
+		par.info();
 		printf("ERROR: Cannot perform MCMC Parallel Tempering with less than 2 chains. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
@@ -88,9 +88,9 @@ void ParallelTempering::run(
 
 #if (MCMC_DEBUG==1)
 	if (par.is_master()) {
-		fflush(NULL);
+		par.info();
 		printf("\nMCMCPT: %lu chains. 1/T from chain 0 to chain %lu are ...\n", 
-				inv_temps.size(), inv_temps.size());
+				inv_temps.size(), inv_temps.size()-1);
 		for (auto t = inv_temps.begin(); t != inv_temps.end(); ++t) {
 			printf("\t%.6f", *t);
 		}
@@ -130,18 +130,16 @@ void ParallelTempering::run(
 							10, MPI_COMM_WORLD);
 					if (MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
 							20, MPI_COMM_WORLD, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-						fflush(NULL);
-						printf("ERROR: MCMCPT Rank %d failed to receive sample from %d. Program abort!\n",
-								par.rank, nei_chain);
+						par.info();
+						printf("ERROR: MCMCPT failed to receive sample from rank %d. Program abort!\n", nei_chain);
 						exit(EXIT_FAILURE);
 					}
 				}
 				if (par.rank == c2) {
 					if (MPI_Recv(&rbuf[0], input_size+2, MPI_DOUBLE, nei_chain,
 							10, MPI_COMM_WORLD, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-						fflush(NULL);
-						printf("ERROR: MCMCPT Rank %d failed to receive sample from %d. Program abort!\n",
-								par.rank, nei_chain);
+						par.info();
+						printf("ERROR: MCMCPT failed to receive sample from rank %d. Program abort!\n", nei_chain);
 						exit(EXIT_FAILURE);
 					}
 					MPI_Send(&samplepos[0],  input_size+2, MPI_DOUBLE, nei_chain,
@@ -150,11 +148,9 @@ void ParallelTempering::run(
 				// Exchange only if both me and nei accepted
 				if ((samplepos.back() > 0.5) && (rbuf.back() > 0.5)) {
 					samplepos = rbuf;
-					fflush(NULL);
 					if (par.rank == c1) {
-						fflush(NULL);
-						printf("MCMC.PT: Rank %d swapped with Rank %d at iteration %d.\n",
-								par.rank, nei_chain, it);
+						par.info();
+						printf("MCMCPT: swapped with rank %d at iteration %d.\n", nei_chain, it);
 					}
 				}
 				samplepos.pop_back(); //remove the exchange decision, samplepos go back to input_size+1 length

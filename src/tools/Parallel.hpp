@@ -22,6 +22,11 @@
 #include <mpi.h>
 #include <climits>
 #include <cstdint>
+#include <string>
+#include <fstream>
+#include <memory>
+
+#include <tools/Config.hpp>
 
 // size_t is used everywhere, important to define size_t for MPI
 #if (SIZE_MAX == UCHAR_MAX)
@@ -70,7 +75,11 @@ public:
 
 	void mpi_update();
 
+	void info();
+
 private:
 	MPI_Datatype create_MPI_POSSEQ();
 };
 #endif /* TOOLS_PARALLEL_HPP_ */
+
+

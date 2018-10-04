@@ -71,7 +71,7 @@ public:
 	std::pair<double,double> get_input_space(int dim) const {return fullmodel.get_input_space(dim);}
 
 private:
-	//Config const& cfg;			// ForwardModel contains cfg
+	//Config const& cfg;		// ForwardModel contains cfg
 	Parallel & par;				// Reference to parallel object
 	ForwardModel & fullmodel;	// Reference to a FULL forward model
 

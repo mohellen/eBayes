@@ -20,18 +20,6 @@ int main(int argc, char** argv)
 	Parallel par;
 	par.mpi_init(argc, argv);
 
-#if (SGI_DEBUG==1)
-	if (par.status == MPI_ADAPT_STATUS_JOINING) {
-		fflush(NULL);
-		printf("~~~~~~~~~ JOINING Rank[%d] arrived! ~~~~~~~~~\n", par.rank);
-		// print a file to prove existence
-		ofstream testrank;
-		testrank.open("output/joining_"+std::to_string(par.rank)+".out");
-		testrank << "Joining rank " << par.rank << " is has arrived..." << endl;
-		testrank.close();
-#endif
-	}
-
 	// Forward model
 	NS ns (cfg);
 	// Surrogate modez
