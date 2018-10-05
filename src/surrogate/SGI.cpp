@@ -87,7 +87,6 @@ void SGI::build()
 			grid->getGenerator().regular(init_level); // populate grid points
 			bbox.reset(create_boundingbox());
 			grid->setBoundingBox(*bbox); // set up bounding box
-			if (par.is_master()) mpiio_write_grid(); // MASTER write grid
 			impi_gpoffset = 0; // NEW ranks set this variable needed by the JOINING ranks
 			num_points = grid->getSize();
 		} else {
@@ -98,9 +97,24 @@ void SGI::build()
 			}
 			// 1. All: refine grid
 			impi_gpoffset = grid->getSize(); // STAYING ranks set this variable needed by the JOINING ranks
-			refine_grid(refine_portion); // MASTER refine and write grid, others read grid (including a MPI_Barriar)
+			refine_grid_bcast(refine_portion); // MASTER refine then bcast
 			num_points = grid->getSize();
+
+#if (SGI_DEBUG==1) //Debug only: to check if bcast grid correct
+			int src_rank = par.size - 1;
+			bool is_grid_ok = verify_grid(MPI_COMM_WORLD, par.size-1, 0);
+			if (par.is_master()) {
+				par.info();
+				if (is_grid_ok) {
+					printf("DEBUG: bcast grid to other ranks correct!\n");
+				} else {
+					printf("DEBUG: bcast grid to other ranks incorrect! Abort!\n");
+					exit(EXIT_FAILURE);
+				}
+			}
+#endif
 		}
+		if (par.is_master()) mpiio_write_grid(); // MASTER write grid
 #if (IMPI==1)
 	}
 #endif
@@ -227,30 +241,25 @@ void SGI::impi_adapt()
 		}
 
 		//************************ ADAPT WINDOW ****************************
-		if (par.status == MPI_ADAPT_STATUS_JOINING) {
-			// JOINING ranks should not read grid any sooner to ensure the grid is properly refined
-			mpiio_read_grid();
-		}
-
-#if (SGI_DEBUG==1) //Debug only: to check if read grid from file correct
-		//intercomm is valid only when there are joinning ranks
 		if (joining_count > 0) {
-			bool is_grid_equal = verify_grid_from_read(1, intercomm); 
+			// sync grid offset
+			MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, par.master, newcomm);
+			// bcast grid to joining ranks
+			bcast_grid(newcomm);
+
+#if (SGI_DEBUG==1) //Debug only: to check if bcast grid correct
+			int src_rank = staying_count + joining_count -1;
+			bool is_grid_ok = verify_grid(newcomm, src_rank, 0);
 			if (par.is_master()) {
-				if (is_grid_equal) {
-					par.info();
-					printf("iMPI DEBUG: read grid correctly.\n");
+				par.info();
+				if (is_grid_ok) {
+					printf("DEBUG: bcast grid to Joining ranks correct!\n");
 				} else {
-					par.info();
-					printf("iMPI DEBUG: read grid wrong. Program abort!\n");
+					printf("DEBUG: bcast grid to Joining ranks incorrect! Abort!\n");
 					exit(EXIT_FAILURE);
 				}
 			}
-		}
 #endif
-
-		if (joining_count > 0) {
-			MPI_Bcast(&impi_gpoffset, 1, MPI_SIZE_T, par.master, newcomm);
 		}
 		//************************ ADAPT WINDOW ****************************
 
@@ -424,7 +433,7 @@ void SGI::compute_gp_range(
  * Therefore, we have to use a single-refine strategy: Master refine, others read
  */
 #if (1==0)
-bool SGI::refine_grid_old(double portion_to_refine)
+bool SGI::refine_grid_all(double portion_to_refine)
 {
 #if (SGI_PRINT_TIMER==1)
 	double tic = MPI_Wtime();
@@ -469,7 +478,7 @@ bool SGI::refine_grid_old(double portion_to_refine)
  * Single-refine scheme: only MASTER refines and write grid, others read grid
  * REASON: see function above
  */
-void SGI::refine_grid(double portion_to_refine)
+void SGI::refine_grid_mpiio(double portion_to_refine)
 {
 	// Master refine and write grid
 	if (par.is_master()) {
@@ -508,7 +517,7 @@ void SGI::refine_grid(double portion_to_refine)
 		}
 		// refine grid
 		grid->refine(refine_idx, refine_gps);
-		//mpiio_write_grid();
+		mpiio_write_grid();
 		std::size_t new_num_gps = grid->getSize();
 
 		fflush(NULL);
@@ -518,14 +527,70 @@ void SGI::refine_grid(double portion_to_refine)
 		printf("SGI: refined grid in %.6f seconds.\n", MPI_Wtime()-tic);
 #endif
 	}
-	//// Ensure read grid after its written completely
-	//MPI_Barrier(MPI_COMM_WORLD);
-	//// Others read grid
-	//if (!par.is_master()) mpiio_read_grid();
+	// Ensure read grid after its written completely
+	MPI_Barrier(MPI_COMM_WORLD);
+	// Others read grid
+	if (!par.is_master()) mpiio_read_grid();
 	
 	return;
 }
 
+/**
+ * Single-refine scheme: only MASTER refines grid, then bcast it
+ * REASON: see function above
+ */
+void SGI::refine_grid_bcast(double portion_to_refine)
+{
+	// Master refine grid
+	if (par.is_master()) {
+#if (SGI_PRINT_TIMER==1)
+		double tic = MPI_Wtime();
+#endif
+		// Compute threshold number of grid points to be added
+		// NOTE: to refine X points, maximum (2*dim*X) points can be added to grid
+		int maxi = 10000;
+		int thres = int(ceil(maxi / 2 / cfg.get_input_size()));
+		// Number of points to refine
+		std::size_t num_gps = this->grid->getSize();
+		int refine_gps = int(ceil(num_gps * portion_to_refine));
+		refine_gps = (refine_gps > thres) ? thres : refine_gps;
+		// If no points to refine abort
+		if (refine_gps < 1) {
+			par.info();
+			printf("SGI: refine grid failed due to no points to refine. Program abort!\n");
+			exit(EXIT_FAILURE);	
+		};
+		// Read posterior from file
+		unique_ptr<double[]> pos (new double[num_gps]);
+		mpiio_readwrite_posterior(true, 0, num_gps-1, &pos[0]);
+		// For each gp, compute the refinement index
+		double data_norm;
+		DataVector refine_idx (num_gps);
+		std::size_t output_size = cfg.get_output_size();
+		for (std::size_t i=0; i<num_gps; i++) {
+			data_norm = 0;
+			for (std::size_t j=0; j < output_size; j++) {
+				data_norm += (alphas[j][i] * alphas[j][i]);
+			}
+			data_norm = sqrt(data_norm);
+			// refinement_index = |alpha| * posterior
+			refine_idx[i] = data_norm * pos[i];
+		}
+		// refine grid
+		grid->refine(refine_idx, refine_gps);
+		std::size_t new_num_gps = grid->getSize();
+		// print grid info
+		fflush(NULL);
+		printf("SGI: total %zu gps, %zu added, range [%zu, %zu]\n",
+				new_num_gps, new_num_gps-num_gps, num_gps, new_num_gps-1);
+#if (SGI_PRINT_TIMER==1)
+		printf("SGI: refined grid in %.6f seconds.\n", MPI_Wtime()-tic);
+#endif
+	}
+	// Bcast the grid
+	bcast_grid(MPI_COMM_WORLD);
+	return;
+}
 void SGI::mpiio_write_grid()
 {
 	// Pack grid into Char array
@@ -1116,58 +1181,35 @@ bool SGI::verify_grid_from_read(int joinrank, MPI_Comm intercomm)
 
 // The master broadcast grid to the rest of the group
 // Can use with either MPI_COMM_WORLD or NEW_COMM
-void SGI::broadcast_grid(MPI_Comm comm)
+void SGI::bcast_grid(MPI_Comm comm)
 {
-	if (par.is_master()) {
-		// Pack grid into Char array
-		string sg_str = grid->serialize();
-		int count = static_cast<int>(sg_str.size());
-		// Copy partial grid to string
-		unique_ptr<char[]> buff (new char[count]);
-		sg_str.copy(buff.get(), count, 0);
-		// Write to file
-		string ofile = cfg.get_grid_fname();
-		MPI_File fh;
-		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
-				MPI_INFO_NULL, &fh) != MPI_SUCCESS) {
-			par.info();
-			printf("ERROR: fail to open %s for grid write. Program abort!\n", ofile.c_str());
-			exit(EXIT_FAILURE);
-		}
-		if (MPI_File_write(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-			par.info();
-			printf("ERROR: fail to write grid to %s. Program abort!\n", ofile.c_str());
-			exit(EXIT_FAILURE);
-		}
-		MPI_File_close(&fh);
+	size_t size;
+	string sg_str;
+	int my_rank = -1; // this can exclude non-member of comm
+	MPI_Comm_rank(comm, &my_rank);
+
+	if (my_rank == 0) {
+		sg_str = grid->serialize();
+		size = sg_str.size();
+	}
+	// bcast size
+	MPI_Bcast(&size, 1, MPI_SIZE_T, 0, comm);
+	// others allocate string
+	if (my_rank > 0) {
+		sg_str = string(size, ' ');
+	}
+	// bcast serialized grid
+	MPI_Bcast(const_cast<char*>(sg_str.c_str()), size, MPI_CHAR, 0, comm);
+	// others deserialize grid
+	if (my_rank > 0) {
+		// deserialize grid
+		restore_grid( sg_str );
 	}
 	return;
 }
 
-void SGI::mpiio_read_grid()
-{
-	// Open file
-	string ofile = cfg.get_grid_fname();
-	MPI_File fh;
-	if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &fh)
-			!= MPI_SUCCESS) {
-		par.info();
-		printf("ERROR: fail to open %s for grid read. Program abort!\n", ofile.c_str());
-		exit(EXIT_FAILURE);
-	}
-	// Get file size,create buffer
-	long long int count;
-	MPI_File_get_size(fh, &count);
-	unique_ptr<char[]> buff (new char[count]);
-	// Read from file
-	if (MPI_File_read(fh, buff.get(), count, MPI_CHAR, MPI_STATUS_IGNORE) != MPI_SUCCESS) {
-		par.info();
-		printf("ERROR: fail to read grid from %s. Program abort!\n", ofile.c_str());
-		exit(EXIT_FAILURE);
-	}
-	MPI_File_close(&fh);
-	// Create serialized grid string
-	string sg_str(buff.get());
+
+void SGI::restore_grid(string sg_str) {
 	// Construct new grid from grid string
 	grid.reset(Grid::unserialize(sg_str).release()); // create grid
 	bbox.reset(create_boundingbox());
@@ -1176,6 +1218,33 @@ void SGI::mpiio_read_grid()
 	return;
 }
 
-void SGI::mpiio_readwrite_data(
-	
+// DEBUG ONLY: only the dest rank has the correct result!!
+bool SGI::verify_grid(MPI_Comm comm, int src_rank, int dest_rank)
+{
+	size_t size;
+	string sg_str;
+	int my_rank;
+	MPI_Comm_rank(comm, &my_rank);
+
+	if (my_rank == src_rank) {
+		// Pack grid into string
+		sg_str = grid->serialize();
+		size = sg_str.size();
+		// Send to dest
+		MPI_Send(&size, 1, MPI_SIZE_T, dest_rank, 1941, comm);
+		MPI_Send(sg_str.c_str(), size, MPI_CHAR, dest_rank, 1943, comm);
+	}
+	if (my_rank == dest_rank) {
+		// Recv from source rank
+		MPI_Recv(&size, 1, MPI_SIZE_T, src_rank, 1941, comm, MPI_STATUS_IGNORE);
+		sg_str = string(size, ' ');
+		MPI_Recv(const_cast<char*>(sg_str.c_str()), size, MPI_CHAR, src_rank, 1943, comm, MPI_STATUS_IGNORE);
+		// Pack own grid into string
+		string my_sg_str = grid->serialize();
+		// Compare two grid string
+		if (my_sg_str.compare(sg_str) == 0) {
+			return true;
+		}
+	}
+	return false;
 }

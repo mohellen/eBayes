@@ -52,7 +52,7 @@ vars.AddVariables(
     EnumVariable('sgigps', 'Print grid point detail during SGI surrogate construction [1|0]', '0',
         allowed_values=('1','0')
     ),
-    EnumVariable('sgidebug', 'Print SGI class debug information [1|0]', '0',
+    EnumVariable('sgidebug', 'Print SGI class debug information [1|0]', '1',
         allowed_values=('1','0')
     ),
     EnumVariable('mcmcprog', 'Print MCMC progress information [1|0]', '1',

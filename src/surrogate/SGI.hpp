@@ -108,7 +108,15 @@ private:
 			const std::size_t& seq_min,
 			const std::size_t& seq_max);
 
-	void refine_grid(double portion_to_refine);
+	// SPMD refine strategy: all do its own refine
+	// BUG!!! the resulting grids are not identical
+	void refine_grid_all(double portion_to_refine);
+
+	// Single refine strategy: MASTER refine adn write grid, others read grid
+	void refine_grid_mpiio(double portion_to_refine);
+
+	// Single refine strategy: MASTER refine then bcast
+	void refine_grid_bcast(double portion_to_refine);
 
 	void mpiio_read_grid();
 
@@ -165,9 +173,14 @@ private:
 
 	void mpimw_worker_send_done(int jobid);
 
+	void bcast_grid(MPI_Comm comm);
+
+	void restore_grid(std::string sg_str);
+
 	// For debug only
 	void print_workers(std::vector<char> const& workers);
 	void print_jobs(std::vector<char> const& jobs);
 	bool verify_grid_from_read(int joinrank, MPI_Comm intercomm);
+	bool verify_grid(MPI_Comm comm, int src_rank, int dest_rank);
 };
 #endif /* SURROGATE_SGI_HPP_ */
