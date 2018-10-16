@@ -144,11 +144,11 @@ vector<double> MCMC::initialize_samplepos(
 	std::size_t input_size = cfg.get_input_size();
 	vector<double> samplepos (input_size + 1);
 
-	// Use the init_samplepos if provided
-	if (init_samplepos.size() == samplepos.size()) {
+	// Rank 0 use the init_samplepos if provided
+	if (par.is_master() && init_samplepos.size() == samplepos.size()) {
 		samplepos = init_samplepos;
-	// Or generate a random one
 	} else {
+	// Or generate a random one
 		mt19937 gen (chrono::system_clock::now().time_since_epoch().count());
 		for (size_t i=0; i < input_size; i++) {
 			pair<double,double> range = model.get_input_space(i);

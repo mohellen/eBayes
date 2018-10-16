@@ -426,12 +426,26 @@ double tools::compute_normalizedl2norm(
 }
 
 /**
+ * Compute the Euclidean norm (l2-norm) of a vector 
+ * |x|:= l2norm of x = sqrt(sum(x_i^2))
+ */
+double tools::compute_l2norm(
+		vector<double> const& v)
+{
+	double sum = 0.0;
+	for (int i=0; i < v.size(); ++i) {
+		sum += v[i]*v[i];
+	}
+	return sqrt(sum);
+}
+
+/**
  * Compute the Euclidean norm (l2-norm) of two vectors 
  * l2_norm = sqrt(sum((xi-yi)^2)), |x|:= l2norm of x = sqrt(sum(x_i^2))
  *
  * l2-norm compares both magnitude and oriention of two vectors
  */
-double tools::compute_l2norm(
+double tools::compute_l2norm_diff(
 		vector<double> const& u,
 		vector<double> const& v)
 {
@@ -448,15 +462,24 @@ double tools::compute_l2norm(
 }
 
 /**
- * Compute the Euclidean norm (l2-norm) of a vector 
- * |x|:= l2norm of x = sqrt(sum(x_i^2))
+ * Compute the Euclidean norm (l2-norm) of two vectors 
+ * l2_norm = sqrt(sum((xi-yi)^2)), |x|:= l2norm of x = sqrt(sum(x_i^2))
+ *
+ * l2-norm compares both magnitude and oriention of two vectors
  */
-double tools::compute_l2norm(
+double tools::compute_l2norm_sum(
+		vector<double> const& u,
 		vector<double> const& v)
 {
+	if (u.size() != v.size()) {
+		fflush(NULL);
+		printf("ERROR: vectors size mismatch. Program abort!\n");
+		exit(EXIT_FAILURE);
+	}
 	double sum = 0.0;
-	for (int i=0; i < v.size(); ++i) {
-		sum += v[i]*v[i];
+	for (int i=0; i < u.size(); ++i) {
+		sum += (u[i]+v[i])*(u[i]+v[i]);
 	}
 	return sqrt(sum);
 }
+

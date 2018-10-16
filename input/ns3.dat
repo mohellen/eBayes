@@ -42,13 +42,13 @@ sgi_refine_portion			0.1
 # SGI construction using Master-worker (for iMPI and MPI) or SIMD (for MPI only) style
 sgi_is_masterworker			yes
 # For SGI construction master-worker style, job size (# of grid points to compute in each job)
-sgi_masterworker_jobsize	10
+sgi_masterworker_jobsize	30
 
 #------------------
 # MCMC setting
 #------------------
 # Number of samples to draw with the MCMC solver
-mcmc_num_samples		20000
+mcmc_num_samples		30000
 # MCMC use a random walk step = N * domain size (N in [0.0, 1.0]).
 mcmc_randwalk_step		0.1
 # Enable printing progress 

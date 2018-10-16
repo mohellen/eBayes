@@ -296,6 +296,11 @@ vector<double> SGI::get_gp_coord(std::size_t seq)
 	return gp;
 }
 
+double SGI::get_gp_volume(std::size_t seq)
+{
+	return pow(2.0, -grid->getStorage().get(seq)->getLevelSum());
+}
+
 BoundingBox* SGI::create_boundingbox()
 {
 	std::size_t input_size = cfg.get_input_size();
@@ -570,11 +575,12 @@ void SGI::refine_grid_bcast(double portion_to_refine)
 		for (std::size_t i=0; i<num_gps; i++) {
 			data_norm = 0;
 			for (std::size_t j=0; j < output_size; j++) {
-				data_norm += (alphas[j][i] * alphas[j][i]);
+				data_norm += (alphas[j][i] * alphas[j][i]); //TODO: high-dim not to use l2-norm
 			}
 			data_norm = sqrt(data_norm);
-			// refinement_index = |alpha| * posterior
-			refine_idx[i] = data_norm * pos[i];
+			// refinement_index = |alpha| * V * posterior, where
+			// Point volume V := 2^{-(l1+l2+...+ld)}
+			refine_idx[i] = data_norm * get_gp_volume(i) * pos[i];
 		}
 		// refine grid
 		grid->refine(refine_idx, refine_gps);

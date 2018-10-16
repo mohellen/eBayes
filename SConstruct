@@ -52,10 +52,13 @@ vars.AddVariables(
     EnumVariable('sgigps', 'Print grid point detail during SGI surrogate construction [1|0]', '0',
         allowed_values=('1','0')
     ),
-    EnumVariable('sgidebug', 'Print SGI class debug information [1|0]', '1',
+    EnumVariable('sgidebug', 'Print SGI class debug information [1|0]', '0',
         allowed_values=('1','0')
     ),
     EnumVariable('mcmcprog', 'Print MCMC progress information [1|0]', '1',
+        allowed_values=('1','0')
+    ),
+    EnumVariable('mcmcdebug', 'Print MCMC class debug information [1|0]', '0',
         allowed_values=('1','0')
     ),
     EnumVariable('ealocal', 'Print rank local results for Error Analysis [1|0]', '0',
@@ -79,6 +82,7 @@ env.Append( CCFLAGS=['-DSGI_PRINT_RANKPROGRESS='+env['sgirank']] )
 env.Append( CCFLAGS=['-DSGI_PRINT_GRIDPOINTS='+env['sgigps']] )
 env.Append( CCFLAGS=['-DSGI_DEBUG='+env['sgidebug']] )
 env.Append( CCFLAGS=['-DMCMC_PRINT_PROGRESS='+env['mcmcprog']] )
+env.Append( CCFLAGS=['-DMCMC_DEBUG='+env['mcmcdebug']] )
 env.Append( CCFLAGS=['-DEA_LOCALINFO='+env['ealocal']] )
 
 # check iMPI installation if it's enabled

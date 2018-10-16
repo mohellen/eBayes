@@ -96,6 +96,8 @@ private:
 
 	std::vector<double> get_gp_coord(std::size_t seq);
 
+	double get_gp_volume(std::size_t seq);
+
 	sgpp::base::BoundingBox* create_boundingbox();
 
 	void compute_hier_alphas();

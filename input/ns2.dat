@@ -42,7 +42,7 @@ sgi_refine_portion			0.1
 # SGI construction using Master-worker (for iMPI and MPI) or SIMD (for MPI only) style
 sgi_is_masterworker			yes
 # For SGI construction master-worker style, job size (# of grid points to compute in each job)
-sgi_masterworker_jobsize	10
+sgi_masterworker_jobsize	20
 
 #------------------
 # MCMC setting

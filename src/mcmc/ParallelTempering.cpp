@@ -38,7 +38,11 @@ void ParallelTempering::run(
 
 	// Output file (only chain0's output is valid output)
 	fstream fout;
-	if (par.is_master()) fout = open_output_file();
+	if (par.is_master()) {
+		fout = open_output_file();
+		fflush(NULL);
+		printf("\n\n========================================\n");
+	}
 	
 	// Initialize starting point & maxpos point
 	std::size_t input_size = cfg.get_input_size();
@@ -81,7 +85,7 @@ void ParallelTempering::run(
 	// For convenience purpose, the inverse of temperatures are stored
 	vector<double> inv_temps (num_chains);
 	for (int i=0; i < num_chains; i++)
-		inv_temps[i] = pow(2.0, -i/2);
+		inv_temps[i] = pow(2.0, -double(i)/2.0);
 
 	// Update the initial pos value: pi_i = pi^(1/T_i)
 	samplepos.back() = pow(samplepos.back(), inv_temps[par.rank]);
@@ -148,10 +152,12 @@ void ParallelTempering::run(
 				// Exchange only if both me and nei accepted
 				if ((samplepos.back() > 0.5) && (rbuf.back() > 0.5)) {
 					samplepos = rbuf;
+#if (MCMC_DEBUG==1)
 					if (par.rank == c1) {
 						par.info();
 						printf("MCMCPT: swapped with rank %d at iteration %d.\n", nei_chain, it);
 					}
+#endif
 				}
 				samplepos.pop_back(); //remove the exchange decision, samplepos go back to input_size+1 length
 			}
@@ -166,11 +172,15 @@ void ParallelTempering::run(
 		}
 		// 4. keeping track
 #if (MCMC_PRINT_PROGRESS == 1)
-		print_progress(it, max_samplepos);
+		if (par.is_master()) {
+			print_progress(it, max_samplepos);
+		}
 #endif
 	}
 	// Insert MAXPOS point to file
 	if (par.is_master()) {
+		fflush(NULL);
+		printf("========================================\n\n");
 		fout << "MAXPOS ";
 		write_samplepos(fout, samplepos);
 		fout.close();

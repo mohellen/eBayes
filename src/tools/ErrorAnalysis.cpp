@@ -29,7 +29,6 @@ void ErrorAnalysis::add_test_points(std::size_t n)
 	std::size_t input_size = cfg.get_input_size();
 	test_points.resize(n);
 	test_points_data.resize(n);
-	test_points_data_l2norm.resize(n);
 
 	par.info();
 	printf("EA: adding test points...\n");
@@ -42,7 +41,6 @@ void ErrorAnalysis::add_test_points(std::size_t n)
 			test_points[k][i] = udist(eng);
 		}
 		test_points_data[k] = fullmodel.run(test_points[k]);
-		test_points_data_l2norm[k] = tools::compute_l2norm(test_points_data[k]);
 	}
 }
 
@@ -73,51 +71,75 @@ double ErrorAnalysis::compute_surrogate_error()
 		exit(EXIT_FAILURE);
 	}
 	std::size_t n = test_points.size();
-	double err, sum = 0.0;
-	int count = 0;
+	double denom, err, sum = 0.0;
 	for (int i=0; i < n; ++i) {
-		// err := l2norm(v1, v_ref) / l2norm(v_ref)
-		err = tools::compute_l2norm(test_points_data[i], surrogate.run(test_points[i])) 
-				/ test_points_data_l2norm[i];
-		if (std::isnan(err) || std::isinf(err)) continue; //skip invalid values
+		// err := l2norm( g(x) - f(x) ) / l2norm( g(x) + f(x) )
+		// err in [0.0, 1.0]
+		denom = tools::compute_l2norm_sum(test_points_data[i], surrogate.run(test_points[i]));
+		if (denom == 0.0) {
+			err = 0.0;
+		} else {
+			err = tools::compute_l2norm_diff(test_points_data[i], surrogate.run(test_points[i])) / denom;
+			if (isnan(err) || isinf(err) || err > 1.0) err = 1.0;
+		}
 		sum += err;
-		count++;
 	}
-	return sum/double(count);
+	return sum/double(n);
 }
 
 double ErrorAnalysis::compute_surrogate_error_at(std::vector<double> const& m)
 {
 	vector<double> fd = fullmodel.run(m);
 	vector<double> sd = surrogate.run(m);
-	return tools::compute_l2norm(fd, sd);
+	double denom = tools::compute_l2norm_sum(fd, sd);
+	if (denom == 0.0) {
+		return 0.0;
+	}
+	// err := l2norm( g(x) - f(x) ) / l2norm( g(x) + f(x) )
+	// err in [0.0, 1.0]
+	return tools::compute_l2norm_diff(fd, sd) / denom;
 }
 
-bool ErrorAnalysis::mpi_is_model_accurate(double tol)
+bool ErrorAnalysis::eval_model_spmd(double tol)
 {
 	double local_err = compute_surrogate_error();
-	vector<double> err (par.size);
-	MPI_Allgather(&local_err, 1, MPI_DOUBLE, &err[0], 1, MPI_DOUBLE, MPI_COMM_WORLD);
-	// Exclude invalid values
-	double mean = 0.0;
-	int count = 0;
-	for (double e: err) {
-		if (std::isnan(e) || std::isinf(e)) continue; //skip invalid values
-		mean += e;
-		count++;
-	}
-	mean = mean / double(count);
+	double err = 0.0;
+	MPI_Allreduce(&local_err, &err, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	err = err/double(par.size);
 
 #if (EA_LOCALINFO == 1)
 	par.info();
 	printf("EA: %lu test points, local error %.8f, global error %.8f\n",
-			test_points.size(), local_err, mean);
+			test_points.size(), local_err, err);
 #endif
 
 	if (par.is_master()) {
 		fflush(NULL);
-		printf("EA: Surrogate error %.8f, tol %.2f\n", mean, tol);
+		printf("EA: Surrogate error %.8f, tol %.2f\n", err, tol);
 	}
-	return (mean <= tol) ? true : false;
+	return (err <= tol) ? true : false;
+}
+
+bool ErrorAnalysis::eval_model_master(double tol)
+{
+	double err = 0.0;
+
+	if (par.is_master()) {
+		err = compute_surrogate_error();
+	}
+	MPI_Bcast(&err, 1, MPI_DOUBLE, par.master, MPI_COMM_WORLD);
+	err = err/double(par.size);
+
+#if (EA_LOCALINFO == 1)
+	par.info();
+	printf("EA: %lu test points, local error %.8f, global error %.8f\n",
+			test_points.size(), local_err, err);
+#endif
+
+	if (par.is_master()) {
+		fflush(NULL);
+		printf("EA: Surrogate error %.8f, tol %.2f\n", err, tol);
+	}
+	return (err <= tol) ? true : false;
 }
 

@@ -37,7 +37,6 @@ private:
 
 	std::vector< std::vector<double> >	test_points;
 	std::vector< std::vector<double> >	test_points_data;
-	std::vector<double> 				test_points_data_l2norm;
 
 public:
 	~ErrorAnalysis() {}
@@ -59,6 +58,7 @@ public:
 
 	double compute_surrogate_error_at(std::vector<double> const& m);
 
-	bool mpi_is_model_accurate(double tol);
+	bool eval_model_master(double tol);
+	bool eval_model_spmd(double tol);
 };
 #endif /* TOOLS_ERRORANALYSIS_HPP_ */

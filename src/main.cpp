@@ -26,12 +26,12 @@ int main(int argc, char** argv)
 	SGI sgi (cfg, par, ns);
 	// Error analysis object
 	ErrorAnalysis ea (cfg, par, ns, sgi);
-	ea.add_test_points(5);
+	ea.add_test_points(cfg.get_param_sizet("sgi_masterworker_jobsize"));
 
 	double tol = 0.05; // 5% error in model is allowed
 	while(true) {
 		sgi.build();
-		if (ea.mpi_is_model_accurate(tol)) break;
+		if (ea.eval_model_master(tol)) break;
 	}
 
 	// Test full model
@@ -46,8 +46,9 @@ int main(int argc, char** argv)
 
 	// MCMC
 	MCMC* mcmc = new ParallelTempering(cfg, par, sgi);
-	mcmc->run(10000, sgi.get_nth_maxpos(par.rank) );
+	mcmc->run(cfg.get_param_sizet("mcmc_num_samples"), sgi.get_nth_maxpos(par.rank) );
 
+	MPI_Barrier(MPI_COMM_WORLD);
 	par.mpi_final();
 	return 0;
 }

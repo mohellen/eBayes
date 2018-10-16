@@ -109,13 +109,18 @@ namespace tools
 			std::vector<double> const& u,
 			std::vector<double> const& v);
 
-	// Compute the Euclidean norm (l2-norm) of two vectors
+	// Compute the Euclidean norm (l2-norm): |v|
 	double compute_l2norm(
+			std::vector<double> const& v);
+
+	// Compute the Euclidean norm (l2-norm): |u - v|
+	double compute_l2norm_diff(
 			std::vector<double> const& u,
 			std::vector<double> const& v);
 
-	// Compute the Euclidean norm (l2-norm) of a vector
-	double compute_l2norm(
+	// Compute the Euclidean norm (l2-norm): |u + v|
+	double compute_l2norm_sum(
+			std::vector<double> const& u,
 			std::vector<double> const& v);
 }
 
