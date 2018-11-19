@@ -41,7 +41,7 @@ void ParallelTempering::run(
 	if (par.is_master()) {
 		fout = open_output_file();
 		fflush(NULL);
-		printf("\n\n========================================\n");
+		printf("========================================\n");
 	}
 	
 	// Initialize starting point & maxpos point
