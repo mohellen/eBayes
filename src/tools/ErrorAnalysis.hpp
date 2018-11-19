@@ -53,7 +53,7 @@ public:
 			ForwardModel& s)
 		: cfg(c), par(p), fullmodel(f), surrogate(s) {}
 
-	void add_test_points(std::size_t n);
+	void add_test_points(std::size_t n, std::string test_point_file="");
 
 	void add_test_point_at(std::vector<double> const& m);
 

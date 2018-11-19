@@ -29,6 +29,12 @@ global_observation	1.550702 1.381798 1.169803 1.284388 1.212167 0.937018 1.20872
 # iMPI adapt frequency (seconds): call probe_adapt every N seconds
 impi_adapt_freq_sec		60
 
+#-------------------------
+# ErrorAnalysis setting
+#-------------------------
+# iMPI adapt frequency (seconds): call probe_adapt every N seconds
+ea_test_point_file		
+
 #------------------------
 # Surrogate SGI setting
 #------------------------

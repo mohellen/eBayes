@@ -64,7 +64,7 @@ public:
 			std::vector<double> const& init_samplepos = std::vector<double>()) = 0;
 
 protected:
-	void one_step_single_dim(
+	double one_step_single_dim(
 			std::size_t dim,
 			std::vector<double> & samplepos,
 			double inv_temp = 1.0); // The optional parameter is for PT only.
@@ -81,6 +81,6 @@ protected:
 	std::vector<double> initialize_samplepos(
 			std::vector<double> const& init_samplepos = std::vector<double>()); // optional argument
 
-	void print_progress(int iter, std::vector<double> const& max_samplepos);
+	void print_progress(int iter, double acc_modeltime, std::vector<double> const& max_samplepos);
 };
 #endif /* MCMC_MCMC_HPP_ */

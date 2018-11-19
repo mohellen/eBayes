@@ -21,7 +21,7 @@
 using namespace std;
 
 
-void ErrorAnalysis::add_test_points(std::size_t n)
+void ErrorAnalysis::add_test_points(std::size_t n, string test_point_file)
 {
 	std::random_device rd;
 	std::mt19937 eng (rd());
@@ -30,18 +30,35 @@ void ErrorAnalysis::add_test_points(std::size_t n)
 	test_points.resize(n);
 	test_points_data.resize(n);
 
-	par.info();
-	printf("EA: adding test points...\n");
-
-	for (std::size_t k=0; k < n; ++k) {
-		test_points[k].resize(input_size);
-		for (std::size_t i=0; i < input_size; ++i) {
-			range = fullmodel.get_input_space(i);
-			uniform_real_distribution<double> udist (range.first, range.second);
-			test_points[k][i] = udist(eng);
+	// Generate or read test points
+	if (test_point_file == "") {
+		par.info();
+		printf("EA: adding test points...\n");
+		for (std::size_t k=0; k < n; ++k) {
+			test_points[k].resize(input_size);
+			for (std::size_t i=0; i < input_size; ++i) {
+				range = fullmodel.get_input_space(i);
+				uniform_real_distribution<double> udist (range.first, range.second);
+				test_points[k][i] = udist(eng);
+			}
 		}
-		test_points_data[k] = fullmodel.run(test_points[k]);
+	} else {
+		par.info();
+		printf("EA: reading test points...\n");
+		read_test_points(test_point_file);
 	}
+	// Compute output data for each test point with full model
+	double tic;
+	double avg_fullmodel_time = 0.0;
+	test_points_data.clear();
+	for (auto it=test_points.begin(); it != test_points.end(); ++it) {
+		tic = MPI_Wtime();
+		test_points_data.push_back( fullmodel.run(*it) );
+		avg_fullmodel_time += MPI_Wtime()-tic;
+	}
+	avg_fullmodel_time /= n;
+	par.info();
+	printf("EA: average full moddel exec.time(sec) %.06f\n", avg_fullmodel_time);
 }
 
 void ErrorAnalysis::add_test_point_at(vector<double> const& m)

@@ -176,6 +176,7 @@ void SGI::resume()
 		cmd = "cp " + cfg.get_pos_resume_fname() + " " + cfg.get_pos_fname();
 		system(cmd.c_str());	
 	}
+	MPI_Barrier(MPI_COMM_WORLD);
 	// Set: grid, eval, bbox
 	mpiio_read_grid();
 	// Set: alphas

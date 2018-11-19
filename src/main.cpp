@@ -35,8 +35,8 @@ int main(int argc, char** argv)
 	ErrorAnalysis ea (cfg, par, ns, sgi);
 	// Only Master need test points
 	if (par.is_master()) {
-		ea.add_test_points(cfg.get_param_sizet("sgi_masterworker_jobsize"));
-		//ea.read_test_points(cfg.get_param_string("sgi_resume_path") + "/test_points_r" + std::to_string(par.rank) + ".txt");
+		//ea.add_test_points(20);
+		ea.add_test_points(20, cfg.get_param_string("ea_test_point_file"));
 		ea.write_test_points(cfg.get_param_string("global_output_path") + "/test_points_r" + std::to_string(par.rank) + ".txt");
 		ea.print_test_points();
 	}
@@ -53,14 +53,14 @@ int main(int argc, char** argv)
 	}
 
 	if (par.is_master()) {
-		printf("Main: MCMC phase wall.time(sec) %.6f\n", MPI_Wtime()-tic);
+		printf("\nMain: MCMC phase wall.time(sec) %.6f\n", MPI_Wtime()-tic);
 	}
 	// MCMC
 	MCMC* mcmc = new ParallelTempering(cfg, par, sgi);
 	mcmc->run(cfg.get_param_sizet("mcmc_num_samples"), sgi.get_maxpos() );
 
 	if (par.is_master()) {
-		printf("Main: END wall.time(sec) %.6f\n", MPI_Wtime()-tic);
+		printf("\nMain: END wall.time(sec) %.6f\n", MPI_Wtime()-tic);
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 	par.mpi_final();

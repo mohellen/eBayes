@@ -94,6 +94,12 @@ void Config::add_params()
 	p.val = "60";
 	params[var] = p;
 
+	// ErrorAnalysis setting
+	var = "ea_test_point_file";
+	p.des = "If this file is provided, test points will be loaded from this file instead (Default: "") (Type: string)";
+	p.val = "";
+	params[var] = p;
+	
 	// Surrogate SGI setting
 	var = "sgi_tol";
 	p.des = "SGI surrogate model error tolerance in [0, 1.0]. (Default: 0.08) (Type: double)";
@@ -399,7 +405,7 @@ string tools::samplepos_to_string(vector<double> const& v)
 	oss << "[ " << std::fixed << std::setprecision(6);
 	for (int i=0; i < v.size()-1; ++i)
 		oss << v[i] << " ";
-	oss << " ] " << v.back();
+	oss << "] " << v.back();
 	return oss.str();
 }
 

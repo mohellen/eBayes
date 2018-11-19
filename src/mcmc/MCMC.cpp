@@ -31,7 +31,7 @@ MCMC::MCMC(
 			par.size : cfg.get_param_sizet("mcmc_max_chains");
 }
 
-void MCMC::one_step_single_dim(
+double MCMC::one_step_single_dim(
 		std::size_t dim,	// IN: the dimension to be update in this step
 		vector<double> & samplepos, // IN/OUT: sample+posterior vector from last step (to be updated if proposal get accepted)
 		double inv_temp)
@@ -57,7 +57,10 @@ void MCMC::one_step_single_dim(
 		proposal[dim] = ndist(gen);
 
 	// 2. Compute acceptance rate
+	double tic = MPI_Wtime();
 	vector<double> d = model.run(proposal);
+	double modeltime = MPI_Wtime() - tic;
+
 	double pos = cfg.compute_posterior(d);
 	pos = pow(pos, inv_temp); // For PT: i-th chain pi(x)_i = pi(x)^(1/T_i)
 	double acc = fmin(1.0, pos/samplepos.back());
@@ -68,7 +71,7 @@ void MCMC::one_step_single_dim(
 		samplepos[dim] = proposal[dim];
 		samplepos.back() = pos;
 	}// Case reject: do nothing
-	return;
+	return modeltime;
 }
 
 // The read from file the sample+posterior vector with the maximum posterior
@@ -162,12 +165,11 @@ vector<double> MCMC::initialize_samplepos(
 	return samplepos;
 }
 
-void MCMC::print_progress(int iter, vector<double> const& max_samplepos)
+void MCMC::print_progress(int iter, double acc_modeltime, vector<double> const& max_samplepos)
 {
-	if ((iter+1) % stoi(cfg.get_param_string("mcmc_progress_freq_step")) == 0) {
-		par.info();
-		printf("MCMC: computed %d steps, current maxpos %s\n",
-				iter+1, tools::samplepos_to_string(max_samplepos).c_str());
-	}
+	par.info();
+	printf("MCMC: steps %d | avg.modeltime(sec) %.6f | current maxpos %s\n",
+			iter, acc_modeltime/iter,
+			tools::samplepos_to_string(max_samplepos).c_str());
 	return;
 }

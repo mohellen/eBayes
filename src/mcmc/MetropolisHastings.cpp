@@ -41,10 +41,11 @@ void MetropolisHastings::run(
 
 	// Run the MCMC chain
 	int dim = 0;
+	double acc_modeltime = 0.0;
 	for (int it=0; it < num_samples; ++it) {
 		// 1. Perform 1 MCMC step
 		dim = it%input_size;
-		one_step_single_dim(dim, samplepos);
+		acc_modeltime += one_step_single_dim(dim, samplepos);
 
 		// 2. write result
 		write_samplepos(fout, samplepos);
@@ -55,7 +56,9 @@ void MetropolisHastings::run(
 		}
 		// 4. keeping track
 #if (MCMC_PRINT_PROGRESS == 1)
-		print_progress(it, max_samplepos);
+		if (par.is_master() && (it+1) % stoi(cfg.get_param_string("mcmc_progress_freq_step")) == 0) {
+			print_progress(it+1, acc_modeltime, max_samplepos);
+		}
 #endif
 	}
 	// Insert MAXPOS point to file
