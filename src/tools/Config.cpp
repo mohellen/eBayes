@@ -95,9 +95,19 @@ void Config::add_params()
 	params[var] = p;
 
 	// Surrogate SGI setting
-	var = "sgi_is_from_files";
-	p.des = "Set to bulid SGI surrogate model from SGI output files (from previous job), instead of creating from scratch. (Default: no) (Options: yes|no)";
+	var = "sgi_tol";
+	p.des = "SGI surrogate model error tolerance in [0, 1.0]. (Default: 0.08) (Type: double)";
+	p.val = "0.08";
+	params[var] = p;
+	
+	var = "sgi_is_resume";
+	p.des = "Set to bulid SGI surrogate model from existing SGI output files (from previous job), instead of creating from scratch. (Default: no) (Options: yes|no)";
 	p.val = "no";
+	params[var] = p;
+	
+	var = "sgi_resume_path";
+	p.des = "Path where the previous SGI output files reside. (Default: ./output) (Type: string)";
+	p.val = "./output";
 	params[var] = p;
 
 	var = "sgi_init_level";
@@ -320,10 +330,15 @@ void Config::parse_file()
 void Config::parse_args(int argc, char** argv)
 {
 	for (int i=0; i < argc; ++i) {
-		if (params.find(argv[i]) == params.end()) continue;
-		// For a valid parameter
-		params[argv[i]].val = argv[i+1];
-		i += 1;
+		if (params.find(argv[i]) == params.end()) {
+			continue;
+		} else {
+			// For a valid parameter
+			if (i+1 < argc) {
+				params[argv[i]].val = argv[i+1];
+				i += 1;
+			}
+		}
 	}
 	return;
 }
@@ -371,20 +386,20 @@ string tools::trim_white_space(const string& str)
 string tools::sample_to_string(vector<double> const& v)
 {
 	std::ostringstream oss;
-	oss << "[" << std::fixed << std::setprecision(6);
-	for (int i=0; i < v.size()-1; ++i)
-		oss << v[i] << ", ";
-	oss << v[v.size()-1] << "]";
+	oss << "[ " << std::fixed << std::setprecision(6);
+	for (int i=0; i < v.size(); ++i)
+		oss << v[i] << " ";
+	oss << "]";
 	return oss.str();
 }
 
 string tools::samplepos_to_string(vector<double> const& v)
 {
 	std::ostringstream oss;
-	oss << "[" << std::fixed << std::setprecision(6);
-	for (int i=0; i < v.size()-2; ++i)
-		oss << v[i] << ", ";
-	oss << v[v.size()-2] << "], (" << v.back() << ")";
+	oss << "[ " << std::fixed << std::setprecision(6);
+	for (int i=0; i < v.size()-1; ++i)
+		oss << v[i] << " ";
+	oss << " ] " << v.back();
 	return oss.str();
 }
 

@@ -32,7 +32,7 @@ SGI::SGI(
 	grid = nullptr;
 	eval = nullptr;
 	bbox = nullptr;
-	maxpos_list.clear();
+	seq_maxpos = make_pair(0, 0.0);
 #if (IMPI==1)
 	impi_gpoffset = 0;
 #endif
@@ -66,7 +66,7 @@ void SGI::build()
 	std::size_t init_level = cfg.get_param_sizet("sgi_init_level");
 	double refine_portion = cfg.get_param_double("sgi_refine_portion");
 	bool is_masterworker = cfg.get_param_bool("sgi_is_masterworker");
-	bool is_fromfiles = cfg.get_param_bool("sgi_is_from_files");
+	bool is_resume = cfg.get_param_bool("sgi_is_resume");
 	// find out whether it's grid initialization or refinement
 	bool is_init = (!this->eval) ? true : false;
 	std::size_t num_points;
@@ -77,9 +77,15 @@ void SGI::build()
 	} else {
 #endif
 		if (is_init) {
+			if (is_resume) {
+				// for resuming a job, grid and data, pos are loaded from files
+				// therefore, no need for build grid computation, return immediately
+				resume();
+				return; 
+			}
 			if (par.is_master()) {
 				fflush(NULL);
-				printf("\n==========================================\n");
+				printf("==========================================\n");
 				printf("SGI: Initializing SGI surrogate...\n");
 			}
 			// 1. All: Construct grid
@@ -92,7 +98,7 @@ void SGI::build()
 		} else {
 			if (par.is_master()) {
 				fflush(NULL);
-				printf("\n==========================================\n");
+				printf("==========================================\n");
 				printf("SGI: Refining SGI surrogate...\n");
 			}
 			// 1. All: refine grid
@@ -126,21 +132,16 @@ void SGI::build()
 	// 4. Update op_eval
 	eval.reset(sgpp::op_factory::createOperationEval(*grid).release());
 
-//	cout << tools::yellow << "Rank " << par.rank << ": has " << maxpos_list.size() << " top maxpos points...\n";
-//	for (auto it = maxpos_list.begin(); it != maxpos_list.end(); ++it)
-//		cout << "\n\t" << it->first << " --- " << tools::sample_to_string(get_gp_coord(it->second));
-//	cout << tools::reset << endl;
-
 	// Master: print grogress
 	if (par.is_master()) {
 		if (is_init) {
 			fflush(NULL);
 			printf("SGI: Initialize SGI surrogate successful.\n");
-			printf("==========================================\n\n");
+			printf("==========================================\n");
 		} else {
 			fflush(NULL);
 			printf("SGI: Refine SGI surrogate successful.\n");
-			printf("==========================================\n\n");
+			printf("==========================================\n");
 		}
 
 		// Make a copy of data files
@@ -151,55 +152,61 @@ void SGI::build()
 		cmd = "cp " + cfg.get_pos_fname() + " " + cfg.get_pos_bak_fname();
 		system(cmd.c_str());	
 	}
-
-
 	return;
 }
 
-vector<double> SGI::get_nth_maxpos(std::size_t n)
+vector<double> SGI::get_maxpos()
 {
-	vector< pair<double, std::size_t> > list (maxpos_list.size());
-	std::copy(maxpos_list.begin(), maxpos_list.end(), &list[0]);
-	// maxpos_list stores the MAX in the last entry (ascending order by posterior)
-	// getting the n-th maximum should be counting from the list end
-	vector<double> samplepos = get_gp_coord( list[list.size()-1-n].second );
-	samplepos.push_back( list[list.size()-1-n].first );
+	vector<double> samplepos = get_gp_coord( seq_maxpos.first );
+	samplepos.push_back( seq_maxpos.second );
 	return samplepos;
 }
 
-//TODO: merge duplicate() into build()
-//void SGI::duplicate(
-//		string const& gridfile,
-//		string const& datafile,
-//		string const& posfile)
-//{
-//	// Set: grid, eval, bbox
-//	mpiio_read_grid(gridfile);
-//	// Set: alphas
-//	compute_hier_alphas(datafile);
-//	// Read posterior
-//	std::size_t num_gps = grid->getSize();
-//	unique_ptr<double[]> pos (new double[num_gps]);
-//	mpiio_readwrite_posterior(true, 0, num_gps-1, pos.get(), posfile);
-//
-//	// Populate top maxpos list
-//	std::size_t num_maxpos = ( cfg.get_param_sizet("mcmc_max_chains") < num_gps ) ?
-//			cfg.get_param_sizet("mcmc_max_chains") : num_gps;
-//	// 1. Fill the first maxpos (pos + gp_seq)
-//	for (size_t i=0; i < num_maxpos; ++i) {
-//		maxpos_list.emplace(pos[i], i);
-//	}
-//	// 2. Go through the rest gps, and add the top maxpos ones
-//	for (size_t i=num_maxpos; i < num_gps; ++i) {
-//		if (pos[i] > (*maxpos_list.begin()).first) { // compare current pos with the MIN pos in list
-//			// insert current pos
-//			maxpos_list.emplace(pos[i], i);
-//			// remove the MIN pos
-//			maxpos_list.erase(maxpos_list.begin());
-//		}
-//	}
-//	return;
-//}
+void SGI::resume()
+{
+	if (par.is_master()) {
+		fflush(NULL);
+		printf("\n==========================================\n");
+		printf("SGI: Building SGI surrogate from file...\n");
+		// Make a copy of data files
+		string cmd = "cp " + cfg.get_grid_resume_fname() + " " + cfg.get_grid_fname();
+		system(cmd.c_str());	
+		cmd = "cp " + cfg.get_data_resume_fname() + " " + cfg.get_data_fname();
+		system(cmd.c_str());	
+		cmd = "cp " + cfg.get_pos_resume_fname() + " " + cfg.get_pos_fname();
+		system(cmd.c_str());	
+	}
+	// Set: grid, eval, bbox
+	mpiio_read_grid();
+	// Set: alphas
+	compute_hier_alphas();
+	// Read posterior
+	std::size_t num_gps = grid->getSize();
+	unique_ptr<double[]> pos (new double[num_gps]);
+	mpiio_readwrite_pos(true, 0, num_gps-1, pos.get());
+
+	// Find maxpos, spmd style
+	std::size_t lmin, lmax;
+	mpispmd_get_local_range(0, num_gps-1, lmin, lmax);
+	// Each rank go through local portion to find local maxpos
+	seq_maxpos.first = 0;
+	seq_maxpos.second = 0.0;
+	for (std::size_t i=lmin; i <= lmax; ++i) {
+		if (pos[i] > seq_maxpos.second) {
+			seq_maxpos.first = i;
+			seq_maxpos.second = pos[i];
+		}
+	}
+	// Find global maxpos
+	mpispmd_find_global_maxpos();
+
+	if (par.is_master()) {
+		fflush(NULL);
+		printf("SGI: Build SGI surrogate from file successful.\n");
+		printf("==========================================\n\n");
+	}
+	return;
+}
 
 
 /*********************************************
@@ -362,23 +369,23 @@ void SGI::compute_grid_points(
 		} else {
 			mpimw_worker_compute(gp_offset);
 		}
-		// Sync maxpos_list (master bcast to all)
-		mpimw_sync_maxpos();
+		// Bcast maxpos
+		mpimw_master_bcast_maxpos(); // Includes MPI_Bcast
 	} else {
 		// MPI native style (default)
 		std::size_t num_gps = grid->getSize();
 		std::size_t mymin, mymax;
-		mpina_get_local_range(gp_offset, num_gps-1, mymin, mymax);
+		mpispmd_get_local_range(gp_offset, num_gps-1, mymin, mymax);
 		compute_gp_range(mymin, mymax);
-		// Find top maspos
-		mpina_find_global_maxpos();
+		// Find global maxpos
+		mpispmd_find_global_maxpos(); // Includes MPI_Allreduce and MPI_Bcast
 	}
-	MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(MPI_COMM_WORLD); // no need for barrier due to MPI_Bcast
 
 #if (SGI_PRINT_TIMER==1)
 	if (par.is_master()) {
 		fflush(NULL);
-		printf("SGI: computed %lu gps range [%lu, %lu] in %.6f sec\n",
+		printf("SGI: computed gps %lu | range %lu %lu | in.time(sec) %.6f \n",
 				grid->getSize()-gp_offset, gp_offset, grid->getSize()-1, MPI_Wtime()-tic);
 	}
 #endif
@@ -395,7 +402,7 @@ void SGI::compute_gp_range(
 
 	std::size_t output_size = cfg.get_output_size();
 	std::size_t load = std::size_t(fmax(0, seq_max - seq_min + 1));
-	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
+//	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
 
 	unique_ptr<double[]> data (new double[load * output_size]);
 	unique_ptr<double[]> pos (new double[load]);
@@ -412,12 +419,10 @@ void SGI::compute_gp_range(
 		std::copy(dvec.begin(), dvec.end(), d);
 		// compute posterior
 		*p = cfg.compute_posterior(dvec);
-		// insert into maxpos_list
-		if ( maxpos_list.size() < num_maxpos) { // Case list not full yet
-			maxpos_list.emplace(*p, i);
-		} else if (*p > maxpos_list.begin()->first) { // Case list is full, erase the min one after insert
-			maxpos_list.emplace(*p, i);
-			maxpos_list.erase(maxpos_list.begin());
+		// find local maxpos
+		if (*p > seq_maxpos.second) {
+			seq_maxpos.first = i;
+			seq_maxpos.second = *p;
 		}
 #if (SGI_PRINT_GRIDPOINTS==1)
 		par.info();
@@ -427,7 +432,7 @@ void SGI::compute_gp_range(
 	}
 	// Write results to file
 	mpiio_readwrite_data(false, seq_min, seq_max, data.get());
-	mpiio_readwrite_posterior(false, seq_min, seq_max, pos.get());
+	mpiio_readwrite_pos(false, seq_min, seq_max, pos.get());
 	return;
 }
 
@@ -455,7 +460,7 @@ bool SGI::refine_grid_all(double portion_to_refine)
 	if (refine_gps < 1) return false;
 	// Read posterior from file
 	unique_ptr<double[]> pos (new double[num_gps]);
-	mpiio_readwrite_posterior(true, 0, num_gps-1, &pos[0]);
+	mpiio_readwrite_pos(true, 0, num_gps-1, &pos[0]);
 	// For each gp, compute the refinement index
 	double data_norm;
 	DataVector refine_idx (num_gps);
@@ -506,7 +511,7 @@ void SGI::refine_grid_mpiio(double portion_to_refine)
 		};
 		// Read posterior from file
 		unique_ptr<double[]> pos (new double[num_gps]);
-		mpiio_readwrite_posterior(true, 0, num_gps-1, &pos[0]);
+		mpiio_readwrite_pos(true, 0, num_gps-1, &pos[0]);
 		// For each gp, compute the refinement index
 		double data_norm;
 		DataVector refine_idx (num_gps);
@@ -567,7 +572,7 @@ void SGI::refine_grid_bcast(double portion_to_refine)
 		};
 		// Read posterior from file
 		unique_ptr<double[]> pos (new double[num_gps]);
-		mpiio_readwrite_posterior(true, 0, num_gps-1, &pos[0]);
+		mpiio_readwrite_pos(true, 0, num_gps-1, &pos[0]);
 		// For each gp, compute the refinement index
 		double data_norm;
 		DataVector refine_idx (num_gps);
@@ -597,6 +602,7 @@ void SGI::refine_grid_bcast(double portion_to_refine)
 	bcast_grid(MPI_COMM_WORLD);
 	return;
 }
+
 void SGI::mpiio_write_grid()
 {
 	// Pack grid into Char array
@@ -664,6 +670,7 @@ void SGI::mpiio_readwrite_data(
 	// Do something only when seq_min <= seq_max
 	if (seq_min > seq_max) return;
 	std::size_t output_size = cfg.get_output_size();
+
 	string ofile = cfg.get_data_fname();
 	MPI_File fh;
 	if (is_read) { // Read data from file
@@ -680,7 +687,6 @@ void SGI::mpiio_readwrite_data(
 			printf("ERROR: fail read data from %s. Program abort!\n", ofile.c_str());
 			exit(EXIT_FAILURE);
 		}
-
 	} else { // Write data to file
 		if (MPI_File_open(MPI_COMM_SELF, ofile.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh)
 				!= MPI_SUCCESS) {
@@ -700,7 +706,7 @@ void SGI::mpiio_readwrite_data(
 	return;
 }
 
-void SGI::mpiio_readwrite_posterior(
+void SGI::mpiio_readwrite_pos(
 		bool is_read,
 		std::size_t seq_min,
 		std::size_t seq_max,
@@ -708,6 +714,7 @@ void SGI::mpiio_readwrite_posterior(
 {
 	// Do something only when seq_min <= seq_max
 	if (seq_min > seq_max) return;
+
 	string ofile = cfg.get_pos_fname();
 	MPI_File fh;
 	if (is_read) { // Read data from file
@@ -744,7 +751,7 @@ void SGI::mpiio_readwrite_posterior(
 	return;
 }
 
-void SGI::mpina_get_local_range(
+void SGI::mpispmd_get_local_range(
 		const std::size_t& gmin,
 		const std::size_t& gmax,
 		std::size_t& lmin,
@@ -763,35 +770,29 @@ void SGI::mpina_get_local_range(
 	return;
 }
 
-void SGI::mpina_find_global_maxpos()
+void SGI::mpispmd_find_global_maxpos()
 {
 	if (par.size <= 1) return;
-	//1. Prepare buffers
-	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
-	// ensure every rank has the same length list
-	// NOTE: num_maxpos is a small number, so no problem for padding
-	for (std::size_t i=maxpos_list.size(); i < num_maxpos; ++i) {
-		maxpos_list.emplace(-1.0, 0);
-	}
-	typedef std::pair<double, std::size_t> posseq;
-	vector<posseq> sbuf (num_maxpos);
-	vector<posseq> rbuf (num_maxpos * par.size);
-	// copy local maxpos list into send buffer
-	std::copy(maxpos_list.begin(), maxpos_list.end(), &sbuf[0]);
-	//2. Allgather
-	// allgather
-	MPI_Allgather(&sbuf[0], sbuf.size(), par.MPI_POSSEQ, &rbuf[0], sbuf.size(), par.MPI_POSSEQ, MPI_COMM_WORLD);
-	//3. Each rank picks out the top ones
-	maxpos_list.clear();
-	for (auto p: rbuf) { // insert to map is not cheap, do it only when necessary
-		if (maxpos_list.size() < num_maxpos) { // Case list not full
-			maxpos_list.insert(p);
-		} else if (p.first > maxpos_list.begin()->first) { // Case list full but need to insert
-			maxpos_list.insert(p);
-			maxpos_list.erase(maxpos_list.begin());
-		}
-	}
-	return;
+
+	// Find out which rank has the global maxpos point
+	struct {
+		double maxpos;
+		int	   rank;
+	} in, out;
+	in.maxpos = seq_maxpos.second;
+	in.rank = par.rank;
+	MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MAXLOC, MPI_COMM_WORLD);
+	// Bcast the maxpos point
+	struct {
+		std::size_t seq;
+		double maxpos;
+	} buf;
+	buf.seq = seq_maxpos.first;
+	buf.maxpos = seq_maxpos.second;
+	MPI_Bcast(&buf, 1, par.MPI_SEQPOS, out.rank, MPI_COMM_WORLD);
+	// Every rank unpack from buffer
+	seq_maxpos.first = buf.seq;
+	seq_maxpos.second = buf.maxpos;
 }
 
 void SGI::mpimw_master_compute(std::size_t gp_offset)
@@ -811,6 +812,7 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 #endif
 
 #if (IMPI==1)
+	double phase_tic = MPI_Wtime();
 	double tic = MPI_Wtime();
 	double toc;
 	int jobs_per_tic = 0;
@@ -831,7 +833,7 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 		if (par.size > 1) {
 			// #1. Receive a finished job (only if there is any active worker)
 			if (std::any_of(workers.begin(), workers.end(), [](char i){return i==RANKACTIVE;})) {
-				mpimw_master_receive_done(jobs, workers);
+				mpimw_master_recv_done(jobs, workers);
 #if (IMPI==1)
 				jobs_per_tic++;
 #endif
@@ -859,8 +861,10 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 		if (toc >= impi_adapt_freq) {
 			// performance measure: # gps computed per second
 			fflush(NULL);
-			printf("SGI Performance: %d ranks computed %d gps in %.6f sec. #gps/sec = %.6f\n",
-					par.size, jobs_per_tic, toc, double(jobs_per_tic * jobsize)/toc);
+			printf("SGI Performance: ranks %d | jobs %d | in.time(sec) %.6f | phase.wall.time(sec) %.6f\n",
+					par.size, jobs_per_tic, toc, MPI_Wtime()-phase_tic);
+			//printf("SGI Performance: %d ranks computed %d gps in %.6f sec. #gps/sec = %.6f\n",
+			//		par.size, jobs_per_tic, toc, double(jobs_per_tic * jobsize)/toc);
 			// Only when there are remaining jobs, it's worth trying to adapt
 			if (std::any_of(jobs.begin(), jobs.end(), [](char i){return i==JOBTODO;})) {
 				// Prepare workers for adapt (receive done jobs, then send adapt signal)
@@ -932,32 +936,6 @@ void SGI::mpimw_worker_compute(std::size_t gp_offset)
 	return;
 }
 
-void SGI::mpimw_sync_maxpos()
-{
-	if (par.size <= 1) return;
-	//Prepare buffers
-	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
-	typedef std::pair<double, std::size_t> posseq;
-	vector<posseq> buf (num_maxpos);
-	// copy local maxpos list into send buffer
-	if (par.is_master()) {
-		for (std::size_t i=maxpos_list.size(); i < num_maxpos; ++i) { // ensure maxpos_list has the right size
-			maxpos_list.emplace(-1.0, 0);
-		}
-		std::copy(maxpos_list.begin(), maxpos_list.end(), &buf[0]);
-	}
-	// Master broadcast
-	MPI_Bcast(&buf[0], num_maxpos, par.MPI_POSSEQ, par.master, MPI_COMM_WORLD);
-	// workders unpack
-	if (!par.is_master()) {
-		maxpos_list.clear();
-		for (auto p: buf) {
-			maxpos_list.insert(p);
-		}
-	}
-	return;
-}	
-
 void SGI::mpimw_get_job_range(
 		const std::size_t& jobid,
 		const std::size_t& seq_offset,
@@ -1016,7 +994,7 @@ void SGI::mpimw_master_prepare_adapt(
 	sbuf.reserve(par.size-1);
 	// If any worker still active, receive the finished job
 	while ( std::any_of(workers.begin(), workers.end(), [](char i){return i==RANKACTIVE;}) ) {
-		mpimw_master_receive_done(jobs, workers);
+		mpimw_master_recv_done(jobs, workers);
 		jobs_per_tic++;
 	}
 	// Send "adapt signal" to all workers (avoiding MASTER itself)
@@ -1060,14 +1038,14 @@ void SGI::mpimw_master_send_todo(
 	return;
 }
 
-void SGI::mpimw_master_receive_done(
+void SGI::mpimw_master_recv_done(
 		vector<char>& jobs,
 		vector<char>& workers)
 {
 	// 1. Receive the finished jobid, and workerid
 	int jid, wid;
 	MPI_Status status;
-	if (MPI_Recv(&jid, 1, MPI_INT, MPI_ANY_SOURCE, 12345, MPI_COMM_WORLD, &status) != MPI_SUCCESS) {
+	if (MPI_Recv(&jid, 1, MPI_INT, MPI_ANY_SOURCE, 12333, MPI_COMM_WORLD, &status) != MPI_SUCCESS) {
 		par.info();
 		printf("ERROR: failed to receive a done job. Program abort!\n");
 		exit(EXIT_FAILURE);
@@ -1075,47 +1053,57 @@ void SGI::mpimw_master_receive_done(
 	wid = status.MPI_SOURCE;
 	jobs[jid] = JOBDONE;
 	workers[wid] = RANKIDLE;
-#if (SGI_PRINT_RANKPROGRESS==1)
-	par.info();
-	printf("SGI: worker %d completed job %d/%lu offset %lu\n",
-			wid, jid, jobs.size(), impi_gpoffset);
-#endif
-	// 2. Receive maxpos list
-	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
-	typedef std::pair<double, std::size_t> posseq;
-	vector<posseq> buf (num_maxpos);
-	if (MPI_Recv(&buf[0], num_maxpos, par.MPI_POSSEQ, wid, 123456, MPI_COMM_WORLD, &status) != MPI_SUCCESS) {
+	// 2. Receive seq_maxpos
+	struct {
+		std::size_t seq;
+		double maxpos;
+	} rbuf;
+	if (MPI_Recv(&rbuf, 1, par.MPI_SEQPOS, wid, 12444, MPI_COMM_WORLD, &status) != MPI_SUCCESS) {
 		par.info();
-		printf("ERROR: failed to receive maxpos list from rank %d. Program abort!\n", wid);
+		printf("ERROR: failed to receive a done job seq_maxpos. Program abort!\n");
 		exit(EXIT_FAILURE);
 	}
-	for (auto p: buf) {
-		if (maxpos_list.size() < num_maxpos) { // Case list not full
-			maxpos_list.insert(p);
-		} else if (p.first > maxpos_list.begin()->first) { // Case list full but need to insert
-			maxpos_list.insert(p);
-			maxpos_list.erase(maxpos_list.begin());
-		}
+	if (seq_maxpos.second < rbuf.maxpos) {
+		seq_maxpos.first = rbuf.seq;
+		seq_maxpos.second = rbuf.maxpos;
 	}
+#if (SGI_PRINT_RANKPROGRESS==1)
+	par.info();
+	printf("SGI: worker %d | job.id %d | total.jobs %lu | offset %lu\n",
+			wid, jid, jobs.size(), impi_gpoffset);
+#endif
 	return;
+}
+
+void SGI::mpimw_master_bcast_maxpos()
+{
+	if (par.size <= 1) return;
+
+	// Bcast the maxpos point
+	struct {
+		std::size_t seq;
+		double maxpos;
+	} buf;
+	buf.seq = seq_maxpos.first;
+	buf.maxpos = seq_maxpos.second;
+	MPI_Bcast(&buf, 1, par.MPI_SEQPOS, par.master, MPI_COMM_WORLD);
+	// Every rank unpack from buffer
+	seq_maxpos.first = buf.seq;
+	seq_maxpos.second = buf.maxpos;
 }
 
 void SGI::mpimw_worker_send_done(int jobid)
 {
 	//1. Send jobid
-	MPI_Send(&jobid, 1, MPI_INT, par.master, 12345, MPI_COMM_WORLD);
-	//1. Prepare send buffer
-	std::size_t num_maxpos = cfg.get_param_sizet("mcmc_max_chains");
-	typedef std::pair<double, std::size_t> posseq;
-	vector<posseq> buf (num_maxpos);
-	// ensure list has the right length
-	// NOTE: num_maxpos is a small number, so no problem for padding
-	for (std::size_t i=maxpos_list.size(); i < num_maxpos; ++i)
-		maxpos_list.emplace(-1.0, 0);
-	std::copy(maxpos_list.begin(), maxpos_list.end(), &buf[0]);
-	//2. Send to master
-	MPI_Send(&buf[0], num_maxpos, par.MPI_POSSEQ, par.master, 123456, MPI_COMM_WORLD);
-	maxpos_list.clear();
+	MPI_Send(&jobid, 1, MPI_INT, par.master, 12333, MPI_COMM_WORLD);
+	//2. Send seq_maxpos
+	struct {
+		std::size_t seq;
+		double maxpos;
+	} sbuf;
+	sbuf.seq = seq_maxpos.first;
+	sbuf.maxpos = seq_maxpos.second;
+	MPI_Send(&sbuf, 1, par.MPI_SEQPOS, par.master, 12444, MPI_COMM_WORLD);
 	return;
 }
 

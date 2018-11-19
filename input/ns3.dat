@@ -32,9 +32,12 @@ impi_adapt_freq_sec		60
 #------------------------
 # Surrogate SGI setting
 #------------------------
-# In a resumed job, grid will be loaded from files in the output path
+## Surrogate SGI model error tolerance in [0,1.0] (0.08 = 8% error)
+sgi_tol						0.08
+# In a resumed job, grid will be created from the existing SGI output files in the provided path
 # Only in a new job, grid will be created from scratch
-sgi_is_from_files			no
+sgi_is_resume				no
+sgi_resume_path				./output
 # Grid construction initial level (before any grid refinement)
 sgi_init_level				4
 # Grid refinment portion (how many % grid points should be refined, double in [0,1])
@@ -42,7 +45,7 @@ sgi_refine_portion			0.1
 # SGI construction using Master-worker (for iMPI and MPI) or SIMD (for MPI only) style
 sgi_is_masterworker			yes
 # For SGI construction master-worker style, job size (# of grid points to compute in each job)
-sgi_masterworker_jobsize	30
+sgi_masterworker_jobsize	20
 
 #------------------
 # MCMC setting

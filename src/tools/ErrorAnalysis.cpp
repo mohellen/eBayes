@@ -120,6 +120,10 @@ bool ErrorAnalysis::eval_model_spmd(double tol)
 	return (err <= tol) ? true : false;
 }
 
+
+/**
+ * This function only MASTER does the surrogate error eval, then it Bcast error to other ranks
+ */
 bool ErrorAnalysis::eval_model_master(double tol)
 {
 	double err = 0.0;
@@ -138,8 +142,79 @@ bool ErrorAnalysis::eval_model_master(double tol)
 
 	if (par.is_master()) {
 		fflush(NULL);
-		printf("EA: Surrogate error %.8f, tol %.2f\n", err, tol);
+		printf("EA: Surrogate error %.8f | tol %.2f\n", err, tol);
 	}
 	return (err <= tol) ? true : false;
 }
 
+
+void ErrorAnalysis::read_test_points(std::string infile)
+{
+	// Open input
+	ifstream f(infile);
+	if (!f) {
+		fflush(NULL);
+		printf("\nWARNING: EA read_test_points cannot open input file.\n");
+		return;
+	}
+	// Read lines
+	test_points.clear();
+	string s;
+	vector<double> tp;
+	while (std::getline(f, s)) {
+		// Read line into string stream
+		istringstream iss(s);
+		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
+		// Ignore empty lines
+		if (tokens.size() < 1) continue;
+		// Ignore comment lines (start with // or #)
+		tokens[0] = tools::trim_white_space(tokens[0]);
+		if ((tokens[0].substr(0,2) == "//") || (tokens[0].substr(0,1) == "#")) continue;
+
+		// For a valid line
+		tp.clear();
+		for (auto it=tokens.begin(); it != tokens.end(); ++it) {
+			 tp.push_back( std::atof((*it).c_str()) );
+		}
+		test_points.push_back(tp);
+	}//end while
+	f.close();
+}
+
+void ErrorAnalysis::write_test_points(std::string outfile)
+{
+	// Open output
+	ofstream f(outfile);
+	if (!f) {
+		fflush(NULL);
+		printf("\nWARNING: EA write_test_points cannot open input file.\n");
+		return;
+	}
+
+	// Write lines
+	for (auto it=test_points.begin(); it != test_points.end(); ++it) {
+		f << vec_to_string(*it) << "\n";
+	}
+	f.close();
+}
+
+void ErrorAnalysis::print_test_points()
+{
+	par.info();
+	printf("EA test points:\n");
+	for (int i=0; i < test_points.size(); ++i) {
+		printf("#%02d: %s\n", i, vec_to_string(test_points[i]).c_str());
+	}
+	printf("\n");
+	return;
+}
+
+string ErrorAnalysis::vec_to_string(vector<double> const& v)
+{
+	std::ostringstream oss;
+	oss << std::fixed << std::setprecision(6);
+	for (int i=0; i < v.size()-1; ++i)
+		oss << v[i] << " ";
+	oss << v.back();
+	return oss.str();
+}

@@ -59,6 +59,10 @@ public:
 	std::string get_grid_bak_fname() const {return get_param_string("global_output_path")+"/grid.mpibin.bak";}
 	std::string get_data_bak_fname() const {return get_param_string("global_output_path")+"/data.mpibin.bak";}
 	std::string get_pos_bak_fname() const  {return get_param_string("global_output_path")+"/pos.mpibin.bak";}
+	// Build file path+name from resuming jobs
+	std::string get_grid_resume_fname() const {return get_param_string("sgi_resume_path")+"/grid.mpibin.bak";}
+	std::string get_data_resume_fname() const {return get_param_string("sgi_resume_path")+"/data.mpibin.bak";}
+	std::string get_pos_resume_fname() const  {return get_param_string("sgi_resume_path")+"/pos.mpibin.bak";}
 
 	// Compute the posteria for a given simulation data
 	double compute_posterior(std::vector<double> const& data) const;

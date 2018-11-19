@@ -65,7 +65,7 @@ public:
 //			const std::string& datafile,
 //			const std::string& posfile);
 
-	std::vector<double> get_nth_maxpos(std::size_t n);
+	std::vector<double> get_maxpos();
 
 	// Need to implement this virtual function from parent class
 	std::pair<double,double> get_input_space(int dim) const {return fullmodel.get_input_space(dim);}
@@ -83,15 +83,16 @@ private:
 	std::unique_ptr<sgpp::base::OperationEval> 	eval;
 	std::unique_ptr<sgpp::base::BoundingBox>	bbox;
 
-	// sorted list of top maxpos grid points (pos + gp_seq), in ascending order (LAST one is the MAX)
-	// multimap because the key value (posterior) is not unique
-	std::multimap<double, std::size_t> maxpos_list;
+	// maxpos grid point (gp_seq + maspos)
+	std::pair<std::size_t, double> seq_maxpos;
 
 #if (IMPI==1)
 	std::size_t impi_gpoffset = 0; //MPI_SIZE_T
 #endif
 
 private:
+	void resume();
+
 	void impi_adapt();
 
 	std::vector<double> get_gp_coord(std::size_t seq);
@@ -130,19 +131,19 @@ private:
 			std::size_t seq_max,
 			double* buff);
 
-	void mpiio_readwrite_posterior(
+	void mpiio_readwrite_pos(
 			bool is_read,
 			std::size_t seq_min,
 			std::size_t seq_max,
 			double* buff);
 
-	void mpina_get_local_range(
+	void mpispmd_get_local_range(
 			const std::size_t& gmin,
 			const std::size_t& gmax,
 			std::size_t& lmin,
 			std::size_t& lmax);
 
-	void mpina_find_global_maxpos();
+	void mpispmd_find_global_maxpos();
 
 	void mpimw_master_compute(std::size_t gp_offset);
 
@@ -169,11 +170,13 @@ private:
 			std::vector<char>& jobs,
 			std::vector<char>& workers);
 
-	void mpimw_master_receive_done(
+	void mpimw_master_recv_done(
 			std::vector<char>& jobs,
 			std::vector<char>& workers);
 
 	void mpimw_worker_send_done(int jobid);
+
+	void mpimw_master_bcast_maxpos();
 
 	void bcast_grid(MPI_Comm comm);
 

@@ -11,7 +11,7 @@ void Parallel::mpi_init(int argc, char** argv)
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	// These only need to be called once
-	MPI_POSSEQ = create_MPI_POSSEQ();
+	MPI_SEQPOS = create_MPI_SEQPOS();
 	return;
 }
 
@@ -37,17 +37,20 @@ void Parallel::info()
 	printf("[t%d r%d st%d] ", size, rank, status);
 }
 
-MPI_Datatype Parallel::create_MPI_POSSEQ()
+MPI_Datatype Parallel::create_MPI_SEQPOS()
 {
+	struct m {
+		std::size_t seq;
+		double pos;
+	};
 	int lens[2] = {1, 1};
-	MPI_Aint offs[2] = {0, sizeof(double)};
-	MPI_Datatype types[2] = {MPI_DOUBLE, MPI_SIZE_T};
+	MPI_Aint offs[2] = {offsetof(struct m, seq), offsetof(struct m, pos)};
+	MPI_Datatype types[2] = {MPI_SIZE_T, MPI_DOUBLE};
 	MPI_Datatype newtype;
 	MPI_Type_create_struct(2, lens, offs, types, &newtype);
 	MPI_Type_commit(&newtype);
 	return newtype;
 }
-
 
 #if (0==1)
 // node id is not need because only master prints progress

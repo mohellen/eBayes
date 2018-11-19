@@ -14,11 +14,18 @@
 
 using namespace std;
 
+const int ITERMAX = 10; // Cap the # of grid refinement (to prevent infinite loop)
+
 int main(int argc, char** argv)
 {
 	Config cfg (argc, argv);
 	Parallel par;
 	par.mpi_init(argc, argv);
+
+	double tic = MPI_Wtime();
+	if (par.is_master()) {
+		printf("\nMain: BEGIN wall.time(sec) %.6f\n", tic);
+	}
 
 	// Forward model
 	NS ns (cfg);
@@ -26,28 +33,35 @@ int main(int argc, char** argv)
 	SGI sgi (cfg, par, ns);
 	// Error analysis object
 	ErrorAnalysis ea (cfg, par, ns, sgi);
-	ea.add_test_points(cfg.get_param_sizet("sgi_masterworker_jobsize"));
+	// Only Master need test points
+	if (par.is_master()) {
+		ea.add_test_points(cfg.get_param_sizet("sgi_masterworker_jobsize"));
+		//ea.read_test_points(cfg.get_param_string("sgi_resume_path") + "/test_points_r" + std::to_string(par.rank) + ".txt");
+		ea.write_test_points(cfg.get_param_string("global_output_path") + "/test_points_r" + std::to_string(par.rank) + ".txt");
+		ea.print_test_points();
+	}
 
-	double tol = 0.05; // 5% error in model is allowed
-	while(true) {
+	double tol = cfg.get_param_double("sgi_tol");
+	for (int iter = 0; iter < ITERMAX; ++iter) {
+
+		if (par.is_master()) {
+			printf("\nMain: SGI phase %d | wall.time(sec) %.6f\n", iter, MPI_Wtime()-tic);
+		}
+
 		sgi.build();
 		if (ea.eval_model_master(tol)) break;
 	}
 
-	// Test full model
-	//ns.print_info();
-	//std::vector<double> m {1.0, 0.8, 3.0, 1.5, 5.5, 0.2, 8.2, 1.0};
-	//std::vector<double> m {1.0, 0.8};
-	//std::vector<double> d = ns.run(m);
-	//m.push_back( cfg.compute_posterior(d) );
-	//for (double v: d)
-	//	std::cout << v << "  ";
-	//std::cout << std::endl;
-
+	if (par.is_master()) {
+		printf("Main: MCMC phase wall.time(sec) %.6f\n", MPI_Wtime()-tic);
+	}
 	// MCMC
 	MCMC* mcmc = new ParallelTempering(cfg, par, sgi);
-	mcmc->run(cfg.get_param_sizet("mcmc_num_samples"), sgi.get_nth_maxpos(par.rank) );
+	mcmc->run(cfg.get_param_sizet("mcmc_num_samples"), sgi.get_maxpos() );
 
+	if (par.is_master()) {
+		printf("Main: END wall.time(sec) %.6f\n", MPI_Wtime()-tic);
+	}
 	MPI_Barrier(MPI_COMM_WORLD);
 	par.mpi_final();
 	return 0;

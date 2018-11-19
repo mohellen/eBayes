@@ -25,6 +25,7 @@
 #include <string>
 #include <fstream>
 #include <memory>
+#include <stddef.h>
 
 #include <tools/Config.hpp>
 
@@ -51,7 +52,7 @@ public:
 	int rank = 0;
 	int status = -1; //invalid mpi status by default
 
-	MPI_Datatype MPI_POSSEQ;
+	MPI_Datatype MPI_SEQPOS;
 
 	const int master = 0;
 
@@ -78,7 +79,7 @@ public:
 	void info();
 
 private:
-	MPI_Datatype create_MPI_POSSEQ();
+	MPI_Datatype create_MPI_SEQPOS();
 };
 #endif /* TOOLS_PARALLEL_HPP_ */
 

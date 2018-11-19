@@ -23,9 +23,14 @@
 #include <tools/Parallel.hpp>
 #include <model/ForwardModel.hpp>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <iomanip> //for std::setprecision
 #include <vector>
 #include <random>
 #include <cmath> //for isinf() isnan()
+#include <cstdlib> //for atof()
 
 
 class ErrorAnalysis {
@@ -53,6 +58,14 @@ public:
 	void add_test_point_at(std::vector<double> const& m);
 
 	void copy_test_points(ErrorAnalysis const& that);
+
+	void read_test_points(std::string infile);
+
+	void write_test_points(std::string outfile);
+
+	void print_test_points();
+
+	std::string vec_to_string(std::vector<double> const& v);
 
 	double compute_surrogate_error();
 
