@@ -55,6 +55,7 @@ public:
 	/* Debug only */
 	void print_info() const;
 	void print_mask(int **& M) const;
+	void write_geo_info(int **& M, std::vector<double> const& m) const;
 
 private:
 	struct Obstacle {

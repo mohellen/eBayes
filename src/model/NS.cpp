@@ -314,6 +314,35 @@ void NS::print_mask(int **& M) const
 	return;
 }
 
+void NS::write_geo_info(int **& M, vector<double> const& m) const
+{
+	FILE* f = fopen("./debug_ns_mask.txt", "w");
+	if (f != NULL) {
+		fprintf(f, "ncx, ncy = %lu, %lu\n", ncx, ncy);
+		fprintf(f, "dx, dy = %f, %f\n\n", dx, dy);
+
+		for (int i=0; i < m.size()/2; i++) {
+			double locx = m[i*2+0];
+			double locy = m[i*2+1];
+			std::size_t il = size_t(round(locx/dx) + 1);
+			std::size_t ih = size_t(round((locx+0.4)/dx));
+			std::size_t jl = size_t(round(locy/dy) + 1);
+			std::size_t jh = size_t(round((locy+0.4)/dy));
+
+			fprintf(f, "Obs %d: (%f, %f) => j=[%lu, %lu], i=[%lu, %lu]\n",
+					i, m[i*2+0], m[i*2+1], jl, jh, il, ih);
+		}
+		fprintf(f, "\n");
+		for (std::size_t j=0; j<=ncy+1; j++) {
+			for (std::size_t i=0; i<=ncx+1; i++)
+				fprintf(f, "%5d ", M[(ncy+1)-j][i]);
+			fprintf(f, "\n");
+		}
+		fclose(f);
+	}
+	return;
+}
+
 /*****************************************
  * Internal core functions
  *****************************************/
@@ -324,7 +353,7 @@ int** NS::create_geometry_mask(vector<double> const& m)
 	std::size_t jl, jh, il, ih; // low & high index of columns
 
 	int** M = alloc_matrix<int>(ncy+2, ncx+2, true);
-	init_matrix<int>(M, ncy+2, ncx+2, true, 0);
+	init_matrix<int>(M, ncy+2, ncx+2, true, FLUID);
 
 	// 1. Initialize all non-fluid cells to 10000
 	// 1.1 Setup boundaries
