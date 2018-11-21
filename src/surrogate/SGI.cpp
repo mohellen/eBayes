@@ -66,7 +66,6 @@ void SGI::build()
 	std::size_t init_level = cfg.get_param_sizet("sgi_init_level");
 	double refine_portion = cfg.get_param_double("sgi_refine_portion");
 	bool is_masterworker = cfg.get_param_bool("sgi_is_masterworker");
-	bool is_resume = cfg.get_param_bool("sgi_is_resume");
 	// find out whether it's grid initialization or refinement
 	bool is_init = (!this->eval) ? true : false;
 	std::size_t num_points;
@@ -77,7 +76,7 @@ void SGI::build()
 	} else {
 #endif
 		if (is_init) {
-			if (is_resume) {
+			if (cfg.get_param_string("sgi_resume_path") != "") {
 				// for resuming a job, grid and data, pos are loaded from files
 				// therefore, no need for build grid computation, return immediately
 				resume();

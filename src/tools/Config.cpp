@@ -26,13 +26,8 @@ Config::Config(int argc, char** argv)
 	print_help(argc, argv);
 
 	// Determine input size
-	if (GLOBAL_SCENARIO == NS_OBS)	{
-		istringstream iss(get_param_string("ns_obstacle_list"));
-		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
-		// For NS_OBS, num_obs = tokens.size()/4
-		// insize = 2 * num_obs (each obstacle has 2 coordinates (x, y)).
-		insize = 2 * (tokens.size() / 4);
-	}
+	insize = get_param_sizet("global_input_size");
+
 	// Get observation
 	istringstream iss(get_param_string("global_observation"));
 	vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
@@ -49,9 +44,40 @@ Config::Config(int argc, char** argv)
 	observation_sigma = noise * mean;
 
 	// Make output dir if not exists
-	string cmd = "mkdir -p " + get_param_string("global_output_path");
+	string f, cmd;
+	cmd = "mkdir -p " + get_param_string("global_output_path");
 	system(cmd.c_str());
+
+	// Check file/path and issue warnings
+	f = get_param_string("ea_test_point_file");
+	if (f != "") {
+		cmd = "if [ -f " + f + " ]; then echo yes; else echo no; fi";
+		if (tools::exec(cmd.c_str()) != "yes") {
+			cout << "WARNING: es_test_point_file is not found! ErrorAnalysis test points will be generated instead." << endl;
+			params.at("ea_test_point_file").val = "";
+		}
+	}
+	f = get_param_string("sgi_resume_path");
+	if (f != "") {
+		cmd = "if [ -f " + get_grid_resume_fname() + " ]; then echo yes; else echo no; fi";
+		if (tools::exec(cmd.c_str()) != "yes") {
+			cout << "WARNING: grid file cannot be found in resume path! SGI surrogate will be built from scratch instead." << endl;
+			params.at("sgi_resume_path").val = "";
+		}
+	}
 	return;
+}
+
+void Config::print_config() const
+{
+	cout << "\n==============================" << endl;
+	cout << "Current configurations:" << endl;
+	for (auto it=params.begin(); it!=params.end(); ++it) {
+		cout << "   " << it->first;
+		cout << "\n   \t>> Description: " << it->second.des;
+		cout << "\n   \t>> Current value: " << it->second.val << "\n" << endl;
+	}
+	cout << "==============================\n" << endl;
 }
 
 double Config::compute_posterior(std::vector<double> const& data) const
@@ -78,14 +104,19 @@ void Config::add_params()
 	p.val = "./output";
 	params[var] = p;
 
-	var = "global_observation_noise";
-	p.des = "Assumed noise level in observed data [0.0, 1.0], 0 for no noise, 1 for 100% noise. (Default: 0.2) (Type: double)";
-	p.val = "0.2";
+	var = "global_input_size";
+	p.des = "Input size for the forward model. (Default: 8) (Type: size_t)";
+	p.val = "8";
 	params[var] = p;
 
 	var = "global_observation";
 	p.des = "Observed data. (Default: <obs4_data_set>) (Note: provide vector in one line separated by space)";
 	p.val = "1.434041 1.375464 1.402000 0.234050 1.387931 1.006520 1.850871 1.545131 1.563303 0.973778 1.512808 1.387468 1.608557 0.141381 1.313631 0.990608 1.741001 1.551365 1.789867 1.170761  1.597586 1.509048 1.549320 0.135403 1.191323 1.015913 1.682937 1.592488 1.743632 1.296677 1.535493 1.341702 1.541945 0.137985 1.272473 1.041918 1.824279 1.690430 1.810520 1.358992";
+	params[var] = p;
+
+	var = "global_observation_noise";
+	p.des = "Assumed noise level in observed data [0.0, 1.0], 0 for no noise, 1 for 100% noise. (Default: 0.2) (Type: double)";
+	p.val = "0.2";
 	params[var] = p;
 
 	// iMPI setting
@@ -96,7 +127,7 @@ void Config::add_params()
 
 	// ErrorAnalysis setting
 	var = "ea_test_point_file";
-	p.des = "If this file is provided, test points will be loaded from this file instead (Default: "") (Type: string)";
+	p.des = "If this file is provided, ErrorAnalysis test points will be loaded from file instead of being generated randomly. (Default: "") (Type: string)";
 	p.val = "";
 	params[var] = p;
 	
@@ -106,14 +137,9 @@ void Config::add_params()
 	p.val = "0.08";
 	params[var] = p;
 	
-	var = "sgi_is_resume";
-	p.des = "Set to bulid SGI surrogate model from existing SGI output files (from previous job), instead of creating from scratch. (Default: no) (Options: yes|no)";
-	p.val = "no";
-	params[var] = p;
-	
 	var = "sgi_resume_path";
-	p.des = "Path where the previous SGI output files reside. (Default: ./output) (Type: string)";
-	p.val = "./output";
+	p.des = "If resume path is provided and exist, SGI model will be built from the grid/data files in the path. Otherwise, SGI is built from scratch. (Default: "") (Type: string)";
+	p.val = "";
 	params[var] = p;
 
 	var = "sgi_init_level";
@@ -143,18 +169,18 @@ void Config::add_params()
 	params[var] = p;
 
 	var = "mcmc_randwalk_step";
-	p.des = "MCMC use a random walk step = X * domain size (X in [0.0, 1.0]). (Default: 0.2) (Type: double in [0.0, 1.0])";
-	p.val = "0.2";
+	p.des = "MCMC use a random walk step = X * domain size (X in [0.0, 1.0]). (Default: 0.1) (Type: double in [0.0, 1.0])";
+	p.val = "0.1";
 	params[var] = p;
 
 	var = "mcmc_is_progress";
-	p.des = "Enable to output MCMC progress. (Default: no) (Options: yes|no)";
+	p.des = "Enable to output detail MCMC progress including chain exchange. (Default: no) (Options: yes|no)";
 	p.val = "no";
 	params[var] = p;
 
 	var = "mcmc_progress_freq_step";
-	p.des = "MCMC Progress output frequency: print progress every N MCMC steps. (Default: 2000) (Type: size_t)";
-	p.val = "2000";
+	p.des = "MCMC Progress output frequency: print progress every N MCMC steps. (Default: 1000) (Type: size_t)";
+	p.val = "1000";
 	params[var] = p;
 
 	var = "mcmc_max_chains";
@@ -273,19 +299,24 @@ void Config::add_params()
 	p.val = "inlet";
 	params[var] = p;
 
-	var = "ns_obstacle_list";
-	p.des = "List of obstacles: obs1_locx, obs1_locy, obs1_sizex, obs1_sizey, obs2_locx, ... (Default: <list of 4 obstacles>) (Note: provide vector in one line separated by space)";
-	p.val = "1.0 0.8 0.4 0.4	3.0 1.5 0.4 0.4		5.5 0.2 0.4 0.4		8.2 1.0 0.4 0.4";
+	var = "ns_obs_sizes";
+	p.des = "Sizes of obstacles (Default: 0.4 0.4  0.4 0.4  0.4 0.4  0.4 0.4) (Note: provide vector in one line separated by space)";
+	p.val = "0.4 0.4  0.4 0.4  0.4 0.4  0.4 0.4";
 	params[var] = p;
 
-	var = "ns_output_time_list";
-	p.des = "Simulation output sampiling time instances. (Default: <4 time instances>) (Note: provide vector in one line separated by space)";
+	var = "ns_obs_locs";
+	p.des = "Obstacle locations (real locations, this is for testing/verification purpose only) (Default: 1.0 0.8  3.0 1.5  5.5 0.2  8.2 1.0) (Note: provide vector in one line separated by space)";
+	p.val = "1.0 0.8  3.0 1.5  5.5 0.2  8.2 1.0";
+	params[var] = p;
+
+	var = "ns_output_times";
+	p.des = "Simulation output sampiling time instances. (Default: 2.5 5.0 7.5 10.0) (Note: provide vector in one line separated by space)";
 	p.val = "2.5 5.0 7.5 10.0";
 	params[var] = p;
 
-	var = "ns_output_location_list";
+	var = "ns_output_locations";
 	p.des = "Simulation output sampling locations: loc1x, loc1y, loc2x, loc2y, .... (Default: <10 locations>) (Note: provide vector in one line separated by space)";
-	p.val = "1.5 0.6	 3.1 0.6	4.7 0.6		6.3 0.6		7.9 0.6		1.5 1.3		3.1 1.3		4.7 1.3		6.3 1.3		7.9 1.3";
+	p.val = "1.5 0.6  3.1 0.6  4.7 0.6  6.3 0.6  7.9 0.6  1.5 1.3  3.1 1.3  4.7 1.3  6.3 1.3  7.9 1.3";
 	params[var] = p;
 }
 
@@ -364,11 +395,7 @@ void Config::print_help(int argc, char** argv)
 			cout << "   " << "config_file";
 			cout << "\n   \t>> Description: Configuration file. (Default: ) (Type: string)";
 			cout << "\n   \t>> Current value: " << config_file << "\n" << endl;
-			for (auto it=params.begin(); it!=params.end(); ++it) {
-				cout << "   " << it->first;
-				cout << "\n   \t>> Description: " << it->second.des;
-				cout << "\n   \t>> Current value: " << it->second.val << "\n" << endl;
-			}
+			print_config();
 			return;
 		} else {
 			continue;
@@ -504,3 +531,15 @@ double tools::compute_l2norm_sum(
 	return sqrt(sum);
 }
 
+
+string tools::exec(const char* cmd) {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) throw std::runtime_error("popen() failed!");
+    while (!feof(pipe.get())) {
+        if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
+            result += buffer.data();
+    }
+    return result;
+}

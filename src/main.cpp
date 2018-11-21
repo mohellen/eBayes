@@ -22,25 +22,34 @@ int main(int argc, char** argv)
 	Parallel par;
 	par.mpi_init(argc, argv);
 
+	/*************************
+	 * Initialization Phase
+	 *************************/
 	double tic = MPI_Wtime();
 	if (par.is_master()) {
-		printf("\nMain: BEGIN wall.time(sec) %.6f\n", tic);
+		cfg.print_config(); // Show current config values
+		printf("\nMain: BEGIN wall.time(sec) %.6f\n", MPI_Wtime()-tic);
 	}
-
 	// Forward model
 	NS ns (cfg);
-	// Surrogate modez
+	// Surrogate model
 	SGI sgi (cfg, par, ns);
 	// Error analysis object
 	ErrorAnalysis ea (cfg, par, ns, sgi);
 	// Only Master need test points
 	if (par.is_master()) {
+		// Produce visualization with default obs locations (true locations)
+		ns.sim();
 		//ea.add_test_points(20);
 		ea.add_test_points(20, cfg.get_param_string("ea_test_point_file"));
 		ea.write_test_points(cfg.get_param_string("global_output_path") + "/test_points_r" + std::to_string(par.rank) + ".txt");
 		ea.print_test_points();
 	}
+	MPI_Barrier(MPI_COMM_WORLD);
 
+	/****************************************************
+	 *	Surrogate Construction: multiple elasitc phases
+	 ****************************************************/
 	double tol = cfg.get_param_double("sgi_tol");
 	for (int iter = 0; iter < ITERMAX; ++iter) {
 
@@ -51,7 +60,11 @@ int main(int argc, char** argv)
 		sgi.build();
 		if (ea.eval_model_master(tol)) break;
 	}
+	MPI_Barrier(MPI_COMM_WORLD);
 
+	/**************
+	 * MCMC Phase
+	 **************/
 	if (par.is_master()) {
 		printf("\nMain: MCMC phase wall.time(sec) %.6f\n", MPI_Wtime()-tic);
 	}

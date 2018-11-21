@@ -85,16 +85,21 @@ NS::NS(Config const& c)
 	else if (type == "freeslip") this->boundary_west = BOUNDARY_TYPE_FREESLIP;
 
 	{// Initialize obstacle list
-		istringstream iss(cfg.get_param_string("ns_obstacle_list"));
-		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
-		this->obs.reserve(tokens.size()/4);
-		for (auto it=tokens.begin(); it != tokens.end(); it+=4) {
+		std::size_t num_obs = cfg.get_input_size()/2;
+		istringstream iss_sizes(cfg.get_param_string("ns_obs_sizes"));
+		vector<string> sizes {istream_iterator<string>{iss_sizes}, istream_iterator<string>{}};
+		istringstream iss_locs(cfg.get_param_string("ns_obs_locs"));
+		vector<string> locs {istream_iterator<string>{iss_locs}, istream_iterator<string>{}};
+		this->obs.reserve(num_obs);
+		for (std::size_t i=0; i < num_obs; ++i) {
 			this->obs.push_back(
-					Obstacle(stod(*it), stod(*(it+1)), stod(*(it+2)), stod(*(it+3))) );
+					// locx, locy, sizex, sizey
+					Obstacle( stod(locs[i*2+0]), stod(locs[i*2+1]), stod(sizes[i*2+0]), stod(sizes[i*2+1]) )
+			);
 		}
 	}
 	{// Initialize output time list
-		istringstream iss(cfg.get_param_string("ns_output_time_list"));
+		istringstream iss(cfg.get_param_string("ns_output_times"));
 		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 		this->out_times.reserve(tokens.size());
 		for (auto it=tokens.begin(); it != tokens.end(); ++it) {
@@ -102,7 +107,7 @@ NS::NS(Config const& c)
 		}
 	}
 	{// Initialize output location list
-		istringstream iss(cfg.get_param_string("ns_output_location_list"));
+		istringstream iss(cfg.get_param_string("ns_output_locations"));
 		vector<string> tokens {istream_iterator<string>{iss}, istream_iterator<string>{}};
 		this->out_locs.reserve(tokens.size()/2);
 		for (auto it=tokens.begin(); it != tokens.end(); it+=2) {
@@ -123,10 +128,22 @@ pair<double,double> NS::get_input_space(int dim) const
 	return s;
 }
 
-vector<double> NS::run(
-		std::vector<double> const& m)
+vector<double> NS::run(std::vector<double> const& m)
 {
 	return sim(m, false);
+}
+
+void NS::sim()
+{
+	vector<double> m;
+	for (auto it=this->obs.begin(); it != this->obs.end(); ++it) {
+		m.push_back( (*it).locx );
+		m.push_back( (*it).locy );
+	}
+	fflush(NULL);
+	printf("\nRunning simulating with default obstacles with VTK output....\n");
+	sim(m, true);
+	return;
 }
 
 vector<double> NS::sim(
@@ -242,8 +259,6 @@ vector<double> NS::sim(
 
 		// 7. Write VTK output data (if enabled) */
 		if ((write_vtk) && (floor(t/vtk_freq) >= vtk_cnt)) {
-			fflush(NULL);
-			printf("NS: simulation writing VTK output at t = %.4f\n", t);
 			write_vtk_file(vtk_outfile.c_str(), vtk_cnt, M, U, V, P);
 			vtk_cnt ++;
 		}
@@ -260,7 +275,7 @@ vector<double> NS::sim(
 	A.resize(0,0);
 #endif
 	return d;
-}//end sim()
+}
 
 void NS::print_info() const
 {

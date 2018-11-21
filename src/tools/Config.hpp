@@ -7,10 +7,14 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <array>
 #include <iterator>
 #include <algorithm>
+#include <stdexcept>
+#include <memory>
 #include <iomanip> //for std::setprecision
 #include <cstdlib> //for system()
+#include <cstdio>
 #include <cmath>
 
 // Global enum type, so that everybody knows what are the available scenarios
@@ -49,13 +53,16 @@ public:
 	bool get_param_bool(std::string var) const {
 		return (params.at(var).val == "yes") ? true : false; }
 
-	// Date files:
+	// Print current config
+	void print_config() const;
+
+	// Data files:
 	// They will be read/write from different functions, names must be consistently defined here
-	// These are fully built files, to be read from when resume job
+	// These are temp files for during the build
 	std::string get_grid_fname() const {return get_param_string("global_output_path")+"/grid.mpibin";}
 	std::string get_data_fname() const {return get_param_string("global_output_path")+"/data.mpibin";}
 	std::string get_pos_fname() const  {return get_param_string("global_output_path")+"/pos.mpibin";}
-	// These are temp files for during the build
+	// These are fully built files, to be read from when resume job
 	std::string get_grid_bak_fname() const {return get_param_string("global_output_path")+"/grid.mpibin.bak";}
 	std::string get_data_bak_fname() const {return get_param_string("global_output_path")+"/data.mpibin.bak";}
 	std::string get_pos_bak_fname() const  {return get_param_string("global_output_path")+"/pos.mpibin.bak";}
@@ -101,6 +108,9 @@ namespace tools
 	const std::string cyan("\033[0;36m");
 	const std::string reset("\033[0m"); // don't forget to reset to normal after coloration
 	
+	// Execute shell command, and get return values as a string
+	std::string exec(const char* cmd);
+
 	// trim white space from a string
 	std::string trim_white_space(std::string const& str);
 
@@ -125,7 +135,7 @@ namespace tools
 	// Compute the Euclidean norm (l2-norm): |u + v|
 	double compute_l2norm_sum(
 			std::vector<double> const& u,
-			std::vector<double> const& v);
+			std::vector<double> const& v);	
 }
 
 #endif

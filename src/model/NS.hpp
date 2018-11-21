@@ -49,6 +49,8 @@ public:
 			std::vector<double> const& m,
 			bool write_vtk);
 
+	void sim();
+
 	std::vector<double> run(
 			std::vector<double> const& m);
 
