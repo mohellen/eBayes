@@ -97,7 +97,7 @@ double ErrorAnalysis::compute_surrogate_error()
 			err = 0.0;
 		} else {
 			err = tools::compute_l2norm_diff(test_points_data[i], surrogate.run(test_points[i])) / denom;
-			if (isnan(err) || isinf(err) || err > 1.0) err = 1.0;
+			if (std::isnan(err) || std::isinf(err) || err > 1.0) err = 1.0;
 		}
 		sum += err;
 	}
