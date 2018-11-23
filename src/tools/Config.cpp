@@ -52,15 +52,15 @@ Config::Config(int argc, char** argv)
 	f = get_param_string("ea_test_point_file");
 	if (f != "") {
 		cmd = "if [ -f " + f + " ]; then echo yes; else echo no; fi";
-		if (tools::exec(cmd.c_str()) != "yes") {
-			cout << "WARNING: es_test_point_file is not found! ErrorAnalysis test points will be generated instead." << endl;
+		if (!tools::exec(cmd.c_str()).compare("yes")) {
+			cout << "WARNING: ea_test_point_file is not found! ErrorAnalysis test points will be generated instead." << endl;
 			params.at("ea_test_point_file").val = "";
 		}
 	}
 	f = get_param_string("sgi_resume_path");
 	if (f != "") {
 		cmd = "if [ -f " + get_grid_resume_fname() + " ]; then echo yes; else echo no; fi";
-		if (tools::exec(cmd.c_str()) != "yes") {
+		if (!tools::exec(cmd.c_str()).compare("yes")) {
 			cout << "WARNING: grid file cannot be found in resume path! SGI surrogate will be built from scratch instead." << endl;
 			params.at("sgi_resume_path").val = "";
 		}
