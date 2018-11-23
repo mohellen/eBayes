@@ -141,7 +141,7 @@ void NS::sim()
 		m.push_back( (*it).locy );
 	}
 	fflush(NULL);
-	printf("\nRunning simulating with default obstacles with VTK output....\n");
+	printf("\nRunning simulation with default obstacles, writing VTK output....\n");
 	sim(m, true);
 	return;
 }
