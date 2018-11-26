@@ -21,6 +21,7 @@
 
 #include <mpi.h>
 #include <climits>
+#include <ctime>
 #include <cstdint>
 #include <string>
 #include <fstream>

@@ -4,7 +4,12 @@
 void Parallel::mpi_init(int argc, char** argv)
 {
 #if (IMPI==1)
+	clock_t tic = clock();
 	MPI_Init_adapt(&argc, &argv, &status);
+	if (is_master()) {
+		info();
+		printf("iMPI: MPI_Init_adapt() in %.6Lf sec.\n", (long double)(clock()-tic)/CLOCKS_PER_SEC);
+	}
 #else
 	MPI_Init(&argc, &argv);
 #endif
