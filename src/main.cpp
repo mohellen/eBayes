@@ -14,7 +14,8 @@
 
 using namespace std;
 
-const int ITERMAX = 10; // Cap the # of grid refinement (to prevent infinite loop)
+const int ITERMIN = 1; // Enforce at least # of grid refinement
+const int ITERMAX = 5; // Cap the # of grid refinement (to prevent infinite loop)
 
 int main(int argc, char** argv)
 {
@@ -40,8 +41,7 @@ int main(int argc, char** argv)
 	if (par.is_master()) {
 		// Produce visualization with default obs locations (true locations)
 		ns.sim();
-		//ea.add_test_points(20);
-		ea.add_test_points(20, cfg.get_param_string("ea_test_point_file"));
+		ea.add_test_points(cfg.get_param_sizet("ea_num_test_points"), cfg.get_param_string("ea_test_point_file"));
 		ea.write_test_points(cfg.get_param_string("global_output_path") + "/test_points_r" + std::to_string(par.rank) + ".txt");
 		ea.print_test_points();
 	}
@@ -51,26 +51,27 @@ int main(int argc, char** argv)
 	 *	Surrogate Construction: multiple elasitc phases
 	 ****************************************************/
 	double tol = cfg.get_param_double("sgi_tol");
-	for (int iter = 0; iter < ITERMAX; ++iter) {
-
+	for (int iter = 0; iter <= ITERMAX; ++iter) {
 		if (par.is_master()) {
 			printf("\nMain: SGI phase %d | wall.time(sec) %.6f\n", iter, MPI_Wtime()-tic);
 		}
-
 		sgi.build();
-		if (ea.eval_model_master(tol)) break;
+		if (ea.eval_model_master(tol) && iter >= ITERMIN) break;
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	/**************
 	 * MCMC Phase
 	 **************/
+	// Reference locations
+	std::vector<double> refloc = {1.0, 0.8, 3.0, 1.5, 5.5, 0.2, 8.2, 1.0};
 	if (par.is_master()) {
 		printf("\nMain: MCMC phase wall.time(sec) %.6f\n", MPI_Wtime()-tic);
 	}
 	// MCMC
 	MCMC* mcmc = new ParallelTempering(cfg, par, sgi);
-	mcmc->run(cfg.get_param_sizet("mcmc_num_samples"), sgi.get_maxpos() );
+	//mcmc->run(cfg.get_param_sizet("mcmc_num_samples"), sgi.get_maxpos() );
+	mcmc->run(cfg.get_param_sizet("mcmc_num_samples"), refloc );
 
 	if (par.is_master()) {
 		printf("\nMain: END wall.time(sec) %.6f\n", MPI_Wtime()-tic);

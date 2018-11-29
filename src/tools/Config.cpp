@@ -131,6 +131,11 @@ void Config::add_params()
 	p.val = "";
 	params[var] = p;
 	
+	var = "ea_num_test_points";
+	p.des = "Number of test points to be generated, only applicable when test point file is not provided. (Default: 50) (Type: size_t)";
+	p.val = "50";
+	params[var] = p;
+	
 	// Surrogate SGI setting
 	var = "sgi_tol";
 	p.des = "SGI surrogate model error tolerance in [0, 1.0]. (Default: 0.08) (Type: double)";
@@ -532,7 +537,8 @@ double tools::compute_l2norm_sum(
 }
 
 
-string tools::exec(const char* cmd) {
+string tools::exec(const char* cmd) 
+{
     std::array<char, 128> buffer;
     std::string result;
     std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);

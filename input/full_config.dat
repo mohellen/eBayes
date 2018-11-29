@@ -34,8 +34,10 @@ impi_adapt_freq_sec		60
 ##############################
 ##### ErrorAnalysis setting
 ##############################
-##### iMPI adapt frequency (seconds): call probe_adapt every N seconds
+##### If this file is provided (and exists), test points will NOT be generated randomly but copied from file instead
 ea_test_point_file		
+##### The number of test points to be generated randomly (only applicable if test point file is not provided)
+ea_num_test_points		50
 
 #############################
 ##### Surrogate SGI setting
