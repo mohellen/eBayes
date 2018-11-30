@@ -14,8 +14,6 @@
 
 using namespace std;
 
-const int ITERMIN = 1; // Enforce at least # of grid refinement
-const int ITERMAX = 5; // Cap the # of grid refinement (to prevent infinite loop)
 
 int main(int argc, char** argv)
 {
@@ -51,9 +49,11 @@ int main(int argc, char** argv)
 	 *	Surrogate Construction: multiple elasitc phases
 	 ****************************************************/
 	double tol = cfg.get_param_double("sgi_tol");
-	for (int iter = 0; iter <= ITERMAX; ++iter) {
+	std::size_t ITERMIN = cfg.get_param_sizet("sgi_build_itermin");
+	std::size_t ITERMAX = cfg.get_param_sizet("sgi_build_itermax");
+	for (std::size_t iter = 0; iter <= ITERMAX; ++iter) {
 		if (par.is_master()) {
-			printf("\nMain: SGI phase %d | wall.time(sec) %.6f\n", iter, MPI_Wtime()-tic);
+			printf("\nMain: SGI phase %lu | wall.time(sec) %.6f\n", iter, MPI_Wtime()-tic);
 		}
 		sgi.build();
 		if (ea.eval_model_master(tol) && iter >= ITERMIN) break;

@@ -42,6 +42,9 @@ ea_num_test_points		50
 #############################
 ##### Surrogate SGI setting
 #############################
+##### SGI build/refinment iteration control
+sgi_build_itermin			1
+sgi_build_itermax			4
 ##### Surrogate SGI model error tolerance in [0,1.0] (0.08 = 8% error)
 sgi_tol						0.08
 ##### If resume paht is provide and exist, SGI model will be built from the grid/data files in the path. 

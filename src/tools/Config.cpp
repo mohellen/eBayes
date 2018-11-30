@@ -137,6 +137,16 @@ void Config::add_params()
 	params[var] = p;
 	
 	// Surrogate SGI setting
+	var = "sgi_build_itermin";
+	p.des = "Minimum SGI build/refine iterations. (Default: 1) (Type: size_t)";
+	p.val = "1";
+	params[var] = p;
+	
+	var = "sgi_build_itermax";
+	p.des = "Maximum SGI build/refine iterations. (Default: 4) (Type: size_t)";
+	p.val = "4";
+	params[var] = p;
+	
 	var = "sgi_tol";
 	p.des = "SGI surrogate model error tolerance in [0, 1.0]. (Default: 0.08) (Type: double)";
 	p.val = "0.08";
