@@ -85,10 +85,7 @@ private:
 
 	// maxpos grid point (gp_seq + maspos)
 	std::pair<std::size_t, double> seq_maxpos;
-
-#if (IMPI==1)
 	std::size_t impi_gpoffset = 0; //MPI_SIZE_T
-#endif
 
 private:
 	void resume();

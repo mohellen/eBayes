@@ -201,7 +201,7 @@ def PhonyTargets(env = None, **kw):
 ##                   DEFINES = '@echo $CPPDEFINES',
 ##                   LIBS    = '@echo $LIBS')
 
-cmd = 'cd '+basedir+'/dep/sgpp-base-2.0.0; scons -c; scons BUILDDIR='+impipath+'/lib; cd '+basedir
+cmd = 'cd '+basedir+'/dep/sgpp-base-2.0.0; scons -c; scons BUILDDIR='+os.environ['IMPIPATH']+'/lib; cd '+basedir
 PhonyTargets(sgpp = cmd)
 ##############################################
 

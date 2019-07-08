@@ -815,8 +815,8 @@ void SGI::mpimw_master_compute(std::size_t gp_offset)
 	double phase_tic = MPI_Wtime();
 	double tic = MPI_Wtime();
 	double toc;
-	int jobs_per_tic = 0;
 #endif
+	int jobs_per_tic = 0;
 
 	// Seed workers if any
 	if (par.size > 1)
@@ -1132,6 +1132,7 @@ void SGI::print_jobs(vector<char> const& jobs)
 // Only MASTER gets the correct compare result
 bool SGI::verify_grid_from_read(int joinrank, MPI_Comm intercomm)
 {
+#if (IMPI==1)
 	if ((par.status == MPI_ADAPT_STATUS_JOINING) && (par.rank == joinrank)) {
 		// Pack grid into Char array
 		string sg_str = grid->serialize();
@@ -1171,6 +1172,7 @@ bool SGI::verify_grid_from_read(int joinrank, MPI_Comm intercomm)
 		}
 	}
 	return false;
+#endif
 }
 
 // The master broadcast grid to the rest of the group
