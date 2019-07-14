@@ -62,6 +62,6 @@ Execution
 
 mpiexec -n 4 ./bin/run
 
-srun -n 4 configfile /path/to/runtime/config/file bin/run > console.out
+srun -n 4 bin/run configfile /path/to/runtime/config/file > console.out
 
 
