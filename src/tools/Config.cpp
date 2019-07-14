@@ -11,11 +11,8 @@ Config::Config(int argc, char** argv)
 	add_params();
 	// Parse config file (if provided)
 	for (int i=0; i < argc; i++) {
-		string s(argv[i]);
-		if (s != "configfile") {
-		 	continue;
-		} else {
-			if (i+1 < argc) config_file = argv[i+1];
+		if ((string(argv[i]) == "configfile") && (i+1 < argc)) {
+			config_file = string(argv[i+1]);
 			break;
 		}
 	}
